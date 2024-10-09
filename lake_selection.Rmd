@@ -1,0 +1,592 @@
+---
+title: "Lake Selection"
+author: "Denver Link, Mike Verhoeven"
+date: "2024-06-21"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Objective
+Assemble a dataset of lakes that shows fish survey, zoop survey, clarity, temp, WAE CPUE, Centrarchid CPUE
+
+## To do list
+- get the 2023 fishery surveyed lakes and add these to the fish surveys plan
+- improve the zoop sampling data to understand what's had or getting a monthly zoop set
+- check DOWs in DNR survey list for connection to other WBs
+- get AIS species into the spreadsheet
+- updated lakes and info from the lake chooser spreadsheet
+
+
+
+#lake parameters plots:
+-initially joined clarity/temp data together by DOW and basin ID - missed several lakes due to nhd to basin crosswalk
+      -currently use nhdid level info to generate plots - better joining coverage
+      -most coverage issues(9 waterbodies) seem to stem from 1. border lakes 2. reservoirs 3. very small
+
+#Library
+```{r}
+library(tidyverse)
+library(mnsentinellakes)
+library(ggthemes)
+library(arrow)
+library(mwlaxeref)
+library(plotly)
+library(htmlwidgets)
+library(data.table)
+```
+
+#Data
+```{r}
+#2024 DNR lakes
+survey <- read_csv("scripts&data/data/input/DNR_lakes_filtered.csv") %>% 
+  mutate(DOW = ifelse(DOW == "62005900", "62005600", DOW)) %>% 
+  mutate(lake_id = str_replace_all(DOW, "-", ""),
+         lake_id = case_when(nchar(lake_id) == 7 ~ paste0("0", lake_id), 
+                             TRUE ~ lake_id),
+         parent_dow = str_sub(lake_id, 1,6),
+         basin_id = str_sub(lake_id, -2)) %>%
+  local_to_nhdhr(from_colname = "lake_id", states = "mn") %>% 
+  rename(site_id = nhdhr.id)
+
+#9 lakes did not pick up nhdids - a few notable lakes (lake pepin, st louis river estuary, )
+survey %>% 
+  filter(is.na(site_id)) %>% 
+  select(area_name, waterbody_name, DOW, survey_type, survey_components_proposed, notes, lake_id)
+
+
+
+#fisheries data
+cpe <- read_csv("scripts&data/data/input/MN_all_cpue_filtered.csv") %>% 
+  mutate(lake_id = as.character(lake_id)) %>% 
+  select(state, lake_name, lake_id, date_survey, year, month, sampling_method, species_1, total_effort_1, count, cpue) %>% 
+  filter(sampling_method %in% c("Standard gill net sets", "Standard 3/4-in mesh, double frame trap net sets")) %>% 
+  filter(species_1 != "cisco" & species_1 != "smallmouth_bass") %>% 
+  #fixing dow
+  mutate(lake_id = case_when(nchar(lake_id) == 7 ~ paste0("0", lake_id), 
+                             TRUE ~ lake_id),
+         parent_dow = str_sub(lake_id, 1,6),
+         basin_id = str_sub(lake_id, -2)) %>% 
+  rename(date = date_survey)
+
+
+secchi <- read_csv("scripts&data/data/input/WQP_secchi_pull_20Mar2024.csv") %>% 
+  select(MonitoringLocationIdentifier,
+         ActivityStartDate,
+         ResultMeasureValue,
+         ResultMeasure.MeasureUnitCode) %>% 
+  mutate(ResultMeasureValue = as.numeric(ResultMeasureValue)) %>% 
+  filter(!is.na(ResultMeasureValue) & ResultMeasureValue >= 0) %>% 
+  #Taking only MNPCA data and extracting DOW from monitoring location
+  filter(str_detect(MonitoringLocationIdentifier, "^MNPCA-\\d{2}-\\d{4}-\\d{2}-\\d{3}$")) %>%
+  mutate(DOW = str_replace_all(str_extract(MonitoringLocationIdentifier, "(?<=MNPCA-)\\d{2}-\\d{4}-\\d{2}"), "-", "")) %>% 
+  #only keeping meter values
+  filter(ResultMeasure.MeasureUnitCode == "m") %>% 
+  local_to_nhdhr(from_colname = "DOW", states = "mn") %>% 
+  rename(secchi_meters = ResultMeasureValue,
+         date = ActivityStartDate,
+         site_id = nhdhr.id) %>%
+  mutate(year = year(date),
+         month = month(date)) %>% 
+  select(site_id,
+         DOW,
+         year,
+         month, 
+         secchi_meters) %>% 
+  mutate(parent_dow = str_sub(DOW, 1,6),
+         basin_id = str_sub(DOW, -2)) %>%
+  #creating values for this analysis 
+  filter(year >= 2000 & month %in% c("6", "7", "8")) %>% 
+  group_by(site_id) %>% 
+  summarise(med_summer_secchi_meters = median(secchi_meters))
+
+
+temp <- read_feather("scripts&data/data/input/lake_temperature_metrics_GLM_NLDAS.feather", col_select = NULL, as_data_frame = TRUE, mmap = TRUE) %>%
+  select(site_id, year, mean_surf_jul) %>% 
+  mutate(site_id = str_remove(site_id, "^nhdhr_")) %>% 
+  filter(year >= 2000) %>% 
+  group_by(site_id) %>% 
+  summarise(med_jul_temp = median(mean_surf_jul))
+
+glm <- read_csv("scripts&data/data/input/glm_lake_metadata.csv") %>% 
+  filter(state == "MN") %>% 
+  select(site_id, lake_name, centroid_lon, centroid_lat, max_depth, area) %>% 
+  mutate(site_id = str_remove(site_id, "^nhdhr_")) 
+#nhdhr level info - code in "old code" section to read in by DOW
+
+zoops <- read_csv("scripts&data/data/input/ZoopDB_lake_effort_20240402.csv") %>% 
+  mutate(dowlknum = as.character(dowlknum),
+         lake_id = case_when(nchar(dowlknum) == 7 ~ paste0("0", dowlknum), 
+                             TRUE ~ dowlknum)) %>% 
+  local_to_nhdhr(from_colname = "lake_id", states = "mn") %>% 
+  rename(site_id = nhdhr.id,
+         total_zoop_samples = total_samples,
+         min_zoop_year = min_year,
+         max_zoop_year = max_year) 
+  #this is removing a few problem lakes with site id/dow crosswalk
+  # filter(!(site_id %in% c("106350457"))) %>% 
+  # filter(dowlknum != "11041500") %>% 
+  #selecting columns
+  # select(site_id,
+  #        dowlknum,
+  #        total_zoop_samples,
+  #        min_zoop_year,
+  #        max_zoop_year)
+#some level of difference between DOW and nhd here - Cass and Pike Bay get labeled in same nhd but different dows
+#nhdhrs of 106350457, 120018379, 166868528 all have multiple "lake names" in a site id
+
+# draw in more fish survey data?
+cpe %>% 
+  mutate(countycode = substring(lake_id, first = 1, last = 2)) %>% 
+  group_by(lake_id, lake_name) %>% 
+  summarise(maxyear = max(year)) %>%
+  select(lake_id) %>% 
+  pull() %>% 
+  {dows <<- .}
+
+surveys <- data.frame()
+
+for (i in 1:length(dows)) {
+  #i = 1
+  surveys <- bind_rows(surveys,
+            fishsurveydata(lakefinderdownload(dows[i])))
+    
+}
+
+surveys %>% 
+  filter(year(Date) > 2022) %>% 
+  group_by(year(Date)) %>% 
+  summarize(n_lakes = length(unique(LakeId)))
+
+#wierd that 2023 surveys for ramsey co are not in lf yet:
+surveys %>%
+  mutate(countycode = substring(LakeId, first = 1, last = 2)) %>% 
+  filter(countycode == "62") %>%
+  filter(year(Date) > 2022) %>%
+  group_by(year(Date)) %>%
+  summarize(n_lakes = length(unique(LakeId)))
+
+
+#make a 2023 surveys df
+surveys %>% 
+  filter(year(Date) > 2022) %>% 
+  group_by(gear) %>% 
+  count() %>% 
+  print(n = 30)
+
+surveys %>% 
+  filter(year(Date) > 2022) %>% 
+  group_by(LakeId,year(Date)) %>% 
+  summarise_at("gear", toString) %>% 
+  {surveys <<- .}
+
+setDT(surveys)
+setDT(cpe)
+surveys[cpe, on = .(LakeId = lake_id), waterbody_name := lake_name ]
+
+surveys %>% 
+  rename(lake_id = LakeId,
+         year = `year(Date)`) %>% 
+  local_to_nhdhr(from_colname = "lake_id", states = "mn") %>% 
+  rename(site_id = nhdhr.id) %>% 
+  {surveys <<- .}
+
+survey %>% 
+  rename(gear = survey_components_proposed) %>% 
+  mutate(year = 2024) %>% 
+  {survey <<- .}
+
+surveys <- bind_rows(survey, surveys)
+
+rm(survey)
+
+#this gives us 2023/2024 fish sampling. From here we will reshape to lakes as-rows format (fish year as a column), then add in the zoop years columns
+setDT(surveys)
+fish_surv <- surveys[ , .SD , .SDcols = c("waterbody_name","lake_id","site_id", "gear", "year", "survey_type") ]
+
+fish_surv[is.na(gear) , gear := survey_type]
+fish_surv[ , survey_type := NULL , ]
+fish_surv[ , fish_surveyed := T , ]
+
+#cast this wide (lakes as rows)
+fish_surv <- dcast(fish_surv, waterbody_name + lake_id + site_id ~ year, value.var = c("fish_surveyed", "gear" ), fun.aggregate = toString)
+
+
+
+
+
+#now use the ramsey data to make a zoops esque dataframe
+# get a list of Ramsey County DOWs:
+#white bear is 82016700, otter is 02000300, 
+
+cpe %>% 
+  mutate(countycode = substring(lake_id, first = 1, last = 2)) %>% 
+  filter(countycode == "62") %>% 
+  group_by(lake_id, lake_name) %>% 
+  summarise(maxyear = max(year)) %>%
+  select(lake_id) %>% 
+  pull() %>% 
+  c(.,"82016700", "02000300" )  %>%  
+  {ramsey_dows <<- .}
+
+# for reprex
+# dput(ramsey_dows)
+ramsey_dows <- c("62000100", "62000200", "62000500", "62000600", "62000700",
+"62001002", "62001100", "62001300", "62001600", "62001800", "62002800",
+"62003801", "62003802", "62003900", "62004600", "62004700", "62004800",
+"62005400", "62005500", "62005600", "62005700", "62006100", "62006200",
+"62006700", "62006900", "62007300", "62007500", "62007800", "62008000",
+"62008200", "62008300", "62009500", "62017000", "62023100", "62027200",
+"82016700", "02000300")
+
+
+ramsey_zoops <- data.frame()
+
+for (i in 1:length(ramsey_dows)) {
+  #i = 1
+  ramsey_zoops[i,1] = ramsey_dows[i]
+  ramsey_zoops[i,2] = lakefinderdownload(ramsey_dows[i])$result$lakeName
+    
+}
+
+colnames(ramsey_zoops) <- c("lake_id", "lake_name")
+
+ramsey_zoops %>% 
+  local_to_nhdhr(from_colname = "lake_id", states = "mn") %>% 
+  {ramsey_zoops <<- .}
+  
+ramsey_zoops %>% 
+  rename(site_id = nhdhr.id) %>% 
+  {ramsey_zoops <<- .}
+
+zoops %>% 
+  filter(max_zoop_year > 2020) %>% 
+  {zoops <<- .}
+  
+bind_rows(zoops, ramsey_zoops) %>% 
+  {zoops <<- .}
+
+rm(ramsey_zoops)
+
+zoops %>% 
+  mutate(zoop_sampled := T) %>% 
+  {zoops <<- .}
+
+setDT(zoops)
+
+zoops[ , .N , lake_id][N>1]
+
+lakes_data <- full_join(fish_surv, zoops)
+
+
+lake_parameters <- full_join(secchi, temp, by = c("site_id")) 
+lake_parameters <- full_join(lake_parameters, glm, by = c("site_id")) %>% 
+  select(lake_name,
+         site_id,
+         centroid_lat,
+         centroid_lon,
+         everything())
+
+lakes_data <- right_join(lake_parameters, lakes_data, by = c("site_id"))
+
+rm(secchi, temp, glm, zoops, surveys, lake_parameters, fish_surv)
+
+
+#mash in cpe
+cpe %>% 
+  group_by(lake_name, lake_id, species_1, sampling_method) %>% 
+  summarize(
+    n_obs = n(),
+    n_years = length(unique(year(date))),
+    mean_cpue = mean(cpue),
+    median_cpue = median(cpue)
+  ) %>% 
+  setDT() %>% 
+  {cpue_summary <<- .}
+
+cpue_summary %>% 
+  mutate(
+    sampling_method = 
+      case_when( sampling_method == "Standard 3/4-in mesh, double frame trap net sets" ~ "trap_net",
+                 sampling_method == "Standard gill net sets" ~ "gill_net")
+  ) %>% 
+  {cpue_summary <<- .}
+
+cpue_summary_wide <- dcast(cpue_summary, lake_name + lake_id ~ species_1 + sampling_method, value.var = c("mean_cpue"))
+
+setDT(cpue_summary_wide)
+setDT(lakes_data)
+
+names(cpue_summary_wide)
+
+
+lakes_data <- left_join(lakes_data, cpue_summary_wide)
+
+lakes_data[is.na(waterbody_name), waterbody_name := lake_name.x ]
+lakes_data[is.na(waterbody_name),  waterbody_name := lake_name.y ]
+
+lakes_data[ , `:=` (lake_name.x = NULL, lake_name.y = NULL) , ]
+
+names(lakes_data)
+
+fwrite(lakes_data, file = "scripts&data/data/output/lake_chooser.csv" )
+
+
+
+
+```
+
+
+#cpe plots
+```{r}
+#looping through all
+subset <- cpe %>% 
+  filter(lake_id %in% survey$lake_id) %>% 
+  #filter(lake_id %in% c("11020300", "48000200", "82016700")) %>% #for trial runs
+  mutate(species_1 = case_when(species_1 == "largemouth_bass" ~ "largemouth",
+                               TRUE ~ species_1),
+         sampling_method = case_when(sampling_method == "Standard 3/4-in mesh, double frame trap net sets" ~ "Standard trap net sets",
+                                     TRUE ~ sampling_method))
+
+subset %>% 
+  summarise(n_distinct(lake_id))
+survey %>% 
+  summarise(n_distinct(lake_id))
+#missing 16 lakes from survey in cpe
+#lakes that are missed 
+missed_lakes <- survey %>% 
+  filter(!(lake_id %in% subset$lake_id))
+rm(missed_lakes)
+#Owasso has the wrong dow in the survey object?
+#one survey from the 2000s or older via lake finder in Bullhead, Bass, Net, Ten, Bower Trout, Silversack but not in cpe data
+#no fish data via lake finder for Hen, Loon, Springer
+#not standard gear in ram, daniels, duncan, Tioga, lac la croix
+#Can't even find Carlson in lake finder 69074600
+
+
+unique_lakes <- subset %>% select(lake_id, lake_name) %>% distinct()
+
+# Loop through each unique lake and create a plot for each
+for (i in 1:nrow(unique_lakes)) {
+  lake_data <- subset %>% filter(lake_id == unique_lakes$lake_id[i])
+  
+  p <- lake_data %>% 
+  group_by(lake_id, species_1, sampling_method) %>% 
+  mutate(mins = min(cpue),
+         maxs = max(cpue),
+         ends = max(year(date)),
+         quart1 = quantile(cpue, 0.25),
+         quart2 = quantile(cpue, 0.75)) %>% 
+  ungroup() %>% 
+  ggplot() +
+  geom_ribbon(aes(x = year(date), y = cpue, ymin = quart1, ymax = quart2), fill = 'grey90') +
+  geom_line(aes(x = year(date), y = cpue, color = species_1), size = 0.7) +
+  stat_smooth(aes(x = year(date), y = cpue), method = "lm", se = FALSE, lty = 2, lwd = 1, color = "black") +
+  geom_point(data = . %>% filter(cpue == mins), aes(x = year(date), y = mins), color = "red", size = 4) +
+  geom_point(data = . %>% filter(cpue == maxs), aes(x = year(date), y = maxs), color = "blue", size = 4) +
+  geom_text(data = . %>% filter(cpue == mins), aes(x = year(date), y = mins, label = round(cpue, 2)), vjust = -1) +
+  geom_text(data = . %>% filter(cpue == maxs), aes(x = year(date), y = maxs, label = round(cpue, 2)), vjust = 2.5) +
+  ggtitle(paste(unique_lakes$lake_name[i], unique_lakes$lake_id[i])) +
+  facet_grid(species_1 ~ sampling_method, scales = "free") +
+  theme_tufte(base_size = 25, base_family = "Helvetica") +
+  theme(axis.title = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks = element_blank(), 
+        strip.text.y = element_text(size = 10), # Adjust text size for species_1
+        legend.position = "none")
+  
+  # Display the plot
+  print(p)
+  
+  # Save the plot to a file (optional)
+  ggsave(filename = paste0(unique_lakes$lake_name[i], "_", unique_lakes$lake_id[i], ".png"), plot = p, width = 12, height = 8, bg = "white")
+}
+
+#intrested in pulling out a specific lake?
+lake_data <- cpe %>% 
+  filter(lake_id == "62005600")
+
+lake_data %>% 
+  group_by(lake_id, species_1, sampling_method) %>% 
+  mutate(mins = min(cpue),
+         maxs = max(cpue),
+         ends = max(year(date)),
+         quart1 = quantile(cpue, 0.25),
+         quart2 = quantile(cpue, 0.75)) %>% 
+  ungroup() %>% 
+  ggplot() +
+  geom_ribbon(aes(x = year(date), y = cpue, ymin = quart1, ymax = quart2), fill = 'grey90') +
+  geom_line(aes(x = year(date), y = cpue, color = species_1), size = 0.7) +
+  stat_smooth(aes(x = year(date), y = cpue), method = "lm", se = FALSE, lty = 2, lwd = 1, color = "black") +
+  geom_point(data = . %>% filter(cpue == mins), aes(x = year(date), y = mins), color = "red", size = 4) +
+  geom_point(data = . %>% filter(cpue == maxs), aes(x = year(date), y = maxs), color = "blue", size = 4) +
+  geom_text(data = . %>% filter(cpue == mins), aes(x = year(date), y = mins, label = round(cpue, 2)), vjust = -1) +
+  geom_text(data = . %>% filter(cpue == maxs), aes(x = year(date), y = maxs, label = round(cpue, 2)), vjust = 2.5) +
+  ggtitle(paste(lake_data$lake_name, lake_data$lake_id)) +
+  facet_grid(species_1 ~ sampling_method, scales = "free") +
+  theme_tufte(base_size = 25, base_family = "Helvetica") +
+  theme(axis.title = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks = element_blank(), 
+        strip.text.y = element_text(size = 10), # Adjust text size for species_1
+        legend.position = "none")
+```
+
+#lake parameter plots
+```{r}
+lake_parameters2024 <- survey %>% 
+  left_join(lake_parameters, by = c("site_id"))
+
+#talked about/ selected lakes
+proposed.lakes <- data.frame(lake_id = c("11020300", #Leech
+                                         "04003501", #Upper red
+                                         "69037800", #Vermilion
+                                         "34007900", #Green
+                                         "18030800", #Pelican
+                                         "11014700", #Winnibigoshish
+                                         "16014300", #Devil Track
+                                         "04003000", #Cass
+                                         "39000200", #Lake of the Woods
+                                         "48000200", # Mille Lacs
+                                         "82016700", #White Bear
+                                         "62000200", #Bald Eagle - no 2024 fish survey
+                                         "25000100" #joining problem
+                                         ))
+
+lake_parameters2024 %>% 
+  group_by(is.na(med_summer_secchi_meters),
+           is.na(med_jul_temp),
+           is.na(area)) %>% 
+  count()
+#looks like 284/329 lakes are good to go
+
+lake_parameters2024 %>% 
+  group_by(is.na(total_zoop_samples)) %>% 
+  count()
+#most lakes do not have zoops
+
+problem_lakes <- lake_parameters2024 %>% 
+  filter(is.na(med_summer_secchi_meters) |
+           is.na(med_jul_temp) |
+           is.na(area))
+rm(problem_lakes)
+
+#exploring missing secchi
+miss_sec <- lake_parameters2024 %>% 
+  filter(is.na(med_summer_secchi_meters) & !is.na(med_jul_temp) & !is.na(area)) %>% 
+  select(lake_name, site_id, lake_id, parent_dow, basin_id)
+rm(miss_sec)
+
+#plot
+lake_parameters2024 %>% 
+  ggplot() +
+  geom_point(aes(x = med_summer_secchi_meters, y = med_jul_temp, size = area)) +
+  geom_point(data = lake_parameters2024 %>% filter(lake_id %in% proposed.lakes$lake_id),
+               shape = 21, color = "black", fill = "yellow", alpha = 0.75, stroke = .5, aes(x = med_summer_secchi_meters, y = med_jul_temp, size = area,size = area)) +
+  theme_base() +
+  theme(legend.position = "none")
+
+#interactive plot
+p <- ggplot(lake_parameters2024, aes(x = med_summer_secchi_meters, y = med_jul_temp,
+            alpha = .5,
+                                     text = paste("Lake DOW:", lake_id, "<br>",
+                                                  "Lake Name:", waterbody_name, "<br>",
+                                                  "Secchi Depth (m):", med_summer_secchi_meters, "<br>",
+                                                  "Size (km^2):", area, "<br>",
+                                                  "July Temp (°C):", med_jul_temp, "<br>",
+                                                  "# Zoop Samples:", total_zoop_samples, "<br>",
+                                                  "Zoop Years:", min_zoop_year, "-", max_zoop_year))) +
+  geom_point(shape = 21, color = "black", fill = "gray", alpha = 0.75, stroke = .5, aes(size = area)) +
+  geom_point(data = lake_parameters2024 %>% filter(lake_id %in% proposed.lakes$lake_id),
+               shape = 21, color = "black", fill = "yellow", alpha = 0.75, stroke = .5, aes(size = area)) +
+  theme_base() +
+  theme(legend.position = "none")
+p_interactive <- ggplotly(p, tooltip = "text")
+p_interactive
+saveWidget(p_interactive, "Output/interactive_covary_lake_selection")
+
+#looking at 2024 surveyed lakes compared to the rest
+ggplot() +
+  geom_point(data = lake_parameters %>%  filter(!is.na(lake_name)), aes(x = med_summer_secchi_meters, y = med_jul_temp, size = area)) +
+  geom_point(data = lake_parameters2024, color = "red", aes(x = med_summer_secchi_meters, y = med_jul_temp, size = area,size = area)) +
+  theme_base() +
+  theme(legend.position = "none")
+ggsave("Output/all_lakes_vs_2024survey.jpg")
+```
+
+#old code
+```{r}
+#lake parameters - joined from DOW, current code above uses DOW to get nhdhrid to join
+secchi <- read_csv("Data/WQP_secchi_pull_20Mar2024.csv") %>% 
+  select(MonitoringLocationIdentifier,
+         ActivityStartDate,
+         ResultMeasureValue,
+         ResultMeasure.MeasureUnitCode) %>% 
+  mutate(ResultMeasureValue = as.numeric(ResultMeasureValue)) %>% 
+  filter(!is.na(ResultMeasureValue) & ResultMeasureValue >= 0) %>% 
+  #Taking only MNPCA data and extracting DOW from monitoring location
+  filter(str_detect(MonitoringLocationIdentifier, "^MNPCA-\\d{2}-\\d{4}-\\d{2}-\\d{3}$")) %>%
+  mutate(DOW = str_replace_all(str_extract(MonitoringLocationIdentifier, "(?<=MNPCA-)\\d{2}-\\d{4}-\\d{2}"), "-", "")) %>% 
+  #only keeping meter values
+  filter(ResultMeasure.MeasureUnitCode == "m") %>% 
+  rename(secchi_meters = ResultMeasureValue,
+         date = ActivityStartDate) %>%
+  mutate(year = year(date),
+         month = month(date)) %>% 
+  select(DOW,
+         year,
+         month, 
+         secchi_meters) %>% 
+  #creating values for this analysis 
+  filter(year >= 2000 & month %in% c("6", "7", "8")) %>% 
+  group_by(DOW) %>% 
+  summarise(med_summer_secchi_meters = median(secchi_meters)) %>% 
+  mutate(parent_dow = str_sub(DOW, 1,6),
+         basin_id = str_sub(DOW, -2)) %>% 
+  select(-DOW)
+#I end up with median summer secchi (jun, jul, aug) values for years 2000 to present
+
+glm <- read_csv("Data/glm_lake_metadata.csv") %>% 
+  filter(state == "MN") %>% 
+  select(site_id, lake_name, centroid_lon, centroid_lat, max_depth, area) %>% 
+  mutate(site_id = str_remove(site_id, "^nhdhr_")) %>% 
+  nhdhr_to_local(from_colname = "site_id", states = "mn") %>% 
+  rename(DOW = local.id) %>% 
+  group_by(site_id) %>% 
+  slice_head(n =1) %>% 
+  filter(!is.na(DOW)) %>% 
+  mutate(parent_dow = str_sub(DOW, 1,6),
+         basin_id = str_sub(DOW, -2)) %>% 
+  select(-DOW)
+
+temp <- read_feather("Data/lake_temperature_metrics_GLM_NLDAS.feather", col_select = NULL, as_data_frame = TRUE, mmap = TRUE) %>%
+  select(site_id, year, mean_surf_jul) %>% 
+  mutate(site_id = str_remove(site_id, "^nhdhr_")) %>% 
+  nhdhr_to_local(from_colname = "site_id", states = "mn") %>% 
+  rename(DOW = local.id)  %>%
+  mutate(parent_dow = str_sub(DOW, 1,6),
+         basin_id = str_sub(DOW, -2)) %>%
+  #one to many join due to multiple basins in some lakes from an nhdhrid - taking only the first record of DOW for each NHD/year
+  group_by(site_id, year) %>% 
+  slice_head(n =1) %>% 
+  filter(year >= 2000) %>% 
+  group_by(site_id) %>% 
+  summarise(med_jul_temp = median(mean_surf_jul)) %>% 
+  filter(!is.na(DOW)) %>% 
+  select(-DOW)
+#I end up with a median jul surf temp for all years 2000-present for lakes - this is nhd level data so I just took first DOW
+  
+#sending IDs to heidi for zoops
+survey_send <- survey %>% 
+  rename(DOW_clean = lake_id,
+         nhdhr_id = site_id) %>% 
+  mutate(DOW_clean = paste0("mndow_", DOW_clean)) %>% 
+  select(DOW,
+         DOW_clean,
+         parent_dow,
+         basin_id,
+         nhdhr_id,
+         everything())
+write_csv(survey_send, "pelo_2024_fish_surveyed_lakelist.csv")
+```
+
