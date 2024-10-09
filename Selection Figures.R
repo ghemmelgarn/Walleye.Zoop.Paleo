@@ -4,7 +4,7 @@ setwd("G:/My Drive/Thesis/Data/R Working Directories/Exploratory R Working Direc
 #import data
 Data <- read.csv("WZ_Lake_Selection.csv")
 
-#Libraries
+#Packages
 library(dplyr)
 library(ggplot2)
 library(gridExtra)
