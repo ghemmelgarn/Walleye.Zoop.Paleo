@@ -38,28 +38,33 @@ MatchData <- filter(StartData, Match != "No")
 # Click the down arrow by the line number next to "Data ..." to hide/show
 # the code for downloading and updating the infested waters data used here.
 
+
+#ONLY RUN THE FIRST TIME YOU NEED TO GET THE INFESTED WATERS DATA (OR UPDATE IT)
 # Infested Waters URL
-url_iw <- "https://files.dnr.state.mn.us/eco/invasives/infested-waters.xlsx"
+#url_iw <- "https://files.dnr.state.mn.us/eco/invasives/infested-waters.xlsx"
 
 ### UPDATE FILE PATH FOR IW DOWNLOAD----
 # Path to where I want data stored
-data_path <- "G:/My Drive/Thesis/Data/R Working Directories/Walleye.Zoop.Paleo/"
+#data_path <- "G:/My Drive/Thesis/Data/R Working Directories/Walleye.Zoop.Paleo/"
 
 # Date data was downloaded
 # This will make it so that a new file is generated in my Data folder every time I run this code
-date_downloaded <- Sys.Date()
+#date_downloaded <- Sys.Date()
 
 # Name I want to save infested waters under
-data_name <- paste("infested-waters_", date_downloaded, ".xlsx", sep="")
+#data_name <- paste("infested-waters_", date_downloaded, ".xlsx", sep="")
 
 # Paste together data_path and data_name to tell R where to save downloaded infested waters list
-destfile <- paste(data_path, data_name, sep="")
+#destfile <- paste(data_path, data_name, sep="")
 
 # Download infested waters list
-download.file(url_iw, destfile, mode='wb')
+#download.file(url_iw, destfile, mode='wb')
 
 # Read in infested waters list
-iw <- read_excel(path=destfile, skip=1)
+#run this if downloading data for the first time
+#iw <- read_excel(path=destfile, skip=1)
+#run this if just reading the infested waters spreadsheet already have saved in working directory
+iw <- read_excel("infested-waters_2024-10-09.xlsx")
 iw <- iw[, -dim(iw)[2]]
 
 # Change column names
@@ -125,26 +130,27 @@ MatchData_parentdow <- MatchData %>%
 
 
 #need to summarize infested water data into one row per lake - change from long to wide format
-#THIS IS A MESS AND DOESN'T WORK - START AGAIN HERE NEXT TIME
-iw_wide <- iw_confirmed_format %>%
-  pivot_wider(names_from = "species", names_prefix = "yr", values_from "year")
-
-#first remove year confirmed column
-iw_confirmed_format2 <- subset(iw_confirmed_format, select = -year_conf)
-
-iw_wide <- reshape(iw_confirmed_format2,
-                   idvar = c("waterbody_name", "county", "dowlknum", "connected", "parentdow"), 
-                   timevar = "year", 
-                   direction = "wide")
+#make a column for each invasive species and fill it with the year it was found
+iw_wide <- spread(iw_confirmed_format, species, year)
+#combine the rows if multiple for each lake and drop unnecessary rows - only keep parentdow for match
+iw_wide_format <- iw_wide %>%
+  group_by(parentdow) %>%
+  summarize(BigheadCarp = max(`bighead carp`, na.rm = TRUE), BrittleNaiad = max(`brittle naiad`, na.rm = TRUE), 
+            EurasianWatermilfoil = max(`Eurasian watermilfoil`, na.rm = TRUE), FaucetSnail = max(`faucet snail`, na.rm = TRUE), 
+            FloweringRush = max(`flowering rush`, na.rm = TRUE), GrassCarp = max(`grass carp`, na.rm = TRUE), 
+            NZMudSnail = max(`New Zealand mud snail`, na.rm = TRUE), RedSwampCrayfish = max(`red swamp crayfish`, na.rm = TRUE), 
+            RoundGoby = max(`round goby`, na.rm = TRUE), Ruffe = max(ruffe, na.rm = TRUE), SilverCarp = max(`silver carp`, na.rm = TRUE), 
+            SpinyWaterflea = max(`spiny waterflea`, na.rm = TRUE), StarryStonewart = max(`starry stonewort`, na.rm = TRUE), 
+            VHS = max(VHS, na.rm = TRUE), WhitePerch = max(`white perch`, na.rm = TRUE), ZebraMussel = max(`zebra mussel`, na.rm = TRUE))
 
 #check if all values in infested waters are in match data (they probably aren't)
-all(iw_wide$parentdow %in% MatchData_parentdow$parentdow)
+all(iw_wide_format$parentdow %in% MatchData_parentdow$parentdow)
 #they are not
 
 #we want to do a left join, where we keep all the data in MatchData and add any matching data in infested waters
 #any DOWs in infested waters that do not match will be dropped
 #any DOWs in MatchData that do not match will return NA for the new columns
-Data_InvSp <- left_join(MatchData_parentdow, iw_wide, by = "parentdow")
+Data_InvSp <- left_join(MatchData_parentdow, iw_wide_format, by = "parentdow")
 
 
 
