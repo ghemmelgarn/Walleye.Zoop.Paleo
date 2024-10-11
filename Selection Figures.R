@@ -1,5 +1,5 @@
-#Set workng directory
-setwd("G:/My Drive/Thesis/Data/R Working Directories/Exploratory R Working Directory")
+#Set workng directory - don't need now with Github project
+#setwd("G:/My Drive/Thesis/Data/R Working Directories/Exploratory R Working Directory")
 
 #import data
 Data <- read.csv("WZ_Lake_Selection.csv")
