@@ -27,6 +27,19 @@ StartData <- read.csv("WZ_Lake_Selection.csv")
 #filter to only lake/years with potential fish matches
 MatchData <- filter(StartData, Match != "No")
 
+#create parent dow column in MatchData to deal with the fact that Hill lake zoop data is separated by basin
+#take first 5 numbers if missing leading 0, first 6 numbers if full 8-digit dow
+MatchData_parentdow <- MatchData %>%
+  mutate(parentdow = case_when(
+    nchar(MatchData$DOW) == 7 ~ substr(DOW, 1, 5),
+    nchar(MatchData$DOW) == 8 ~ substr(DOW, 1, 6)
+  ))
+
+#create parentdow.year columns to allow joining fish and zoop cpue data
+#need to make these separate columns for cases when fish and zoop data are not the same year
+MatchData_parentdow$parentdow.fish.year = paste(MatchData_parentdow$parentdow, MatchData_parentdow$FishYear)
+MatchData_parentdow$parentdow.zoop.year = paste(MatchData_parentdow$parentdow, MatchData_parentdow$ZoopYear)
+
 #INFESTED WATERS DATA DOWNLOAD AND MERGE
 
 # Data----
@@ -39,7 +52,7 @@ MatchData <- filter(StartData, Match != "No")
 # the code for downloading and updating the infested waters data used here.
 
 
-#ONLY RUN THE FIRST TIME YOU NEED TO GET THE INFESTED WATERS DATA (OR UPDATE IT)
+#ONLY RUN THIS THE FIRST TIME YOU NEED TO GET THE INFESTED WATERS DATA (OR UPDATE IT)
 # Infested Waters URL
 #url_iw <- "https://files.dnr.state.mn.us/eco/invasives/infested-waters.xlsx"
 
@@ -63,8 +76,10 @@ MatchData <- filter(StartData, Match != "No")
 # Read in infested waters list
 #run this if downloading data for the first time
 #iw <- read_excel(path=destfile, skip=1)
-#run this if just reading the infested waters spreadsheet already have saved in working directory
+#RUN THIS IF JUST READING THE INFESTED WATERS SPREADSHEET ALREADY SAVED IN WORKING DIRECTORY
 iw <- read_excel("infested-waters_2024-10-09.xlsx")
+
+#ALWAYS RUN THIS
 iw <- iw[, -dim(iw)[2]]
 
 # Change column names
@@ -107,6 +122,7 @@ unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==10])
 iw$parentdow <- substr(iw$dowlknum, 1, 7)
 
 #INFESTED WATERS JOIN
+
 #Combining infested water data with the matched fish/zoop data
 #Column to match: DOW - but needs to be reformatted in match data
 
@@ -118,13 +134,6 @@ iw_confirmed_format <- iw_confirmed %>%
   mutate(parentdow=str_remove_all(parentdow, "-")) %>%
   mutate(parentdow=ifelse(substr(parentdow, 1, 1)=="0", substr(parentdow, 2, 6), parentdow))
 
-#create parent dow column in MatchData to deal with the fact that Hill lake zoop data is separated by basin
-#take first 5 numbers if missing leading 0, first 6 numbers if full 8-digit dow
-MatchData_parentdow <- MatchData %>%
-  mutate(parentdow = case_when(
-    nchar(MatchData$DOW) == 7 ~ substr(DOW, 1, 5),
-    nchar(MatchData$DOW) == 8 ~ substr(DOW, 1, 6)
-  ))
 
 #now the parentdow columns in the two datasets are the same format and can be used to match
 
@@ -153,5 +162,60 @@ all(iw_wide_format$parentdow %in% MatchData_parentdow$parentdow)
 Data_InvSp <- left_join(MatchData_parentdow, iw_wide_format, by = "parentdow")
 
 
+#FISH CPUE JOIN
 
+#read data
+fish <- read.csv("all_state_cpue_13Aug24.csv")
+
+#filter out just minnesota lakes to make dataset smaller
+fish_MN <- filter(fish, state == "Minnesota")
+
+#make parentdow column
+Fish_parentdow <- fish_MN %>%
+  mutate(parentdow = case_when(
+    nchar(fish_MN$lake_id) == 7 ~ substr(lake_id, 1, 5),
+    nchar(fish_MN$lake_id) == 8 ~ substr(lake_id, 1, 6)
+  ))
+
+#make parentdow.fish.year column to join to master datasheet
+Fish_parentdow$parentdow.fish.year = paste(Fish_parentdow$parentdow, Fish_parentdow$year)
+
+#filter out only standard and shallow gill nets
+fish_GN <- filter(Fish_parentdow, sampling_method %in% c("Standard gill net sets", "Standard gill nets, set shallow in stratified assessment"))
+
+#filter out only standard trap nets
+fish_TN <- filter(Fish_parentdow, sampling_method == "Standard 3/4-in mesh, double frame trap net sets")
+#separated gear to make long to wide transition easier to code
+ 
+#check for duplicate lake, year, species combinations in both year types
+duplicates_count_GN <- fish_GN %>%
+  group_by(lake_id, year, species_1) %>%
+  summarize(Count = n(), .groups = 'drop') %>%
+  filter(Count>1)
+#only duplicates are lake Pepin in 1998 - there were two gillnet surveys, one in May and one in October
+#we don't need this data so it's fine to leave it - will create NA for cpue values
+
+duplicates_count_TN <- fish_TN %>%
+  group_by(lake_id, year, species_1) %>%
+  summarize(Count = n(), .groups = 'drop') %>%
+  filter(Count>1)
+#only duplicates are Surprise in 1995 - there were two trap net surveys, one in June and one in July
+#we don't need this data so it's fine to leave it - will create NA for cpue values
+
+#convert fish data long to wide for both gear type datasets, groups by year, only maintains parentdow.fish.year as other column, puts "GN." or "TN." prefix on cpue
+fish_GN_summary <- fish_GN %>%
+  group_by(parentdow.fish.year, species_1) %>%
+  summarize(cpue = max(cpue), .groups = 'drop')
+#okay to use max here because there the only lakes with multiple values are data we are not using anyways
+fish_GN_wide<- pivot_wider(fish_GN_summary, names_from = "species_1", names_prefix = "GN.", values_from = "cpue")
+
+fish_TN_summary <- fish_TN %>%
+  group_by(parentdow.fish.year, species_1) %>%
+  summarize(cpue = max(cpue), .groups = 'drop')
+#okay to use max here because there the only lakes with multiple values are data we are not using anyways
+fish_TN_wide<- pivot_wider(fish_TN_summary, names_from = "species_1", names_prefix = "TN.", values_from = "cpue")
+
+#join both gear types to dataset
+Data_InvSp_GN <- left_join(Data_InvSp, fish_GN_wide, by = "parentdow.fish.year")
+Data_InvSp_Fish <- left_join(Data_InvSp_GN, fish_TN_wide, by = "parentdow.fish.year")
 
