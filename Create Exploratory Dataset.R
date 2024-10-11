@@ -11,6 +11,7 @@ library(readxl)
 library(ggplot2)
 library(cowplot)
 library(scales)
+library(readr)
 
 #Starting datset known issues:
   #I made it manually in google sheets
@@ -218,4 +219,60 @@ fish_TN_wide<- pivot_wider(fish_TN_summary, names_from = "species_1", names_pref
 #join both gear types to dataset
 Data_InvSp_GN <- left_join(Data_InvSp, fish_GN_wide, by = "parentdow.fish.year")
 Data_InvSp_Fish <- left_join(Data_InvSp_GN, fish_TN_wide, by = "parentdow.fish.year")
+
+#ZOOP CPUE JOIN
+
+#read data
+zoop <- read.csv("ZoopDB_data_20241004.csv")
+
+#make parentdow column
+zoop_parentdow <- zoop %>%
+  mutate(parentdow = case_when(
+    nchar(zoop$dowlknum) == 7 ~ substr(dowlknum, 1, 5),
+    nchar(zoop$dowlknum) == 8 ~ substr(dowlknum, 1, 6)
+  ))
+
+#make parentdow.zoop.year column to join to master datasheet
+zoop_parentdow$parentdow.zoop.year = paste(zoop_parentdow$parentdow, zoop_parentdow$year)
+
+#with zoops we know we have many replicates within a year - we need to decide what to do with them
+#for now, taking the mean of density at each of the 3 grouping levels
+
+#Need to make 
+
+#summarize data to calculate means at the 3 grouping levels and convert to wide with a prefix that specifies group level
+zoop_grp_summary <- zoop_parentdow %>%
+  group_by(parentdow.zoop.year, grp) %>%
+  summarize(density = mean(density), .groups = 'drop')
+#convert long to wide
+zoop_grp_wide<- pivot_wider(zoop_grp_summary, names_from = "grp", names_prefix = "grp.", values_from = "density")
+
+zoop_grp2_summary <- zoop_parentdow %>%
+  group_by(parentdow.zoop.year, grp2) %>%
+  summarize(density = mean(density), .groups = 'drop')
+zoop_grp2_wide<- pivot_wider(zoop_grp2_summary, names_from = "grp2", names_prefix = "grp2.", values_from = "density")
+
+zoop_species_summary <- zoop_parentdow %>%
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(density = mean(density), .groups = 'drop')
+zoop_species_wide<- pivot_wider(zoop_species_summary, names_from = "species", names_prefix = "spp.", values_from = "density")
+
+#lots of NA values for zoop groups that were not observed - leaving them for now but can clean this up later. Should they be 0?
+
+#join the data from the three different grouping levels
+Data_InvSp_Fish_grp <- left_join(Data_InvSp_Fish, zoop_grp_wide, by = "parentdow.zoop.year")
+Data_InvSp_Fish_grp_2 <- left_join(Data_InvSp_Fish_grp, zoop_grp2_wide, by = "parentdow.zoop.year")
+Data_All <- left_join(Data_InvSp_Fish_grp_2, zoop_species_wide, by = "parentdow.zoop.year")
+
+#save complete exploratory dataset as .csv
+#write.csv(Data_All, file = "Exploratory Data.csv", row.names = FALSE)
+
+
+
+
+
+
+
+
+
 
