@@ -25,15 +25,15 @@ library(readr)
 #Import starting dataset
 StartData <- read.csv("WZ_Lake_Selection.csv")
 
-#filter to only lake/years with potential fish matches
-MatchData <- filter(StartData, Match != "No")
+#filter to only lake/years with potential fish matches - not doing this anymore because I want all the MN lakes in the spreadsheet
+#MatchData <- filter(StartData, Match != "No")
 
 #create parent dow column in MatchData to deal with the fact that Hill lake zoop data is separated by basin
 #take first 5 numbers if missing leading 0, first 6 numbers if full 8-digit dow
-MatchData_parentdow <- MatchData %>%
+MatchData_parentdow <- StartData %>%
   mutate(parentdow = case_when(
-    nchar(MatchData$DOW) == 7 ~ substr(DOW, 1, 5),
-    nchar(MatchData$DOW) == 8 ~ substr(DOW, 1, 6)
+    nchar(StartData$DOW) == 7 ~ substr(DOW, 1, 5),
+    nchar(StartData$DOW) == 8 ~ substr(DOW, 1, 6)
   ))
 
 #create parentdow.year columns to allow joining fish and zoop cpue data
@@ -216,9 +216,10 @@ fish_TN_summary <- fish_TN %>%
 #okay to use max here because there the only lakes with multiple values are data we are not using anyways
 fish_TN_wide<- pivot_wider(fish_TN_summary, names_from = "species_1", names_prefix = "TN.", values_from = "cpue")
 
-#join both gear types to dataset
-Data_InvSp_GN <- left_join(Data_InvSp, fish_GN_wide, by = "parentdow.fish.year")
-Data_InvSp_Fish <- left_join(Data_InvSp_GN, fish_TN_wide, by = "parentdow.fish.year")
+#join both gear types to dataset - 10/16/24 changed this to a full join so we can plot the fish data for the lakes we don't have zoop data for
+#full_join will retain all rows in both initial tables and create NA values when the other table doesn't have info for that lake/year
+Data_InvSp_GN <- full_join(Data_InvSp, fish_GN_wide, by = "parentdow.fish.year")
+Data_InvSp_Fish <- full_join(Data_InvSp_GN, fish_TN_wide, by = "parentdow.fish.year")
 
 #ZOOP CPUE JOIN
 
@@ -240,32 +241,33 @@ zoop_parentdow$parentdow.zoop.year = paste(zoop_parentdow$parentdow, zoop_parent
 
 #Need to make 
 
-#summarize data to calculate means at the 3 grouping levels and convert to wide with a prefix that specifies group level
+#summarize data to calculate means of biomass at the 3 grouping levels and convert to wide with a prefix that specifies group level
+#mean biomass will not be the final metric we use - but that's what I'm doing for now
 zoop_grp_summary <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, grp) %>%
-  summarize(density = mean(density), .groups = 'drop')
+  summarize(biomass = mean(biomass), .groups = 'drop')
 #convert long to wide
-zoop_grp_wide<- pivot_wider(zoop_grp_summary, names_from = "grp", names_prefix = "grp.", values_from = "density")
+zoop_grp_wide<- pivot_wider(zoop_grp_summary, names_from = "grp", names_prefix = "grp.", values_from = "biomass")
 
 zoop_grp2_summary <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, grp2) %>%
-  summarize(density = mean(density), .groups = 'drop')
-zoop_grp2_wide<- pivot_wider(zoop_grp2_summary, names_from = "grp2", names_prefix = "grp2.", values_from = "density")
+  summarize(biomass = mean(biomass), .groups = 'drop')
+zoop_grp2_wide<- pivot_wider(zoop_grp2_summary, names_from = "grp2", names_prefix = "grp2.", values_from = "biomass")
 
 zoop_species_summary <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, species) %>%
-  summarize(density = mean(density), .groups = 'drop')
-zoop_species_wide<- pivot_wider(zoop_species_summary, names_from = "species", names_prefix = "spp.", values_from = "density")
+  summarize(biomass = mean(biomass), .groups = 'drop')
+zoop_species_wide<- pivot_wider(zoop_species_summary, names_from = "species", names_prefix = "spp.", values_from = "biomass")
 
 #lots of NA values for zoop groups that were not observed - leaving them for now but can clean this up later. Should they be 0?
 
-#join the data from the three different grouping levels
+#join the data from the three different grouping levels - 10/16/24 keeping this as a left join for now, no need to plot zoop data on lakes we don't have fish data for
 Data_InvSp_Fish_grp <- left_join(Data_InvSp_Fish, zoop_grp_wide, by = "parentdow.zoop.year")
 Data_InvSp_Fish_grp_2 <- left_join(Data_InvSp_Fish_grp, zoop_grp2_wide, by = "parentdow.zoop.year")
 Data_All <- left_join(Data_InvSp_Fish_grp_2, zoop_species_wide, by = "parentdow.zoop.year")
 
 #save complete exploratory dataset as .csv
-#write.csv(Data_All, file = "Exploratory Data.csv", row.names = FALSE)
+#write.csv(Data_All, file = "Exploratory Data.All_MN_Fish_Lakes.csv", row.names = FALSE)
 
 
 
