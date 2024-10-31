@@ -6,6 +6,7 @@ library(dplyr)
 library(ggplot2)
 library(gridExtra)
 library(mosaic)
+library(ggExtra)
 
 #import data
 Exp.Data <- read.csv("Exploratory Data.csv")
@@ -95,7 +96,7 @@ Exp.Data.filter.MN.All <- Exp.Data.filter.MN.All %>% arrange(desc(Match))
 #tiff("WAE vs. LMB All MN Lakes.tiff", width = 7, height = 7, units = "in", res = 300)
 WAE.LMB.All.MN <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) + 
   geom_point(aes(y = GN.largemouth_bass, color = ifelse(Match == "Exact", "Match Zoop Data", "No Zoop Data")))+
-  labs(title = "Walleye vs. LMB", y = "Largemouth Bass Gillnet CPUE", x = "Walleye Gillnet CPUE Gillnet", color = NULL) +
+  labs(title = "Walleye vs. LMB", y = "Largemouth Bass Gillnet CPUE", x = "Walleye Gillnet CPUE", color = NULL) +
   scale_y_continuous(limits = c(0, 30), breaks = seq(0, 30, by = 5), labels = seq(0, 30, by = 5)) +
   scale_x_continuous(limits = c(0, 120), breaks = seq(0, 120, by = 20), labels = seq(0, 120, by = 20)) +
   scale_color_manual(values = c("Match Zoop Data" = "blue", "No Zoop Data" = "lightgray")) + 
@@ -104,7 +105,9 @@ WAE.LMB.All.MN <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) +
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black")  # Add axis lines
   )
-print(WAE.LMB.All.MN)
+ggMarginal(WAE.LMB.All.MN, groupColour = TRUE, groupFill = TRUE)
+#print(WAE.LMB.All.MN)
+#print code not needed with ggMarginal density plots
 #dev.off()
 
 #same as above but zoomed in lower left corner
@@ -112,7 +115,7 @@ Exp.Data.filter.MN.All <- Exp.Data.filter.MN.All %>% arrange(desc(Match))
 #tiff("WAE vs. LMB All MN Lakes.zoom.tiff", width = 7, height = 7, units = "in", res = 300)
 WAE.LMB.All.MN.zoom <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) + 
   geom_point(aes(y = GN.largemouth_bass, color = ifelse(Match == "Exact", "Match Zoop Data", "No Zoop Data")))+
-  labs(title = "Walleye vs. LMB", y = "Largemouth Bass Gillnet CPUE", x = "Walleye Gillnet CPUE Gillnet", color = NULL) +
+  labs(title = "Walleye vs. LMB", y = "Largemouth Bass Gillnet CPUE", x = "Walleye Gillnet CPUE", color = NULL) +
   scale_y_continuous(limits = c(0, 10), breaks = seq(0, 10, by = 2), labels = seq(0, 10, by = 2)) +
   scale_x_continuous(limits = c(0, 65), breaks = seq(0, 65, by = 10), labels = seq(0, 65, by = 10)) +
   scale_color_manual(values = c("Match Zoop Data" = "blue", "No Zoop Data" = "lightgray")) + 
@@ -121,16 +124,18 @@ WAE.LMB.All.MN.zoom <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) +
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black")  # Add axis lines
   )
-print(WAE.LMB.All.MN.zoom)
+#print(WAE.LMB.All.MN.zoom)
+#print code not needed with ggMarginal density plots
+ggMarginal(WAE.LMB.All.MN.zoom, groupColour = TRUE, groupFill = TRUE)
 #dev.off()
 
 #Walleye Gillnet CPUE vs. Black Crappie CPUE (Gillnet) - all MN lakes, zoop/fish match data colored
 #arrange data so matched zoop data get plotted last and show up on top of no zoop data
 Exp.Data.filter.MN.All <- Exp.Data.filter.MN.All %>% arrange(desc(Match))
 #tiff("WAE vs. BC All MN Lakes.tiff", width = 7, height = 7, units = "in", res = 300)
-WAE.LMB.All.MN <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) + 
+WAE.BC.All.MN <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) + 
   geom_point(aes(y = GN.black_crappie, color = ifelse(Match == "Exact", "Match Zoop Data", "No Zoop Data")))+
-  labs(title = "Walleye vs. BC", y = "Black Crappie Gillnet CPUE", x = "Walleye Gillnet CPUE Gillnet", color = NULL) +
+  labs(title = "Walleye vs. BC", y = "Black Crappie Gillnet CPUE", x = "Walleye Gillnet CPUE", color = NULL) +
   #scale_y_continuous(limits = c(0, 30), breaks = seq(0, 30, by = 5), labels = seq(0, 30, by = 5)) +
   scale_x_continuous(limits = c(0, 120), breaks = seq(0, 120, by = 20), labels = seq(0, 120, by = 20)) +
   scale_color_manual(values = c("Match Zoop Data" = "blue", "No Zoop Data" = "lightgray")) + 
@@ -139,16 +144,18 @@ WAE.LMB.All.MN <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) +
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black")  # Add axis lines
   )
-print(WAE.LMB.All.MN)
+#print(WAE.LMB.All.MN)
+#print code not needed with ggMarginal density plots
+ggMarginal(WAE.BC.All.MN, groupColour = TRUE, groupFill = TRUE)
 #dev.off()
 
 #same as above but zoomed in lower left corner
 #arrange data so matched zoop data get plotted last and show up on top of no zoop data
 Exp.Data.filter.MN.All <- Exp.Data.filter.MN.All %>% arrange(desc(Match))
 #tiff("WAE vs. BC All MN Lakes.zoom.tiff", width = 7, height = 7, units = "in", res = 300)
-WAE.LMB.All.MN.zoom <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) + 
+WAE.BC.All.MN.zoom <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) + 
   geom_point(aes(y = GN.black_crappie, color = ifelse(Match == "Exact", "Match Zoop Data", "No Zoop Data")))+
-  labs(title = "Walleye vs. BC", y = "Black Crappie Gillnet CPUE", x = "Walleye Gillnet CPUE Gillnet", color = NULL) +
+  labs(title = "Walleye vs. BC", y = "Black Crappie Gillnet CPUE", x = "Walleye Gillnet CPUE", color = NULL) +
   scale_y_continuous(limits = c(0, 60), breaks = seq(0, 60, by = 10), labels = seq(0, 60, by = 10)) +
   scale_x_continuous(limits = c(0, 65), breaks = seq(0, 65, by = 10), labels = seq(0, 65, by = 10)) +
   scale_color_manual(values = c("Match Zoop Data" = "blue", "No Zoop Data" = "lightgray")) + 
@@ -157,5 +164,7 @@ WAE.LMB.All.MN.zoom <- ggplot(Exp.Data.filter.MN.All, aes(x = GN.walleye)) +
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black")  # Add axis lines
   )
-print(WAE.LMB.All.MN.zoom)
+#print(WAE.BC.All.MN.zoom)
+#print code not needed with ggMarginal density plots
+ggMarginal(WAE.BC.All.MN.zoom, groupColour = TRUE, groupFill = TRUE)
 #dev.off()
