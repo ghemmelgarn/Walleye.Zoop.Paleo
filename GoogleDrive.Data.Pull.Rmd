@@ -1,0 +1,54 @@
+
+---
+  title: "r_data"
+author: "Mike Verhoeven"
+date: "1October2024"
+output: html_document
+---
+  
+  Think carefully about whether you want to execute this script. It will overwrite same-named data in your project Data folder.
+
+#NOT UPDATED, COPIED FROM MIKE
+
+```{r}
+library(purrr)
+library("googledrive")
+library(data.table)
+library(stringr)
+```
+
+
+# Create data folder on your local machine
+```{r}
+ifelse(!dir.exists("Data/Input"), 
+       dir.create("Data/Input"), 
+       "Folder exists already")
+```
+
+# Download files from Gdrive
+```{r}
+drive_auth(email = FALSE)
+
+
+# store folder url as a file ID
+# identify this folder on Drive - copy link from the drive folder
+# let googledrive know this is a file ID or URL, as opposed to file name
+datafolder <- drive_get(
+  as_id("https://drive.google.com/drive/folders/1tr-IxjwNF5SKuDT0EICvG1MhGTjlAEIL")) 
+
+# identify the files in each folder
+input_files <- data.table(drive_ls(datafolder, recursive = T))
+#recursive argument pulls files out of internal folders
+
+#makes a list of all the cvs and xlsx files
+#rdbindlist combines two list objects (made a separate list for each file type then put them together)
+input_files <- rbindlist(list(
+  input_files %>% 
+    dplyr::filter(str_detect(name, ".csv")),
+  input_files %>% 
+    dplyr::filter(str_detect(name, ".xlsx"))))
+
+# downloads this list of files, overwriting your current project data folder:
+walk(input_files$id, ~ drive_download(as_id(.x), path = paste("Data/Input", input_files[id==.x, name], sep = "/"), overwrite = T ))
+
+```
