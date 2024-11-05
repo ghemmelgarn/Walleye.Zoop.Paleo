@@ -23,7 +23,7 @@ library(readr)
   #has walleye gillnet CPUE that should be overwritten when fish data joined in
 
 #Import starting dataset
-StartData <- read.csv("WZ_Lake_Selection.csv")
+StartData <- read.csv("Data/Input/WZ_Lake_Selection (1).csv")
 
 #filter to only lake/years with potential fish matches - not doing this anymore because I want all the MN lakes in the spreadsheet
 #MatchData <- filter(StartData, Match != "No")
