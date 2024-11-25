@@ -61,19 +61,37 @@ mn_data %>%
   group_by(sampling_method_simple) %>% 
   count() %>% collect() %>% arrange(sampling_method_simple) %>% print(n=nrow(.))
 
-#CLEAN UP HOW YOU BRING IN INCLUSION TABLE
-#remove total samples column
-incl.table <- incl.table %>% 
-  select(-total_samples)
+#looking at all MN survey types
+mn_data %>% 
+  distinct(survey_type, survey_type_2) %>%
+  collect() %>% arrange(survey_type) %>% print(n=nrow(.))
 
-#rename dow column to match fish database
+#CLEAN UP HOW YOU BRING IN INCLUSION TABLE
+#remove unnecessary columns
+incl.table <- read.csv("Data/Input/Fish Inclusion Table.csv")%>%
+  select(-ZoopYear)%>%
+  select(-ZoopTows)%>%
+  select(-ZoopMonths)%>%
+  select(-FishGear)%>%
+  select(-Match)%>%
+  select(-Notes)%>%
+  select(-parentdow.zoop.year)
+
+#filter only rows chosen for analysis, get rid of maybe lakes
+incl.table <-incl.table %>% 
+  filter(Chosen.for.analysis. == "Yes")
+
+#rename dow and year columns to match fish database
 #leading zeros not in either data frame so that should be okay
 incl.table <- incl.table %>%   
-  rename(lake_id = dowlknum)
+  rename(lake_id = DOW)%>%
+  rename(year = FishYear)
   
 incl.table <- incl.table %>% 
-  mutate(lake_id = as.character(lake_id))
+  mutate(lake_id = as.character(lake_id))%>% 
+  mutate(year = as.double(year))
 
+#THIS NEEDS MORE WORK TO GET IT TO MATCH MY LAKE-FINDER SEARCH RESULTS
 
 #filter out just the data that matches my selected lake/years, represented by the inclusion table
 
@@ -84,11 +102,19 @@ incl.table <- incl.table %>%
 #takes the distinct columns from the mn_data
 #glimpse at end shows me if it did what I wanted
 good.surveys <- mn_data %>% 
-  filter(sampling_method_simple == "gill_net") %>% 
+  filter(sampling_method_simple == "gill_net" & (survey_type == "Standard Survey" | survey_type == "Targeted Survey" | survey_type == "HISTORICAL"| survey_type == "Population Assessment"| survey_type == "Re-Survey"| survey_type == "Large Lake Survey"| survey_type == "Initial Survey")) %>% 
   right_join(incl.table, by = c("lake_id", "year")) %>% 
-  distinct(lake_id, year, total_effort_ident, total_effort_1, flag, sampling_method_simple) %>% 
+  distinct(lake_id, year, total_effort_ident, total_effort_1, flag, sampling_method_simple, survey_type) %>% 
   collect()
 #collect actually brings data into R
+
+#use this to troubleshoot why certain lakes are and are not included
+test <- mn_data %>% 
+  filter(sampling_method_simple == "gill_net" & lake_id == "6000200")
+glimpse(test)
+test %>% 
+  distinct(survey_type, year) %>%
+  collect() %>% arrange(survey_type) %>% print(n=nrow(.))
 
 #remove NA rows and flagged rows
 good.surveys.f <- filter(good.surveys, !is.na(total_effort_1) & is.na(flag))
