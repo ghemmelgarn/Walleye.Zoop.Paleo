@@ -15,7 +15,7 @@ glimpse(all_data)
 #filter out just Minnesota data
 mn_data <- all_data %>%
   filter(state == "Minnesota")
-glimpse(MN_data)
+glimpse(mn_data)
 
 #compute function within arrow tells you how big the subset is and what it would be returning - good idea to use first to see if it will crash compu
 #collect function actually brings the data into R 
