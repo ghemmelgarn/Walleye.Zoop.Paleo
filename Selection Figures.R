@@ -15,7 +15,7 @@ library(mosaic)
 #Don't need to do this because I filter out everything below anyways
 
 #Set DOW as categorical
-Data$DOW <- as.factor(DataMatch$DOW)
+Data$DOW <- as.factor(Data$DOW)
 
 #set WalleyeCPUE as numerical
 Data$WalleyeCPUE <- as.numeric(Data$WalleyeCPUE)
@@ -94,6 +94,7 @@ WalleyeCPUE_Hist <- grid.arrange(Match6Plot, Match4Plot, OneYear6Plot, OneYear4P
 tally(~LakeName, data = DataOneYear4)
 
 #This graph below is terrible, but it works for what we need right now
+#uses lakes +/- one year and at least 4 zoop tows
 #tiff("LakeHistograms.tiff", width = 15, height = 10, units = "in", res = 300)
 ggplot(DataOneYear4, aes(x = LakeName)) +
   geom_bar() +
@@ -105,3 +106,18 @@ ggplot(DataOneYear4, aes(x = LakeName)) +
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 #dev.off()
+
+#see how many lakes are in these datasets
+unique(DataExact6$LakeName)
+unique(DataOneYear4$LakeName)
+
+#Same as above but for the most restrictive exact match and 6 zoop tows
+ggplot(DataExact6, aes(x = LakeName)) +
+  geom_bar() +
+  labs(title = "Years per Lake", y = "Count", x = "Lake") +
+  theme(
+    panel.background = element_blank(),  # Remove panel background
+    plot.background = element_blank(),    # Remove plot background
+    axis.line = element_line(color = "black"),  # Add axis lines
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
