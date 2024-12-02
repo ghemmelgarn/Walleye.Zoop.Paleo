@@ -188,56 +188,132 @@ zoop_parentdow$parentdow.zoop.year = paste(zoop_parentdow$parentdow, zoop_parent
 #For now, size structure: mean individual size, and proportion (relative abundance) of large vs. small cladocerans
 
 #summarize data to calculate means of biomass at the 3 grouping levels and convert to wide with a prefix that specifies group level
-
+#will use these in metric calculations
 #first sum the biomass for each group on each sampling date
 zoop_grp_sample_summary <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, sample_date, grp) %>%
   summarize(biomass = sum(biomass), .groups = 'drop')
-#now take mean over all the sampling dates in a year
+#now take mean over all the sampling dates in a year and calculate mean total zoop biomass
 zoop_grp_summary <- zoop_grp_sample_summary %>%
   group_by(parentdow.zoop.year, grp) %>%
   summarize(biomass = mean(biomass), .groups = 'drop')
 #convert long to wide
-zoop_grp_wide<- pivot_wider(zoop_grp_summary, names_from = "grp", names_prefix = "grp.biom.", values_from = "biomass")
+zoop_grp_wide<- pivot_wider(zoop_grp_summary, names_from = "grp", names_prefix = "zoop.grp.biom.", values_from = "biomass")
 
+#repeat for group 2 level
 zoop_grp2_sample_summary <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, sample_date, grp2) %>%
   summarize(biomass = sum(biomass), .groups = 'drop')
 zoop_grp2_summary <- zoop_grp2_sample_summary %>%
   group_by(parentdow.zoop.year, grp2) %>%
   summarize(biomass = mean(biomass), .groups = 'drop')
-zoop_grp2_wide<- pivot_wider(zoop_grp2_summary, names_from = "grp2", names_prefix = "grp2.biom.", values_from = "biomass")
+zoop_grp2_wide<- pivot_wider(zoop_grp2_summary, names_from = "grp2", names_prefix = "zoop.grp2.biom.", values_from = "biomass")
 
+#repeat for species level
 #no need to sum because only one row per species per sample date already
 zoop_species_summary <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, species) %>%
   summarize(biomass = mean(biomass), .groups = 'drop')
-zoop_species_wide<- pivot_wider(zoop_species_summary, names_from = "species", names_prefix = "spp.biom.", values_from = "biomass")
-
-#lots of NA values for zoop groups that were not observed - leaving them for now but can clean this up later. Should they be 0?
+zoop_species_wide<- pivot_wider(zoop_species_summary, names_from = "species", names_prefix = "zoop.spp.biom.", values_from = "biomass")
 
 #counts the number of months that were sampled for each lake/year
 zoop_months <- zoop_parentdow %>%
   group_by(parentdow.zoop.year) %>%
   summarize(Zoop.Month.Count = n_distinct(month), .groups = 'drop')
 
-
 #join the 4 zoop tables together
 zoop_grp_month <- left_join(zoop_months, zoop_grp_wide, by = "parentdow.zoop.year")
 zoop_grp_and_grp2 <- left_join(zoop_grp_month, zoop_grp2_wide, by = "parentdow.zoop.year")
-zoop_all_biomass <- left_join(zoop_grp_and_grp2, zoop_species_wide, by = "parentdow.zoop.year")
+zoop_all_grp_biomass <- left_join(zoop_grp_and_grp2, zoop_species_wide, by = "parentdow.zoop.year")
+#change all NA values to 0 for any groups/species not observed
+zoop_all_grp_biomass <- zoop_all_grp_biomass %>%
+  mutate_all(~replace(., is.na(.), 0))
+
+
 
 #calculate biomass metrics, biomass unit = ug/L
+#need to calculate each metric for each sample date and then average the stat across the sampling dates - if not some proportions end up greater than 1
+
+
 #mean total biomass per lake/year
-zoop_all_biomass$total.biomass = zoop_all_biomass$grp.biom.Cladocerans + zoop_all_biomass$grp.biom.Copepods
-#proportion large Daphnia biomass of cladocerans
-zoop_all_biomass$Daphnia.prop.Cladoceran.biomass = zoop_all_biomass$`grp2.biom.large daphnia` / zoop_all_biomass$grp.biom.Cladocerans
+#calculate total biomass by adding cladoceran and copepod biomass on each sampling date
+zoop_sample_total_biomass <- zoop_grp_sample_summary %>%
+  group_by(parentdow.zoop.year, sample_date) %>%
+  summarize(zoop.total.biomass = sum(biomass), .groups = 'drop')
+#average this total biomass across sampling dates
+zoop_total_biomass <- zoop_sample_total_biomass %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(zoop.total.biomass = mean(zoop.total.biomass), .groups = 'drop')
+
+#proportion Daphnia biomass of cladocerans
+#filter out just daphnia from original dataset
+zoop_daphnia <- filter(zoop_parentdow, str_starts(species, "Daphnia"))
+#sum the biomass of each daphnia species for each sample date
+zoop_daphnia_sample_biomass <- zoop_daphnia %>%
+  group_by(parentdow.zoop.year, sample_date) %>%
+  summarize(daphnia.biomass = sum(biomass), .groups = 'drop')
+#join total cladoceran biomass by sampling date
+#create join column in both datasets and filter to create a dataframe with just cladoceran biomass and rename cladoceran biomass to be descriptive
+zoop_daphnia_sample_biomass$join = paste(zoop_daphnia_sample_biomass$parentdow.zoop.year, zoop_daphnia_sample_biomass$sample_date)
+zoop_clad_biomass <- filter(zoop_grp_sample_summary, grp == "Cladocerans")
+zoop_clad_biomass <- zoop_clad_biomass %>%
+  rename(cladoceran.biomass = biomass)
+zoop_clad_biomass$join = paste(zoop_clad_biomass$parentdow.zoop.year, zoop_clad_biomass$sample_date)
+#check that all samples with cladocerans have daphia (they may not)
+all(zoop_clad_biomass$join %in% zoop_daphnia_sample_biomass$join)
+#they don't
+#check that all samples with daphnia have cladocerans (they should if I did this right)
+all(zoop_daphnia_sample_biomass$join %in% zoop_clad_biomass$join)
+#they do - good
+#I need to left join all to preserve all cladocera rows even when no daphnia
+zoop_daph_clad_biomasss <- left_join(zoop_clad_biomass, zoop_daphnia_sample_biomass, by = "join")
+#change NA to 0 when daphnia not present
+zoop_daph_clad_biomasss$daphnia.biomass <- replace(zoop_daph_clad_biomasss$daphnia.biomass, is.na(zoop_daph_clad_biomasss$daphnia.biomass), 0)
+#calculate proportion daphnia of cladocerans for each sample date
+zoop_daph_clad_biomasss$Daphnia.prop.Cladoceran.biomass = zoop_daph_clad_biomasss$daphnia.biomass / zoop_daph_clad_biomasss$cladoceran.biomass
+#average the proportion across sample dates
+zoop_daph_prop <- zoop_daph_clad_biomasss %>%
+  group_by(parentdow.zoop.year.x) %>%
+  summarize(Daphnia.prop.Cladoceran.biomass = mean(Daphnia.prop.Cladoceran.biomass), .groups = 'drop')
+#rename parentdow.zoop.year for future joins because it got funky
+zoop_daph_prop <- zoop_daph_prop %>%
+  rename(parentdow.zoop.year = parentdow.zoop.year.x)
+
+
 #proportion cladoceran biomass of total biomass
-zoop_all_biomass$prop.Cladoceran.biomass = zoop_all_biomass$grp.biom.Cladocerans / zoop_all_biomass$total.biomass
+#create join column in the data frame already made for total biomass by sampling date
+zoop_sample_total_biomass$join = paste(zoop_sample_total_biomass$parentdow.zoop.year, zoop_sample_total_biomass$sample_date)
+#check that all samples with total biomass have cladocerans (they may not)
+all(zoop_sample_total_biomass$join %in% zoop_clad_biomass$join)
+#they don't
+#check that all samples with cladocerans have total biomass (they should if I did this right)
+all(zoop_clad_biomass$join %in% zoop_sample_total_biomass$join)
+#they do - good
+#need left join
+zoop_clad_total_biomasss <- left_join(zoop_sample_total_biomass, zoop_clad_biomass, by = "join")
+#change NA to 0 when cladocerans not present
+zoop_clad_total_biomasss$cladoceran.biomass <- replace(zoop_clad_total_biomasss$cladoceran.biomass, is.na(zoop_clad_total_biomasss$cladoceran.biomass), 0)
+#calcualte proportion cladoceran of total biomass
+zoop_clad_total_biomasss$prop.Cladoceran.biomass = zoop_clad_total_biomasss$cladoceran.biomass / zoop_clad_total_biomasss$zoop.total.biomass
+#average the proportion across sample dates
+zoop_clad_prop <- zoop_clad_total_biomasss %>%
+  group_by(parentdow.zoop.year.x) %>%
+  summarize(prop.Cladoceran.biomass = mean(prop.Cladoceran.biomass), .groups = 'drop')
+#rename parentdow.zoop.year for future joins because it got funky
+zoop_clad_prop <- zoop_clad_prop %>%
+  rename(parentdow.zoop.year = parentdow.zoop.year.x)
+
+
+
+#join the metrics to the zoop biomass table - left joing is fine because rows are all the same
+zoop_biomass_a <- left_join(zoop_total_biomass, zoop_all_grp_biomass, by = "parentdow.zoop.year")
+zoop_biomass_b <- left_join(zoop_daph_prop, zoop_biomass_a, by = "parentdow.zoop.year")
+zoop_all_biomass <- left_join(zoop_clad_prop, zoop_biomass_b, by = "parentdow.zoop.year")
+
 
 #filter out just the biomass metric columns you want
 #modify this later to include the biomass of each species for multivariate analyses: add starts_with("spp.") as the last argument below
-zoop_biomass_metrics <- select(zoop_all_biomass, parentdow.zoop.year, Zoop.Month.Count, total.biomass, Daphnia.prop.Cladoceran.biomass, prop.Cladoceran.biomass)
+zoop_biomass_metrics <- select(zoop_all_biomass, parentdow.zoop.year, Zoop.Month.Count, zoop.total.biomass, Daphnia.prop.Cladoceran.biomass, prop.Cladoceran.biomass)
 
 #calculate average individual length of all zoops, unit = mm
 #weighted average of mean length on each sampling date (mean length of each species weighted by count of that species)
@@ -247,21 +323,18 @@ zoop_length_sample <- zoop_parentdow %>%
 #now take mean over all the sampling dates in a year
 zoop_length <- zoop_length_sample %>%
   group_by(parentdow.zoop.year) %>%
-  summarize(mean_length = mean(mean_length), .groups = 'drop')
+  summarize(zoop.mean.length = mean(mean_length), .groups = 'drop')
 
 #calculate average individual length of just cladocerans, unit = mm
 #weighted average of mean length on each sampling date (mean length of each species weighted by count of that species)
 zoop_cladoceran <- filter(zoop_parentdow, grp == "Cladocerans")
 zoop_length_clad_sample <- zoop_cladoceran %>%
   group_by(parentdow.zoop.year, sample_date) %>%
-  summarize(mean_length = sum(mean_length*count)/sum(count), .groups = 'drop')
+  summarize(cladoceran.mean.length = sum(mean_length*count)/sum(count), .groups = 'drop')
 #now take mean over all the sampling dates in a year
 zoop_length_clad <- zoop_length_clad_sample %>%
   group_by(parentdow.zoop.year) %>%
-  summarize(mean_length = mean(mean_length), .groups = 'drop')
-#rename so it specifies this is cladoceran length
-zoop_length_clad <-zoop_length_clad %>%
-  rename(mean_cladoceran_length = mean_length)
+  summarize(cladoceran.mean.length = mean(cladoceran.mean.length), .groups = 'drop')
 
 #join the two length metrics
 zoop_length_all <- left_join(zoop_length, zoop_length_clad, by = "parentdow.zoop.year")
@@ -281,7 +354,7 @@ zoop_size_sample_abundance_wide<- pivot_wider(zoop_size_sample_abundance, names_
 #replace NA counts with 0
 zoop_size_sample_abundance_wide$count.cladoceran.large <- replace(zoop_size_sample_abundance_wide$count.cladoceran.large, is.na(zoop_size_sample_abundance_wide$count.cladoceran.large), 0) 
 zoop_size_sample_abundance_wide$count.cladoceran.small <- replace(zoop_size_sample_abundance_wide$count.cladoceran.small, is.na(zoop_size_sample_abundance_wide$count.cladoceran.small), 0) 
-#calculate proportion of large cladocerans
+#calculate proportion of large cladocerans on each sampling date
 zoop_size_sample_abundance_wide <- zoop_size_sample_abundance_wide %>%
   mutate(prop.large.cladoceran = count.cladoceran.large/(count.cladoceran.large + count.cladoceran.small))
 #now take mean over all the sampling dates in a year
@@ -289,14 +362,14 @@ zoop_Prop_large_clad <- zoop_size_sample_abundance_wide %>%
   group_by(parentdow.zoop.year) %>%
   summarize(prop.large.cladoceran = mean(prop.large.cladoceran), .groups = 'drop')
 
-#calculate shannon diversity index
+#calculate shannon diversity index on each sampling date
 zoop_SDI_sample <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, sample_date) %>%
-  summarize(Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
+  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
 #now take mean over all the sampling dates in a year
 zoop_SDI <- zoop_SDI_sample %>%
   group_by(parentdow.zoop.year) %>%
-  summarize(Shannon.DI = mean(Shannon.DI), .groups = 'drop')
+  summarize(zoop.Shannon.DI = mean(zoop.Shannon.DI), .groups = 'drop')
 
 #join all the zoop metrics together
 zoop_a <- left_join(zoop_biomass_metrics, zoop_length_all, by = "parentdow.zoop.year")
@@ -378,4 +451,4 @@ Data_InvSp_Fish <- full_join(Data_InvSp_GN, fish_TN_wide, by = "parentdow.fish.y
 
 
 #save complete preliminary dataset as .csv
-#write.csv(Data_All, file = "Preliminary Data.csv", row.names = FALSE)
+#write.csv(Data_InvSp_Zoop, file = "Data/Output/Preliminary Data.csv", row.names = FALSE)
