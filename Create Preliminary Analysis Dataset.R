@@ -3,8 +3,8 @@
 #Starts with list of lakes/years with zoop data for 4+ tows/year
 #filters to only lakes with exact match for fish/zoop sampling years
 #Downloads and joins invasive species information from DNR infested waters list
-#Joins zoop data
-#Joins fish cpue by species for gillnet surveys
+#calculates preliminary zoop metrics (Bytho and Lepto excluded) and joins them
+#Joins fish cpue, secchi, temp, and area data which are also downloaded in other r scripts
 
 
 #packages
@@ -183,6 +183,9 @@ zoop_parentdow <- zoop %>%
 #make parentdow.zoop.year column to join to master datasheet
 zoop_parentdow$parentdow.zoop.year = paste(zoop_parentdow$parentdow, zoop_parentdow$year)
 
+#remove bythotrephes and leptodora from the zoop data - discuss with Kylie if I want to include these taxa and get data separately
+zoop_parentdow <- filter(zoop_parentdow, species != "Bythotrephes longimanus" & species != "Leptodora kindti")
+
 #with zoops we know we have many replicates within a year - we need to decide what to do with them
 #For now, community compositon: mean total biomass across all sampling dates within a year, proportion daphnia biomass of cladoceran biomass, percent cladoceran biomass of all zoops, shannon diversity index, 
 #For now, size structure: mean individual size, and proportion (relative abundance) of large vs. small cladocerans
@@ -253,11 +256,14 @@ zoop_daphnia_sample_biomass <- zoop_daphnia %>%
   group_by(parentdow.zoop.year, sample_date) %>%
   summarize(daphnia.biomass = sum(biomass), .groups = 'drop')
 #join total cladoceran biomass by sampling date
-#create join column in both datasets and filter to create a dataframe with just cladoceran biomass and rename cladoceran biomass to be descriptive
+#create join column in both datasets
 zoop_daphnia_sample_biomass$join = paste(zoop_daphnia_sample_biomass$parentdow.zoop.year, zoop_daphnia_sample_biomass$sample_date)
+#filter to create a dataframe with just cladoceran biomass 
 zoop_clad_biomass <- filter(zoop_grp_sample_summary, grp == "Cladocerans")
+#rename cladoceran biomass to be descriptive
 zoop_clad_biomass <- zoop_clad_biomass %>%
   rename(cladoceran.biomass = biomass)
+#join cladoceran biomass to daphnia biomass - both data frames are average biomass within each sampling date
 zoop_clad_biomass$join = paste(zoop_clad_biomass$parentdow.zoop.year, zoop_clad_biomass$sample_date)
 #check that all samples with cladocerans have daphia (they may not)
 all(zoop_clad_biomass$join %in% zoop_daphnia_sample_biomass$join)
@@ -340,11 +346,11 @@ zoop_length_clad <- zoop_length_clad_sample %>%
 zoop_length_all <- left_join(zoop_length, zoop_length_clad, by = "parentdow.zoop.year")
 
 #calculate relative abundance of large vs. small cladocerans
-#remove spiny water fleas and dapnia sp. with no size assigned
-zoop_cladoceran_noSWF <- filter(zoop_cladoceran, species != "Bythotrephes longimanus", species != "Daphnia sp.")
+#remove dapnia sp. with no size assigned, remember bythotrephes and leptodora already removed from data
+zoop_cladoceran_noSp. <- filter(zoop_cladoceran, species != "Daphnia sp.")
 #create a column for large vs. small cladocerans
-zoop_cladoceran_size <- zoop_cladoceran_noSWF %>%
-  mutate(size = ifelse(grp2 == "large daphnia", "large", ifelse(grp2 == "Holopedium", "large", ifelse(species == "Leptodora kindti", "large", "small"))))
+zoop_cladoceran_size <- zoop_cladoceran_noSp. %>%
+  mutate(size = ifelse(grp2 == "large daphnia", "large", ifelse(grp2 == "Holopedium", "large", "small")))
 #summarize abundance of large and small on each sample date
 zoop_size_sample_abundance <- zoop_cladoceran_size %>%
   group_by(parentdow.zoop.year, sample_date, size) %>%
