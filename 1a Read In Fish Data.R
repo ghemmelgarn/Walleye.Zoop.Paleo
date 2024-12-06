@@ -66,7 +66,6 @@ mn_data %>%
   distinct(survey_type, survey_type_2) %>%
   collect() %>% arrange(survey_type) %>% print(n=nrow(.))
 
-#CLEAN UP HOW YOU BRING IN INCLUSION TABLE
 #remove unnecessary columns
 incl.table <- read.csv("Data/Input/Fish Inclusion Table.csv")%>%
   select(-ZoopYear)%>%
@@ -91,45 +90,74 @@ incl.table <- incl.table %>%
   mutate(lake_id = as.character(lake_id))%>% 
   mutate(year = as.double(year))
 
+#adjust some DOW / lake_id values in inclusion table to make it match fish database
+#fix Belle lake_id: It is 47004900 in the inclusion table but 47004901 in the fish database
+incl.table$lake_id <- replace(incl.table$lake_id, incl.table$lake_id == 47004900, 47004901)
+#remove duplicate rows for Hill lake (north and south are combined for fish)
+incl.table <- filter(incl.table, LakeName != "Hill (south)")
+#fix hill lake_id: zoops separated by basin, fish are not
+incl.table$lake_id <- replace(incl.table$lake_id, incl.table$lake_id == 1014201, 1014200)
+#fix red lake - need to specify data is from upper red basin
+incl.table$lake_id <- replace(incl.table$lake_id, incl.table$lake_id == 4003500, 4003501)
+
 #THIS NEEDS MORE WORK TO GET IT TO MATCH MY LAKE-FINDER SEARCH RESULTS
 
 #filter out just the data that matches my selected lake/years, represented by the inclusion table
 
 #first choose the surveys that I want, We will go back for the fish later
 #filter out just the gear I want
+#included one special assessment for White Iron lake - I vetted this and ok to use, was a standard assessment combined with other things too I am just using standard assessment part
+#targeted surveys are acceptable for the specific lakes I specify below that I individually investigated
+#other specific lake things to clean up:
+  #47004600 had a targeted survey in 2020 that I want, a standard survey in 2019 that I want, and a targeted survey in 2019 that I don't want, so I specified the year I want targeted surveys from this lake
 #right join - will preserve everything in inclusion table but only matching rows from the mn_data
 #joining by lake Id and year - ALL ROWS THAT ARE IN BOTH TABLES NEED TO BE LISTED HERE OR YOU WILL GET .x and .y columns
 #takes the distinct columns from the mn_data
 #glimpse at end shows me if it did what I wanted
 good.surveys <- mn_data %>% 
-  filter(sampling_method_simple == "gill_net" & (survey_type == "Standard Survey" | survey_type == "Targeted Survey" | survey_type == "HISTORICAL"| survey_type == "Population Assessment"| survey_type == "Re-Survey"| survey_type == "Large Lake Survey"| survey_type == "Initial Survey")) %>% 
+  filter(sampling_method_simple == "gill_net" & (survey_type == "Standard Survey" | survey_type == "HISTORICAL"| survey_type == "Population Assessment"| survey_type == "Re-Survey"| survey_type == "Large Lake Survey"| survey_type == "Initial Survey" | (survey_type == "Special Assessment" & lake_id == 69000400) | (survey_type == "Targeted Survey" & lake_id == 3057600) | (survey_type == "Targeted Survey" & lake_id == 11041500) | (survey_type == "Targeted Survey" & lake_id == 13002700)| (survey_type == "Targeted Survey" & lake_id == 18030800) | (survey_type == "Targeted Survey" & lake_id == 38039300) | (survey_type == "Targeted Survey" & lake_id == 47004600 & year = 2020) | (survey_type == "Targeted Survey" & lake_id == 47006800) | (survey_type == "Targeted Survey" & lake_id == 69025400)))  %>% 
   right_join(incl.table, by = c("lake_id", "year")) %>% 
-  distinct(lake_id, year, total_effort_ident, total_effort_1, flag, sampling_method_simple, survey_type) %>% 
+  distinct(lake_id, year, total_effort_ident, total_effort_1,  sampling_method_simple, sampling_method, flag, survey_type, lakesize, lakesize_units) %>% 
   collect()
 #collect actually brings data into R
+#end up with more rows than the inclusion table because different gillnet types are separated
+
 
 #use this to troubleshoot why certain lakes are and are not included
-test <- mn_data %>% 
-  filter(sampling_method_simple == "gill_net" & lake_id == "6000200")
-glimpse(test)
-test %>% 
-  distinct(survey_type, year) %>%
-  collect() %>% arrange(survey_type) %>% print(n=nrow(.))
+# test <- mn_data %>% 
+#   filter(sampling_method_simple == "gill_net" & lake_id == "16007700" & year == 2017)
+# glimpse(test)
+# test %>% 
+#   distinct(survey_type, year, total_effort_ident) %>%
+#   collect() %>% arrange(survey_type) %>% print(n=nrow(.))
 
 #remove NA rows and flagged rows
-good.surveys.f <- filter(good.surveys, !is.na(total_effort_1) & is.na(flag))
+#good.surveys.f <- filter(good.surveys, !is.na(total_effort_1) & is.na(flag))
+#not doing this becayse there are no na values for total effort and I want to pulled out flagged nets but not entire surveys
 
 #at the end of this, I should feel confident that all of these surveys are good quality and ok to use
 
 #GO BACK FOR THE FISH
 fish <- mn_data %>% 
-  right_join(good.surveys.f, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
+  right_join(good.surveys, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
   collect()
 
-  
+#need to filter out nets flagged with gear issues
+#then need to adjust total effort for nets removed from analysis
+
+#remove any rows from the fish data flagged with a gear issue - this removes bad sub-efforts (individual nets) but keeps the rest of the survey
+#gear issue is the only flag with my data
+
+
 #save this fish table as a cvs
 write_csv(fish, "Data/Output/FishData.csv")
 
+
+#run this instread of line 103 to just get the lat, long, and nhdid on the lakes I want to include
+nhdid.lat.long <- mn_data %>%
+  right_join(incl.table, by = c("lake_id", "year")) %>% 
+  distinct(nhdhr_id, latitude_lake_centroid, longitude_lake_centroid, lake_id, year) %>% 
+  collect()
 
 
 
