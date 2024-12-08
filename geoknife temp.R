@@ -1,6 +1,8 @@
 #temperature data for degree days with geoknife
 #help and instructions at https://doi-usgs.github.io/geoknife/
 
+#THIS DOESN'T WORK BECAUSE THE DATA SERVER WAS RETIRED IN APRIL 2024 :(
+
 library(reshape2)
 library(dplyr)
 library(readr)
@@ -19,6 +21,7 @@ library(geoknife)
 
 sites=data.frame("id"="test", "lat"=44.95795655975761, "lon"=-93.22345822899838)
 
+#create a dataframe called geom where each site is a column and there is are two rows: lat and long
 for (i in 1:length(sites$id)){
   df <- data.frame(c(sites$lon[i], sites$lat[i]))
   names(df) <- sites$id[i]
