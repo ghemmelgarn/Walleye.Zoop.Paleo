@@ -20,7 +20,7 @@ library(vegan)
 #Starting datset known issues:
 #I made it manually in google sheets
 #Inclusive to all potential data that may or may not be used due to various issues
-#Has same fish data matched to multiple zoop years
+#Has same fish data matched to multiple zoop years - only for +/- 1 year matches
 #Includes data that disagrees between lakefinder and our spreadsheet
 #no info on months of zoop data
 #No disturbance info
@@ -29,8 +29,9 @@ library(vegan)
 #Import starting dataset
 StartData <- read.csv("Data/Input/WZ_Lake_Selection (1).csv")
 
-#filter to only lake/years with exact fish matches and at least 6 zoop tows
-MatchData <- filter(StartData, ZoopTows >= 6, Match == "Exact" | Match == "Maybe")
+#filter to only lake/years with exact fish/zoop matches and at least 6 zoop tows
+MatchData <- filter(StartData, ZoopTows >= 6, Match == "Exact")
+#end up with only 282 rows instead of 300 like fish inclusion table because of the limitation on zoop tows here
 
 #create parent dow column in MatchData to deal with the fact that Hill lake zoop data is separated by basin
 #take first 5 numbers if missing leading 0, first 6 numbers if full 8-digit dow
@@ -183,7 +184,7 @@ zoop_parentdow <- zoop %>%
 #make parentdow.zoop.year column to join to master datasheet
 zoop_parentdow$parentdow.zoop.year = paste(zoop_parentdow$parentdow, zoop_parentdow$year)
 
-#remove bythotrephes and leptodora from the zoop data - discuss with Kylie if I want to include these taxa and get data separately
+#remove bythotrephes and leptodora from the zoop data - discuss with Kylie if I want to include these taxa and get data separately in the future
 zoop_parentdow <- filter(zoop_parentdow, species != "Bythotrephes longimanus" & species != "Leptodora kindti")
 
 #with zoops we know we have many replicates within a year - we need to decide what to do with them
@@ -192,7 +193,7 @@ zoop_parentdow <- filter(zoop_parentdow, species != "Bythotrephes longimanus" & 
 
 #summarize data to calculate means of biomass at the 3 grouping levels and convert to wide with a prefix that specifies group level
 #will use these in metric calculations
-#first sum the biomass for each group on each sampling date
+#first sum the biomass for each group on each sampling date in each lake/year
 zoop_grp_sample_summary <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, sample_date, grp) %>%
   summarize(biomass = sum(biomass), .groups = 'drop')
@@ -255,15 +256,13 @@ zoop_daphnia <- filter(zoop_parentdow, str_starts(species, "Daphnia"))
 zoop_daphnia_sample_biomass <- zoop_daphnia %>%
   group_by(parentdow.zoop.year, sample_date) %>%
   summarize(daphnia.biomass = sum(biomass), .groups = 'drop')
-#join total cladoceran biomass by sampling date
-#create join column in both datasets
-zoop_daphnia_sample_biomass$join = paste(zoop_daphnia_sample_biomass$parentdow.zoop.year, zoop_daphnia_sample_biomass$sample_date)
-#filter to create a dataframe with just cladoceran biomass 
+#Create a dataframe with just cladoceran biomass, using what you calculated above
 zoop_clad_biomass <- filter(zoop_grp_sample_summary, grp == "Cladocerans")
 #rename cladoceran biomass to be descriptive
 zoop_clad_biomass <- zoop_clad_biomass %>%
   rename(cladoceran.biomass = biomass)
-#join cladoceran biomass to daphnia biomass - both data frames are average biomass within each sampling date
+#create join column in both datasets - this is the parentdow + the sample date
+zoop_daphnia_sample_biomass$join = paste(zoop_daphnia_sample_biomass$parentdow.zoop.year, zoop_daphnia_sample_biomass$sample_date)
 zoop_clad_biomass$join = paste(zoop_clad_biomass$parentdow.zoop.year, zoop_clad_biomass$sample_date)
 #check that all samples with cladocerans have daphia (they may not)
 all(zoop_clad_biomass$join %in% zoop_daphnia_sample_biomass$join)
@@ -271,6 +270,7 @@ all(zoop_clad_biomass$join %in% zoop_daphnia_sample_biomass$join)
 #check that all samples with daphnia have cladocerans (they should if I did this right)
 all(zoop_daphnia_sample_biomass$join %in% zoop_clad_biomass$join)
 #they do - good
+#join cladoceran biomass to daphnia biomass - both data frames are average biomass within each sampling date
 #I need to left join all to preserve all cladocera rows even when no daphnia
 zoop_daph_clad_biomasss <- left_join(zoop_clad_biomass, zoop_daphnia_sample_biomass, by = "join")
 #change NA to 0 when daphnia not present
@@ -311,15 +311,20 @@ zoop_clad_prop <- zoop_clad_prop %>%
 
 
 
-#join the metrics to the zoop biomass table - left joing is fine because rows are all the same
-zoop_biomass_a <- left_join(zoop_total_biomass, zoop_all_grp_biomass, by = "parentdow.zoop.year")
-zoop_biomass_b <- left_join(zoop_daph_prop, zoop_biomass_a, by = "parentdow.zoop.year")
-zoop_all_biomass <- left_join(zoop_clad_prop, zoop_biomass_b, by = "parentdow.zoop.year")
+#join the metrics to the zoop biomass table - full join to preserve all columns, rows should be same but did this just in case
+zoop_biomass_a <- full_join(zoop_total_biomass, zoop_all_grp_biomass, by = "parentdow.zoop.year")
+zoop_biomass_b <- full_join(zoop_daph_prop, zoop_biomass_a, by = "parentdow.zoop.year")
+zoop_all_biomass <- full_join(zoop_clad_prop, zoop_biomass_b, by = "parentdow.zoop.year")
 
 
 #filter out just the biomass metric columns you want
 #modify this later to include the biomass of each species for multivariate analyses: add starts_with("spp.") as the last argument below
-zoop_biomass_metrics <- select(zoop_all_biomass, parentdow.zoop.year, Zoop.Month.Count, zoop.total.biomass, Daphnia.prop.Cladoceran.biomass, prop.Cladoceran.biomass)
+zoop_biomass_metrics <- select(zoop_all_biomass, 
+                               parentdow.zoop.year, 
+                               Zoop.Month.Count, 
+                               zoop.total.biomass, 
+                               Daphnia.prop.Cladoceran.biomass, 
+                               prop.Cladoceran.biomass)
 
 #calculate average individual length of all zoops, unit = mm
 #weighted average of mean length on each sampling date (mean length of each species weighted by count of that species)
@@ -332,8 +337,9 @@ zoop_length <- zoop_length_sample %>%
   summarize(zoop.mean.length = mean(mean_length), .groups = 'drop')
 
 #calculate average individual length of just cladocerans, unit = mm
-#weighted average of mean length on each sampling date (mean length of each species weighted by count of that species)
+#filter just the cladocerans out of original zoop data import
 zoop_cladoceran <- filter(zoop_parentdow, grp == "Cladocerans")
+#weighted average of mean length on each sampling date (mean length of each species weighted by count of that species)
 zoop_length_clad_sample <- zoop_cladoceran %>%
   group_by(parentdow.zoop.year, sample_date) %>%
   summarize(cladoceran.mean.length = sum(mean_length*count)/sum(count), .groups = 'drop')
@@ -349,9 +355,11 @@ zoop_length_all <- left_join(zoop_length, zoop_length_clad, by = "parentdow.zoop
 #remove dapnia sp. with no size assigned, remember bythotrephes and leptodora already removed from data
 zoop_cladoceran_noSp. <- filter(zoop_cladoceran, species != "Daphnia sp.")
 #create a column for large vs. small cladocerans
+#large are those in the large daphnia group and the holopedium
+#small is everything else
 zoop_cladoceran_size <- zoop_cladoceran_noSp. %>%
   mutate(size = ifelse(grp2 == "large daphnia", "large", ifelse(grp2 == "Holopedium", "large", "small")))
-#summarize abundance of large and small on each sample date
+#summarize abundance (sum of count) of large and small on each sample date
 zoop_size_sample_abundance <- zoop_cladoceran_size %>%
   group_by(parentdow.zoop.year, sample_date, size) %>%
   summarize(count = sum(count), .groups = 'drop')
@@ -381,7 +389,6 @@ zoop_SDI <- zoop_SDI_sample %>%
 zoop_a <- left_join(zoop_biomass_metrics, zoop_length_all, by = "parentdow.zoop.year")
 zoop_b <- left_join(zoop_a, zoop_Prop_large_clad, by = "parentdow.zoop.year")
 zoop_AllMetrics <- left_join(zoop_b, zoop_SDI, by = "parentdow.zoop.year")
-#rename months to be more descriptive as the number of months zoops are sampled
 
 #join the relevant zoop metrics to the fish data
 Data_InvSp_Zoop <- left_join(Data_InvSp, zoop_AllMetrics, by = "parentdow.zoop.year")
@@ -449,12 +456,66 @@ Data_InvSp_Fish <- full_join(Data_InvSp_GN, fish_TN_wide, by = "parentdow.fish.y
 
 
 
+
 #TEMP DATA
+
+
+
+
 
 #PRODUCTIVITY DATA
 
-#LAKE AREA DATA
+#import selected data
+secchi.data <- read.csv("Data/Input/Selected_Secchi_Data.csv")
+#summarize the mean of the selected secchi data for each lake/year
+secchi.mean <- secchi.data %>%
+  group_by(parentdow, year) %>%
+  summarize(mean.summer.secchi.meters = mean(secchi_meters), .groups = 'drop')
+#note that some lake/years are missing because not enough data for them (or none at all)
+#create parentdow.fish.year for join
+secchi.mean$parentdow.fish.year = paste(secchi.mean$parentdow, secchi.mean$year)
+#remove the parentdow and year columns so they don't get confusing and duplicated
+secchi.mean <- secchi.mean %>%
+  select(parentdow.fish.year, mean.summer.secchi.meters)
+#join to the rest of the preliminary data
+Data_secchi <- left_join(PUT THE PREVIOUS FILE TO JOIN TO HERE, secchi.mean, by = "parentdow.fish.year")
 
+
+
+
+
+#LAKE AREA DATA - also brings coordinates and nhdhr-id
+#this came from the fish database
+#import selected data
+area.data <- read.csv("Data/Input/Selected_Lakes_Location_Area.csv")
+#already has parentdow.fish.year to join
+#select just the columns you want to add
+area.data.select <- area.data %>%
+  select(parentdow.fish.year, 
+         nhdhr_id, 
+         latitude_lake_centroid,
+         longitude_lake_centroid,
+         lakesize,
+         lakesize_units
+         )
+#join to the rest of the preliminary data
+Data_ALL <- left_join(PUT THE PREVIOUS FILE TO JOIN TO HERE, area.data.select, by = "parentdow.fish.year")
+
+
+
+
+#FILTER out to select the lakes with all the data I can actually use. Requirements:
+#conditions filtered above in this script:
+  #lake/years with exact matches of fish/zoop data
+  #zoops: at least 6 tows for each lake/year, removed Bytho and Lepto
+
+#conditions filtered as I generated data in other scripts:
+  #fish: acceptable survey and gear types, sufficient effort, removed nets with gear issues and adjusted effort
+  #productivity: secchi data must have samples from June, July, and August in the lake/year, no secchi values of 0, all secchi data from MPCA and DNR 
+
+#need to filter now
+  #6 distinct months of zoop tows
+  #have all the data: fish, zoops, temp, productivity, area (invasive species will only be listed if present - this is ok)
 
 #save complete preliminary dataset as .csv
 #write.csv(Data_InvSp_Zoop, file = "Data/Output/Preliminary Data.csv", row.names = FALSE)
