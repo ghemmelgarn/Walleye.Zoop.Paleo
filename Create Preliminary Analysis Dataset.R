@@ -396,63 +396,25 @@ Data_InvSp_Zoop <- left_join(Data_InvSp, zoop_AllMetrics, by = "parentdow.zoop.y
 
 
 
-#FISH CPUE JOIN - FIX THIS TO BRING IN DATA FROM DATABASE ANOTHER DAY
+#FISH CPUE JOIN - Only walleye CPUE for now... :)
 
-#read data
-fish <- read.csv("all_state_cpue_13Aug24.csv")
+#read in fish metrics that I downloaded from fish database, quality checked, and calculated the metrics in other scripts
+fish <- read.csv("Data/Output/Walleye_CPUE.csv")
 
-#filter out just minnesota lakes to make dataset smaller
-fish_MN <- filter(fish, state == "Minnesota")
 
 #make parentdow column
-Fish_parentdow <- fish_MN %>%
+fish_parentdow <- fish %>%
   mutate(parentdow = case_when(
-    nchar(fish_MN$lake_id) == 7 ~ substr(lake_id, 1, 5),
-    nchar(fish_MN$lake_id) == 8 ~ substr(lake_id, 1, 6)
+    nchar(fish$lake_id) == 7 ~ substr(lake_id, 1, 5),
+    nchar(fish$lake_id) == 8 ~ substr(lake_id, 1, 6)
   ))
 
 #make parentdow.fish.year column to join to master datasheet
-Fish_parentdow$parentdow.fish.year = paste(Fish_parentdow$parentdow, Fish_parentdow$year)
+fish_parentdow$parentdow.fish.year = paste(fish_parentdow$parentdow, fish_parentdow$year)
 
-#filter out only standard and shallow gill nets
-fish_GN <- filter(Fish_parentdow, sampling_method %in% c("Standard gill net sets", "Standard gill nets, set shallow in stratified assessment"))
-
-#filter out only standard trap nets
-fish_TN <- filter(Fish_parentdow, sampling_method == "Standard 3/4-in mesh, double frame trap net sets")
-#separated gear to make long to wide transition easier to code
-
-#check for duplicate lake, year, species combinations in both year types
-duplicates_count_GN <- fish_GN %>%
-  group_by(lake_id, year, species_1) %>%
-  summarize(Count = n(), .groups = 'drop') %>%
-  filter(Count>1)
-#only duplicates are lake Pepin in 1998 - there were two gillnet surveys, one in May and one in October
-#we don't need this data so it's fine to leave it - will create NA for cpue values
-
-duplicates_count_TN <- fish_TN %>%
-  group_by(lake_id, year, species_1) %>%
-  summarize(Count = n(), .groups = 'drop') %>%
-  filter(Count>1)
-#only duplicates are Surprise in 1995 - there were two trap net surveys, one in June and one in July
-#we don't need this data so it's fine to leave it - will create NA for cpue values
-
-#convert fish data long to wide for both gear type datasets, groups by year, only maintains parentdow.fish.year as other column, puts "GN." or "TN." prefix on cpue
-fish_GN_summary <- fish_GN %>%
-  group_by(parentdow.fish.year, species_1) %>%
-  summarize(cpue = max(cpue), .groups = 'drop')
-#okay to use max here because there the only lakes with multiple values are data we are not using anyways
-fish_GN_wide<- pivot_wider(fish_GN_summary, names_from = "species_1", names_prefix = "GN.", values_from = "cpue")
-
-fish_TN_summary <- fish_TN %>%
-  group_by(parentdow.fish.year, species_1) %>%
-  summarize(cpue = max(cpue), .groups = 'drop')
-#okay to use max here because there the only lakes with multiple values are data we are not using anyways
-fish_TN_wide<- pivot_wider(fish_TN_summary, names_from = "species_1", names_prefix = "TN.", values_from = "cpue")
-
-#join both gear types to dataset - 10/16/24 changed this to a full join so we can plot the fish data for the lakes we don't have zoop data for
+#join walleye CPUE to dataset 
 #full_join will retain all rows in both initial tables and create NA values when the other table doesn't have info for that lake/year
-Data_InvSp_GN <- full_join(Data_InvSp, fish_GN_wide, by = "parentdow.fish.year")
-Data_InvSp_Fish <- full_join(Data_InvSp_GN, fish_TN_wide, by = "parentdow.fish.year")
+Data_InvSp_Zoop_WAE <- left_join(Data_InvSp_Zoop, fish_parentdow, by = "parentdow.fish.year")
 
 
 
