@@ -46,32 +46,32 @@ str(WQsecchi)
 
 #look at the organization that collected the data
 unique(WQsecchi$OrganizationFormalName)
-MPCA.secchi <- filter(WQsecchi, OrganizationFormalName == "Minnesota Pollution Control Agency - Ambient Surface Water")
-#MCPA contributed the majority of this data, this is what I will use
+#using all of them
 
 #create parentdow column from monitoring station IDs, also removes hyphen to match data format I have for other datasets
-MPCA.secchi <- MPCA.secchi %>%
+WQP.secchi <- WQsecchi %>%
   mutate(parentdow = substr(MonitoringLocationIdentifier, 7, 13)) %>%
   mutate(parentdow = gsub("-", "", parentdow))
 
 #set secchi as numberic, sometimes reported as a text description, these just become NA, then filter out these NA values
-MPCA.secchi <- MPCA.secchi %>%
+WQP.secchi <- WQP.secchi %>%
   mutate(ResultMeasureValue = as.numeric(ResultMeasureValue)) %>%
   filter(!is.na(ResultMeasureValue))
 
 #check for consistent method
-unique(MPCA.secchi$ResultAnalyticalMethod.MethodName)
-#we have the regular method and a transparency tube, filter out only regular method
-MPCA.secchi <- filter(MPCA.secchi, ResultAnalyticalMethod.MethodName == "Field measurement/observation, generic method")
+unique(WQP.secchi$ResultAnalyticalMethod.MethodName)
+#we have various methods, let's filter out the ones that look like a transparency tube, keep NA
+WQP.secchi <- filter(WQP.secchi, ResultAnalyticalMethod.MethodName != "Secchi Transparency Tube, 100 cm" | is.na(ResultAnalyticalMethod.MethodName))
 
 #check secchi units and make sure all consistent
-unique(MPCA.secchi$ResultMeasure.MeasureUnitCode)
-#we have meters and feet. Need to convert feet to meters
-MPCA.secchi <- MPCA.secchi %>%
-  mutate(secchi_meters = case_when(ResultMeasure.MeasureUnitCode == "ft"~ ResultMeasureValue*0.3048, ResultMeasure.MeasureUnitCode == "m"~ ResultMeasureValue))
+unique(WQP.secchi$ResultMeasure.MeasureUnitCode)
+#we have meters, feet, cm, inches, and "none". Need to convert all to meters and filter out measurements without a unit
+WQP.secchi <- WQP.secchi %>%
+  filter(ResultMeasure.MeasureUnitCode != "None") %>%
+  mutate(secchi_meters = case_when(ResultMeasure.MeasureUnitCode == "ft"~ ResultMeasureValue*0.3048, ResultMeasure.MeasureUnitCode == "m"~ ResultMeasureValue, ResultMeasure.MeasureUnitCode == "cm"~ ResultMeasureValue/100, ResultMeasure.MeasureUnitCode == "in"~ ResultMeasureValue*0.0254))
   
 #create a smaller dataset with only columns I care about
-MPCA.secchi.simple <- MPCA.secchi %>%
+WQP.secchi.simple <- WQP.secchi %>%
   select(parentdow,
          secchi_meters,
          OrganizationIdentifier,
@@ -83,92 +83,92 @@ MPCA.secchi.simple <- MPCA.secchi %>%
          )
 
 #create year and month columns
-MPCA.secchi.simple <- MPCA.secchi.simple %>%
+WQP.secchi.simple <- WQP.secchi.simple %>%
   mutate(year = substr(ActivityStartDate, 1, 4)) %>%
   mutate(month = substr(ActivityStartDate, 6, 7))
 
-#make parentdow nad year numeric instead of character
+#make parentdow and year numeric instead of character
 #some of the monitoring location ID numbers do not follow the formula with the dow inside them, so they end up having parentdows with letters and get filtered out here because they become NA when changed to numeric
-MPCA.secchi.simple <- MPCA.secchi.simple %>%
+WQP.secchi.simple <- WQP.secchi.simple %>%
   mutate(parentdow = as.numeric(parentdow), year = as.numeric(year)) %>%
   filter(!is.na(parentdow))
 
 
-
 # #SEE HOW MUCH USEFUL DATA THIS ACTUALLY GAVE ME
-# #import inclusion table created/cleaned in fish download R script
-# incl.table.WQ <- read.csv("Data/Input/Inclusion.Table.Clean.Exact.csv")
+#import inclusion table created/cleaned in fish download R script
+incl.table.WQ <- read.csv("Data/Input/Inclusion.Table.Clean.Exact.csv")
 # 
 # #do a right join to pull out all the water quality portal data that matches our lakes and years
-# wpq.join <- MPCA.secchi.simple %>%
+# wqp.join <- WQP.secchi.simple %>%
 #   right_join(incl.table.WQ, by = c("parentdow", "year"))
 # 
 # #find the NA values - these are the lakes that don't have secchi data from the portal
-# wpq.na <- filter(wpq.join, is.na(secchi_meters))
+# wqp.na <- filter(wqp.join, is.na(secchi_meters))
 # #there are 67 of them, so I will need to include DNR data that Denver has
 # 
 # #remove these temporary joins so they don't confuse me later
-# rm(wpq.join)
-# rm(wpq.na)
+# rm(wqp.join)
+# rm(wqp.na)
 
 
+#remove more columns I don't need anymore to join to DNR data
+WQP.secchi.join <- WQP.secchi.simple %>%
+  select(parentdow,
+         secchi_meters,
+         OrganizationIdentifier,
+         year,
+         month,
+         MonitoringLocationIdentifier,
+  )
 
+#THIS CODE TO ADD THE DNR DATA TO THE WQP DATA IS FROM DENVER AND I MODIFIED IT SLIGHTLY TO GET DOW INSTEAD OF NHDHR.ID FOR EACH LAKE
+#linking to dnr secchi data
 
-# #THIS CODE TO ADD THE DNR DATA TO THE WQP DATA IS FROM DENVER AND I MODIFIED IT SLIGHTLY TO GET DOW INSTEAD OF NHDHR.ID FOR EACH LAKE
-# #linking to dnr secchi data
-# dnr_secchi <- read_csv("Data/dnr_all_secchi.csv") %>% 
-#   mutate(ResultMeasureValue = SECCHI_DISC_READING_FEET*0.3048,
-#          ResultMeasure.MeasureUnitCode = "m",
-#          ActivityStartDate = as.Date(SAMPLE_DATE, format = "%m/%d/%Y")) %>%
-#   local_to_nhdhr(from_colname = "DOW", states = "mn") %>% 
-#   rename(site_id = nhdhr.id) %>% 
-#   mutate(MonitoringLocationIdentifier = paste0("mndow_", DOW),
-#          OrganizationIdentifier = "MNDNR") %>% 
-#   select(site_id,
-#          MonitoringLocationIdentifier,
-#          OrganizationIdentifier,
-#          ActivityStartDate,
-#          ResultMeasureValue,
-#          ResultMeasure.MeasureUnitCode,
-#          SECCHI_DISC_READING_FEET)
+#read in DNR secchi data
+dnr_secchi <- read_csv("Data/Input/dnr_all_secchi_1decimal.csv")
+
+#change format to match MPCA.secchi.join format
+dnr.secchi.join <- dnr_secchi %>%
+  mutate(parentdow = substr(DOW, 1, 6),
+         secchi_meters = SECCHI_DISC_READING_FEET*0.3048,
+         OrganizationIdentifier = "MNDNR",
+         ActivityStartDate = as.Date(SAMPLE_DATE, format = "%m/%d/%Y"),
+         year = substr(ActivityStartDate, 1, 4),
+         month = substr(ActivityStartDate, 6, 7),
+         MonitoringLocationIdentifier = paste0("mndow_", DOW)) %>%
+  select(parentdow,
+         secchi_meters,
+         OrganizationIdentifier,
+         year,
+         month,
+         MonitoringLocationIdentifier)
+
 # #why are there so many 0s?
-# dnr_secchi %>% 
-#   summarise(zero = sum(SECCHI_DISC_READING_FEET == 0),
-#             non_zero = sum(SECCHI_DISC_READING_FEET != 0))
-# 
-# dnr_secchi %>% 
-#   filter(is.na(site_id)) %>% 
-#   group_by(MonitoringLocationIdentifier) %>% 
-#   count() %>% 
-#   print(n= nrow(.))
-# #DOWS that do not get an nhdid appear to be either very small or riverine - im going to get rid of them
-# #~5,000 samples from the pools of the Mississippi river 
-# #get rid of non-nhdid water bodies and 
-# dnr_secchi <- dnr_secchi %>% 
-#   filter(!is.na(site_id))
-# secchi <- bind_rows(dnr_secchi, secchi)
-# rm(dnr_secchi)
-# #saving just the combined secchi data
-# secchi.save <- secchi %>% 
-#   select(site_id,
-#          MonitoringLocationIdentifier,
-#          lake_namelagos,
-#          OrganizationIdentifier,
-#          ActivityStartDate,
-#          ResultMeasureValue,
-#          ResultMeasure.MeasureUnitCode,
-#          SECCHI_DISC_READING_FEET,
-#          CharacteristicName,
-#          nhdhr_area_sqkm
-#   )
-# glimpse(secchi.save)
-# write_csv(secchi.save, "dnr_wqp_secchi.csv")
-# rm(secchi.save)
+# dnr.secchi.join %>%
+#   summarise(zero = sum(secchi_meters == 0),
+#             non_zero = sum(secchi_meters != 0))
 
-#call your combined file all.secchi so the code below works:
+# #returns number of observations per location
+# dnr.secchi.join %>%
+#   group_by(MonitoringLocationIdentifier) %>%
+#   count() %>%
+#   print(n= nrow(.))
+
+#remove rows with 0 for secchi meters - this doesn't make sense, even a low secchi should be at least 0.0000001
+#an email from Corey Geving : "I’m not sure if this is because field crews are skipping over the column and just putting in zero for some reason, or if there’s something else going on. Jon Hansen might have some insight into why there are so many zeroes."
+dnr.secchi.join.filter <- dnr.secchi.join %>%
+  filter(secchi_meters > 0)
+
+#fix some data structure issues to be able to bind rows
+dnr.secchi.join.filter <- dnr.secchi.join.filter %>%
+  mutate(parentdow = as.numeric(parentdow), 
+         year = as.numeric(year)
+         )
+#bind the rows of the WQP and DNR secchi data into one data frame
+all.secchi <- bind_rows(WQP.secchi.join, dnr.secchi.join.filter)
 
 #save all this data as a csv for later reference
-# write.csv(all.secchi, file = "Data/Output/All_Secchi_Data_MPCA_DNR.csv"
+write.csv(all.secchi, file = "Data/Output/All_Secchi_Data_WQP_DNR.csv")
 
 
 #BELOW FILTERS OUT THE SECCHI DATA I WANT TO ACTAULLY USE 
@@ -194,23 +194,23 @@ WQ.summer <- WQ.join.clean %>%
 #check that all the lakes have data from all three months - summarize with the number of months for each lake/year
 WQ.summer.months <- WQ.summer %>%
   group_by(parentdow, year) %>%
-  summarize(month.count = length(unique(month)), .groups = 'drop')
+  summarize(secchi.month.count = length(unique(month)), .groups = 'drop')
 #create an inclusion table with only the lakes that have enough monthly secchi data representation to include
-WQ.good.lakes <- filter(WQ.summer.months, month.count == 3)
+WQ.good.lakes <- filter(WQ.summer.months, secchi.month.count == 3)
 #join the summer data back to this to only include the observations for the desired lakes
 WQ.good.summer.secchi <- WQ.summer %>%
   right_join(WQ.good.lakes, by = c("parentdow", "year"))
-#summarize the mean of the selected secchi data for each lake/year
-WQ.secchi.mean <- WQ.good.summer.secchi %>%
-  group_by(parentdow, year) %>%
-  summarize(mean.summer.secchi.meters = mean(secchi_meters), .groups = 'drop')
-
-# #write a csv file with all of your selected good secchi data
-# write.csv(WQ.good.summer.secchi, file = "Data/Output/Selected_Secchi_Data.csv"
 
 
+#write a csv file with all of your selected good secchi data
+write.csv(WQ.good.summer.secchi, file = "Data/Output/Selected_Secchi_Data.csv")
 
 
+# #DON'T NEED TO DO THIS, WILL DO IN CREATION OF PRELIM DATASET
+# #summarize the mean of the selected secchi data for each lake/year
+# WQ.secchi.mean <- WQ.good.summer.secchi %>%
+#   group_by(parentdow, year) %>%
+#   summarize(mean.summer.secchi.meters = mean(secchi_meters), .groups = 'drop')
 
 
 
