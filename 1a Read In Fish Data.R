@@ -139,47 +139,66 @@ good.surveys <- mn_data %>%
 #   distinct(survey_type, year, total_effort_ident) %>%
 #   collect() %>% arrange(survey_type) %>% print(n=nrow(.))
 
-#remove NA rows and flagged rows
-#good.surveys.f <- filter(good.surveys, !is.na(total_effort_1) & is.na(flag))
+
+#surveys with gear issue have two rows, one that says gear issue and one that doesn't, so need to combine those
+good.surveys.flag.summarize <- good.surveys %>%
+  group_by(lake_id, year, total_effort_ident, total_effort_1, sampling_method_simple, sampling_method, survey_type, lakesize, lakesize_units) %>%
+  summarize(flag = ifelse(any(flag == "gear issue", na.rm = TRUE), "gear issue", NA), .groups = 'drop')
+#remove NA total effort rows and gear issue flagged rows
+good.surveys.filter <- filter(good.surveys.flag.summarize, !is.na(total_effort_1) & is.na(flag))
 #not doing this because there are no na values for total effort and I want to pulled out flagged nets but not entire surveys
 
 #check that effort is sufficient for lake size, based on DNR sampling manual
 #fix area for upper red, says 0 here but should be 119295 based on lakefinder
-good.surveys$lakesize <- replace(good.surveys$lakesize, good.surveys$lakesize == 0, 119295)
+good.surveys.filter$lakesize <- replace(good.surveys.filter$lakesize, good.surveys.filter$lakesize == 0, 119295)
 #fix area for Belle, says 1 here but should be 864 based on lakefinder
-good.surveys$lakesize <- replace(good.surveys$lakesize, good.surveys$lakesize == 1, 864)
+good.surveys.filter$lakesize <- replace(good.surveys.filter$lakesize, good.surveys.filter$lakesize == 1, 864)
 #no other areas are too small to be believable, checked the next 2 smallest and they are accurate
 
 #create lake size bin column
-good.surveys <- good.surveys %>%
+good.surveys.filter <- good.surveys.filter %>%
   mutate(size.bin = ifelse(lakesize < 100, "<100", ifelse(lakesize >= 100 & lakesize < 300, "100-300", ifelse(lakesize >= 300 & lakesize < 600, "300-600", ifelse(lakesize >= 600 & lakesize < 1500, "600-1500", ">1500")))))
 #create column for minimum net-night effort based on size bin
-good.surveys <- good.surveys %>%
+good.surveys.filter <- good.surveys.filter %>%
   mutate(min.effort = ifelse(size.bin == "<100", 0, ifelse(size.bin == "100-300", 6, ifelse(size.bin == "300-600", 9, ifelse(size.bin == "600-1500", 12, 15)))))
+#add effort from shallow and deep stratified surveys
+combined.stratified.effort <- good.surveys.filter %>%
+  group_by(lake_id, year) %>%
+  summarize(total_effort_cse = sum(total_effort_1), .groups = 'drop')
+#join this combined effort back to the good surveys filter, keep all good.surveys.filter rows and add in the matching cse effort
+good.surveys.filter.cse <- good.surveys.filter %>% 
+  left_join(combined.stratified.effort, by = c("lake_id", "year"))
 #create a column that subtracts total effort from minimum required effort
-good.surveys$effort.test <- good.surveys$total_effort_1 - good.surveys$min.effort
+good.surveys.filter.cse$effort.test <- good.surveys.filter.cse$total_effort_cse - good.surveys.filter.cse$min.effort
 #create a column with the effort conclusion
-good.surveys <- good.surveys %>%
+good.surveys.filter.cse <- good.surveys.filter.cse %>%
   mutate(fish.effort.sufficient = ifelse (effort.test >= 0, "yes", "no"))
+
+#save this survey table as a .csv - this includes all surveys regardless of effort but with sufficient effort noted
+write_csv(good.surveys.filter.cse, "Data/Output/Usable_Fish_Surveys.csv")
+
+#filter out only the surveys with good enough effort
+good.surveys.effort <- filter(good.surveys.filter.cse, fish.effort.sufficient == "yes")
 
 #at the end of this, I should feel confident that all of these surveys are good quality and ok to use - will filter for gear issues later
 
 #GO BACK FOR THE FISH
 fish <- mn_data %>% 
-  right_join(good.surveys, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
+  right_join(good.surveys.effort, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
   collect()
 
-#need to filter out nets flagged with gear issues
-#isolate the flagged fish
-flagged.fish <- filter(fish, flag == "gear issue")
-#then need to adjust total effort for nets removed from analysis
+#CAN'T DO THIS BECAUSE CAN'T ID WHICH NETS ARE BAD, REMOVED ENTIRE FLAGGED SURVEYS ABOVE
+# #need to filter out nets flagged with gear issues
+# #isolate the flagged fish
+# flagged.fish <- filter(fish, flag == "gear issue")
+# #then need to adjust total effort for nets removed from analysis
+# #remove any rows from the fish data flagged with a gear issue - this removes bad sub-efforts (individual nets) but keeps the rest of the survey
+# #gear issue is the only flag with my data
 
-#remove any rows from the fish data flagged with a gear issue - this removes bad sub-efforts (individual nets) but keeps the rest of the survey
-#gear issue is the only flag with my data
 
-
-#save this fish table as a cvs
+#save this fish table as a .csv
 write_csv(fish, "Data/Output/FishData.csv")
+
 
 
 
