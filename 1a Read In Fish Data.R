@@ -2,6 +2,7 @@
 #determines which surveys have gear and sufficient effort to use the fish data
 #this also pulls out the nhdid, coordinates, and area for all the exact match lakes - at end of script
 
+
 library(lubridate)
 library(arrow)
 library(data.table)
@@ -121,9 +122,38 @@ incl.table$lake_id <- replace(incl.table$lake_id, incl.table$lake_id == 4003500,
 #takes the distinct columns from the mn_data
 #glimpse at end shows me if it did what I wanted
 good.surveys <- mn_data %>% 
-  filter((sampling_method == "gill_net_standard" | sampling_method == "gill_net_stratified_deep" | sampling_method =="gill_net_stratified_shallow" ) & (survey_type == "Standard Survey" | survey_type == "HISTORICAL"| survey_type == "Population Assessment"| survey_type == "Re-Survey"| survey_type == "Large Lake Survey"| survey_type == "Initial Survey" | (survey_type == "Special Assessment" & lake_id == 69000400) | (survey_type == "Special Assessment" & lake_id == 69025400) | (survey_type == "Targeted Survey" & lake_id == 3057600) | (survey_type == "Targeted Survey" & lake_id == 11041500) | (survey_type == "Targeted Survey" & lake_id == 13002700)| (survey_type == "Targeted Survey" & lake_id == 18030800) | (survey_type == "Targeted Survey" & lake_id == 38039300) | (survey_type == "Targeted Survey" & lake_id == 47004600 & year == 2020) | (survey_type == "Targeted Survey" & lake_id == 47006800) | (survey_type == "Targeted Survey" & lake_id == 69025400)))  %>% 
+  filter((sampling_method == "gill_net_standard" | 
+            sampling_method == "gill_net_stratified_deep" | 
+            sampling_method =="gill_net_stratified_shallow" ) & 
+           (survey_type == "Standard Survey" | 
+              survey_type == "HISTORICAL"| 
+              survey_type == "Population Assessment"| 
+              survey_type == "Re-Survey"| 
+              survey_type == "Large Lake Survey"| 
+              survey_type == "Initial Survey" | 
+              (survey_type == "Special Assessment" & lake_id == 69000400) | 
+              (survey_type == "Special Assessment" & lake_id == 69025400) | 
+              (survey_type == "Targeted Survey" & lake_id == 3057600) | 
+              (survey_type == "Targeted Survey" & lake_id == 11041500) | 
+              (survey_type == "Targeted Survey" & lake_id == 13002700)| 
+              (survey_type == "Targeted Survey" & lake_id == 18030800) | 
+              (survey_type == "Targeted Survey" & lake_id == 38039300) | 
+              (survey_type == "Targeted Survey" & lake_id == 47004600 & year == 2020) | 
+              (survey_type == "Targeted Survey" & lake_id == 47006800) | 
+              (survey_type == "Targeted Survey" & lake_id == 69025400)))  %>% 
   right_join(incl.table, by = c("lake_id", "year")) %>% 
-  distinct(lake_id, year, total_effort_ident, total_effort_1,  sampling_method_simple, sampling_method, survey_type, flag, lakesize, lakesize_units, nhdhr_id, latitude_lake_centroid, longitude_lake_centroid) %>% 
+  distinct(lake_id, 
+           year, 
+           total_effort_ident, 
+           total_effort_1,  
+           sampling_method_simple, 
+           sampling_method, 
+           survey_type, flag, 
+           lakesize, 
+           lakesize_units, 
+           nhdhr_id, 
+           latitude_lake_centroid, 
+           longitude_lake_centroid) %>% 
   collect()
 #collect actually brings data into R
 #end up with more rows than the inclusion table because different gillnet types are separated
@@ -215,7 +245,7 @@ fish.inclusive <- mn_data %>%
 
 
 
-#PULL JUST THE NHDID, COORDINATES, AND AREA DATA I WANT FOR MY LAKES, YEAR DOESN'T MATTER FOR THIS
+#PULL JUST THE NHDID, COORDINATES, AND AREA DATA I WANT FOR MY LAKES, YEAR DOESN'T MATTER FOR THIS ------------------------------
 nhdid.lat.long.area <- mn_data %>%
   right_join(incl.table, by = c("lake_id")) %>% 
   distinct(lake_id, nhdhr_id, latitude_lake_centroid, longitude_lake_centroid, lakesize, lakesize_units) %>% 
@@ -229,16 +259,6 @@ lakes.lat.long.area <- left_join(incl.table, nhdid.lat.long.area, by = "lake_id"
 
 # #write this as a .csv so I can use it to get temp data and join it to the preliminary data
 # write_csv(lakes.lat.long.area, "Data/Output/Selected_Lakes_Location_Area.csv")
-
-
-
-
-
-
-
-
-
-
 
 
 
