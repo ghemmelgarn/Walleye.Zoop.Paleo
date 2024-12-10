@@ -131,7 +131,7 @@ good.surveys <- mn_data %>%
 #note that this DOES NOT INCLUDE 2023 DATA
 
 
-# #use this to troubleshoot why certain lakes are and are not included
+# #use and modify this code to troubleshoot why certain lakes are and are not included
 # test <- mn_data %>%
 #   filter(sampling_method_simple == "gill_net" & lake_id == "69025400" & year == 2008)
 # glimpse(test)
@@ -174,17 +174,25 @@ good.surveys.filter.cse$effort.test <- good.surveys.filter.cse$total_effort_cse 
 good.surveys.filter.cse <- good.surveys.filter.cse %>%
   mutate(fish.effort.sufficient = ifelse (effort.test >= 0, "yes", "no"))
 
-#save this survey table as a .csv - this includes all surveys regardless of effort but with sufficient effort noted
-write_csv(good.surveys.filter.cse, "Data/Output/Usable_Fish_Surveys.csv")
+# #save this survey table as a .csv - this includes all surveys regardless of effort but with sufficient effort noted
+# write_csv(good.surveys.filter.cse, "Data/Output/Usable_Fish_Surveys.csv")
 
 #filter out only the surveys with good enough effort
 good.surveys.effort <- filter(good.surveys.filter.cse, fish.effort.sufficient == "yes")
+
+#trying out what happens if I allow 3 nets less than minimum to improve my total sample size
+good.surveys.effort.inclusive <- filter(good.surveys.filter.cse, effort.test >= -3)
 
 #at the end of this, I should feel confident that all of these surveys are good quality and ok to use - will filter for gear issues later
 
 #GO BACK FOR THE FISH
 fish <- mn_data %>% 
   right_join(good.surveys.effort, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
+  collect()
+
+#sample size testing
+fish.inclusive <- mn_data %>% 
+  right_join(good.surveys.effort.inclusive, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
   collect()
 
 #CAN'T DO THIS BECAUSE CAN'T ID WHICH NETS ARE BAD, REMOVED ENTIRE FLAGGED SURVEYS ABOVE
@@ -196,9 +204,11 @@ fish <- mn_data %>%
 # #gear issue is the only flag with my data
 
 
-#save this fish table as a .csv
-write_csv(fish, "Data/Output/FishData.csv")
+# #save this fish table as a .csv
+# write_csv(fish, "Data/Output/FishData.csv")
 
+# #save this fish table as a .csv
+# write_csv(fish.inclusive, "Data/Output/FishData.inclusive.csv")
 
 
 
@@ -217,8 +227,8 @@ nhdid.lat.long.area$lakesize <- replace(nhdid.lat.long.area$lakesize, nhdid.lat.
 #join back to inclusion table to match this data with all the lakes and years
 lakes.lat.long.area <- left_join(incl.table, nhdid.lat.long.area, by = "lake_id")
 
-#write this as a .csv so I can use it to get temp data and join it to the preliminary data
-write_csv(lakes.lat.long.area, "Data/Output/Selected_Lakes_Location_Area.csv")
+# #write this as a .csv so I can use it to get temp data and join it to the preliminary data
+# write_csv(lakes.lat.long.area, "Data/Output/Selected_Lakes_Location_Area.csv")
 
 
 
