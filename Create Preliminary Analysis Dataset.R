@@ -703,6 +703,11 @@ rm(iw,
 
 #FILTER out to select the lakes with all the data I can actually use. ------------------------------------------------------------------------
 
+#remove extra columns I never used or don't need like the empty invasive species and the walleye count from the old spreadsheet
+Data_all <- Data_all %>%
+  select(-ZoopMonths,
+         -Invasive.species,
+         -WalleyeCPUE)
 
 #Requirements:
 #conditions filtered above in this script:
