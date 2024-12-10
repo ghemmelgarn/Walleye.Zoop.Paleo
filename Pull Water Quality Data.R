@@ -167,8 +167,8 @@ dnr.secchi.join.filter <- dnr.secchi.join.filter %>%
 #bind the rows of the WQP and DNR secchi data into one data frame
 all.secchi <- bind_rows(WQP.secchi.join, dnr.secchi.join.filter)
 
-#save all this data as a csv for later reference
-write.csv(all.secchi, file = "Data/Output/All_Secchi_Data_WQP_DNR.csv")
+# #save all this data as a csv for later reference
+# write.csv(all.secchi, file = "Data/Output/All_Secchi_Data_WQP_DNR.csv")
 
 
 #BELOW FILTERS OUT THE SECCHI DATA I WANT TO ACTAULLY USE 
@@ -202,8 +202,8 @@ WQ.good.summer.secchi <- WQ.summer %>%
   right_join(WQ.good.lakes, by = c("parentdow", "year"))
 
 
-#write a csv file with all of your selected good secchi data
-write.csv(WQ.good.summer.secchi, file = "Data/Output/Selected_Secchi_Data.csv")
+# #write a csv file with all of your selected good secchi data
+# write.csv(WQ.good.summer.secchi, file = "Data/Output/Selected_Secchi_Data.csv")
 
 
 # #DON'T NEED TO DO THIS, WILL DO IN CREATION OF PRELIM DATASET
