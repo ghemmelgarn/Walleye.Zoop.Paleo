@@ -350,14 +350,14 @@ fish_parentdow$parentdow.fish.year = paste(fish_parentdow$parentdow, fish_parent
 
 #filter just the fish columns to join
 fish.join <- fish_parentdow %>%
-  select(parentdow.fish.year, walleye_count, WAE.CPUE, fish.effort.sufficient)
+  select(parentdow.fish.year, walleye_count, WAE.CPUE, LMB_count, LMB.CPUE, fish.effort.sufficient)
 
 #join walleye CPUE to dataset 
 #full_join will retain all rows in both initial tables and create NA values when the other table doesn't have info for that lake/year
 Data_b <- left_join(Data_a, fish.join, by = "parentdow.fish.year")
 
 #add "no" when fish effort not sufficient instead of NA
-Data_b2 <- Data_b2 %>%
+Data_b <- Data_b %>%
   mutate(fish.effort.sufficient = if_else(is.na(fish.effort.sufficient), "no", "yes"))
 
 #remove unneeded intermediate data frames to keep environment clean
@@ -383,12 +383,14 @@ fish_parentdow.inc$parentdow.fish.year = paste(fish_parentdow.inc$parentdow, fis
 
 #filter just the fish columns to join
 fish.join.inc <- fish_parentdow.inc %>%
-  select(parentdow.fish.year, walleye_count, WAE.CPUE)
+  select(parentdow.fish.year, walleye_count, WAE.CPUE, LMB_count, LMB.CPUE)
 
 #rename the walleye CPUE and count columns to show that they are the inclusive version
 fish.join.inc <- fish.join.inc %>%
   rename(walleye_count_inc = walleye_count,
-         WAE.CPUE.inc = WAE.CPUE
+         WAE.CPUE.inc = WAE.CPUE,
+         LMB_count_inc = LMB_count,
+         LMB.CPUE.inc = LMB.CPUE
          )
 
 #join walleye CPUE to dataset 
@@ -713,21 +715,21 @@ rm(iw,
 
 #need to filter now:
 
-#6 distinct months of zoop tows
-Data.all.zoop.month.restrict.6 <- Data_all %>%
-  filter(Zoop.Month.Count >= 6)
-#have all the data: zoops, fish, temp, productivity, area (invasive species will only be listed if present - this is ok)
-Data.no.missing.6z <- Data.all.zoop.month.restrict.6 %>%
-  filter(!is.na(zoop.total.biomass) & 
-           !is.na(WAE.CPUE) & 
-           !is.na(gdd_wtr_5c) & 
-           !is.na(mean.summer.secchi.meters) & 
-           !is.na(lakesize)
-         )
-#end up with 61 observations
-#how many unique lakes is this?
-unique(Data.no.missing.6z$LakeName)
-#21 lakes... not many
+# #6 distinct months of zoop tows
+# Data.all.zoop.month.restrict.6 <- Data_all %>%
+#   filter(Zoop.Month.Count >= 6)
+# #have all the data: zoops, fish, temp, productivity, area (invasive species will only be listed if present - this is ok)
+# Data.no.missing.6z <- Data.all.zoop.month.restrict.6 %>%
+#   filter(!is.na(zoop.total.biomass) & 
+#            !is.na(WAE.CPUE) & 
+#            !is.na(gdd_wtr_5c) & 
+#            !is.na(mean.summer.secchi.meters) & 
+#            !is.na(lakesize)
+#          )
+# #end up with 61 observations
+# #how many unique lakes is this?
+# unique(Data.no.missing.6z$LakeName)
+# #21 lakes... not many
 
 #BELOW IS EXPERIMENTING WITH DIFFERENT DATA FILTERS TO INCREASE SAMPLE SIZE
 #I started very restrictive knowing I may have to loosen some to get enough data
