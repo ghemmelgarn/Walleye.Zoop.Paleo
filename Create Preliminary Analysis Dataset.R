@@ -204,7 +204,7 @@ zoop_all_biomass <- full_join(zoop_clad_prop, zoop_biomass_b, by = "parentdow.zo
 
 #filter out just the biomass metric columns you want
 #modify this later to include the biomass of each species for multivariate analyses: add starts_with("spp.") as the last argument below
-zoop_biomass_metrics <- select(zoop_all_biomass, 
+zoop_biomass_metrics <- dplyr::select(zoop_all_biomass, 
                                parentdow.zoop.year, 
                                Zoop.Month.Count, 
                                zoop.total.biomass, 
@@ -233,8 +233,34 @@ zoop_length_clad <- zoop_length_clad_sample %>%
   group_by(parentdow.zoop.year) %>%
   summarize(cladoceran.mean.length = mean(cladoceran.mean.length), .groups = 'drop')
 
-#join the two length metrics
-zoop_length_all <- left_join(zoop_length, zoop_length_clad, by = "parentdow.zoop.year")
+#calculate average individual length of just Bosminidae, unit = mm
+zoop_bosmina <- filter(zoop_parentdow, species == "Bosmina sp." | species == "Bosmina longirostris" | species == "Eubosmina coregoni")
+#weighted average of mean length on each sampling date (mean length of each species weighted by count of that species)
+zoop_length_bosmina_sample <- zoop_bosmina %>%
+  group_by(parentdow.zoop.year, sample_date) %>%
+  summarize(bosmina.mean.length = sum(mean_length*count)/sum(count), .groups = 'drop')
+#now take mean over all the sampling dates in a year
+zoop_length_bosmina <- zoop_length_bosmina_sample %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(bosmina.mean.length = mean(bosmina.mean.length), .groups = 'drop')
+
+#calculate average individual length of just Chydoridae, subfamily Aloninae (no Eurycercus), unit = mm
+#based on what has preserved carapaces
+zoop_chydorid <- filter(zoop_parentdow, species == "Alona sp." | species == "Alona setulosa" | species == "Chydoridae" | species == "Acroperus harpae" | species == "Camptocercus sp." | species == "Chydorus sp." | species == "Chydorus sphaericus" | species == "Alonella sp." | species == "Graptoleberis sp." | species == "Alona quadrangularis")
+#weighted average of mean length on each sampling date (mean length of each species weighted by count of that species)
+zoop_length_chydorid_sample <- zoop_chydorid %>%
+  group_by(parentdow.zoop.year, sample_date) %>%
+  summarize(chydorid.mean.length = sum(mean_length*count)/sum(count), .groups = 'drop')
+#now take mean over all the sampling dates in a year
+zoop_length_chydorid <- zoop_length_chydorid_sample %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(chydorid.mean.length = mean(chydorid.mean.length), .groups = 'drop')
+
+
+#join the various length metrics
+zoop_length_a <- left_join(zoop_length, zoop_length_clad, by = "parentdow.zoop.year")
+zoop_length_b <- left_join(zoop_length_a, zoop_length_bosmina, by = "parentdow.zoop.year")
+zoop_length_all <- left_join(zoop_length_b, zoop_length_chydorid, by = "parentdow.zoop.year")
 
 #calculate relative abundance of large vs. small cladocerans
 #remove dapnia sp. with no size assigned, remember bythotrephes and leptodora already removed from data
@@ -261,7 +287,20 @@ zoop_Prop_large_clad <- zoop_size_sample_abundance_wide %>%
   group_by(parentdow.zoop.year) %>%
   summarize(prop.large.cladoceran = mean(prop.large.cladoceran), .groups = 'drop')
 
+#calculate diversity metrics
+#first need to make sure we don't have duplicates where anything that ends in "sp." or have family names doesn't also have another entry with a species name
+#zoop_diversity_species <- zoop_parentdow %>%
+  #mutate(species = ifelse(species == ))
+  #filter(zoop_parentdow, species == "Alona sp." 
+#NOT SURE HOW TO DO THIS WITHOUT LOSING DATA - NEED TO ASK GRETCHEN, COME BACK TO IT
+#EMAILED KYLIE AND HEIDI
+
+#see how many rpws of each unique species I have
+table(zoop_parentdow$species)
+
 #calculate shannon diversity index on each sampling date
+
+
 zoop_SDI_sample <- zoop_parentdow %>%
   group_by(parentdow.zoop.year, sample_date) %>%
   summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
