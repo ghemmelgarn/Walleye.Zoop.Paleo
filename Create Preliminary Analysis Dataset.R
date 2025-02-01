@@ -295,7 +295,7 @@ zoop_Prop_large_clad <- zoop_size_sample_abundance_wide %>%
 #NOT SURE HOW TO DO THIS WITHOUT LOSING DATA - NEED TO ASK GRETCHEN, COME BACK TO IT
 #EMAILED KYLIE AND HEIDI
 
-#see how many rpws of each unique species I have
+#see how many rows of each unique species I have
 table(zoop_parentdow$species)
 
 #calculate shannon diversity index on each sampling date
@@ -364,7 +364,15 @@ rm(zoop,
    zoop_size_sample_abundance_wide,
    zoop_species_summary,
    zoop_species_wide,
-   zoop_total_biomass
+   zoop_total_biomass,
+   zoop_bosmina,
+   zoop_chydorid,
+   zoop_length_a,
+   zoop_length_b,
+   zoop_length_bosmina,
+   zoop_length_bosmina_sample,
+   zoop_length_chydorid,
+   zoop_length_chydorid_sample
    )
 
 
@@ -947,3 +955,132 @@ unique(Data.no.missing.5z.finc$LakeName)
 
 # #save complete preliminary dataset as .csv
 # write.csv(Data.no.missing.5z.finc, file = "Data/Output/Preliminary Data.csv")
+
+#---------------------------------------------------------------------------------------------------------------
+
+#create file of raw zoop data for only lake/years used in preliminary analysis
+prelim.raw.zoop <- zoop_parentdow %>%
+ # filter(parentdow.zoop.year %in% Data.no.missing.5z.finc$parentdow.zoop.year)
+#to run this code, need to remake the zoop_parentdow data frame because it gets automatically removed in the code above
+#save this file to send to Kylie and maybe refer to later
+#write.csv(prelim.raw.zoop, file = "Data/Output/Preliminary Raw Zoop Data.csv")
+
+#CODE BELOW IS TROUBLESHOOTING WHAT TO DO WITH TAXONOMIC RESOLUTION FOR ZOOP DIVERSITY METRICS:
+
+#see the unique species names in the zoop data I am using 
+unique(prelim.raw.zoop$species)
+
+#see how many rows of each unique species I have
+table(prelim.raw.zoop$species)
+
+#problematic taxa:
+  #juvenile copepods
+      #"nauplii"  2642
+      #"copepodites"  2695
+
+  #"calanoids"  1208
+      #"Senecella calanoides"  94
+      #"Epischura lacustris"  393
+      #"Limnocalanus macrurus"  140
+      #"Diaptomidae"   1443
+          #"Leptodiaptomus minutus"  13
+          #"Leptodiaptomus sicilis"  2
+          #"Onychodiaptomus sanguineus"  1
+          #"Skistodiaptomus oregonensis"  4
+
+  #"cyclopoids"  1592
+      #"Acanthocyclops vernalis"  14
+      #"Diacyclops sp."   1
+          #"Diacyclops bicuspidatus thomasi"  1059
+      #"Macrocyclops sp."  2
+      #"Mesocyclops edax"  958
+      #"Tropocyclops prasinus mexicanus"  914
+
+  #"Bosmina sp."  1849
+      #"Bosmina longirostris"  163
+      #"Eubosmina coregoni"   771  - Do you consider this a genus or subgenus. Could it be included in "Bosmina sp."?
+
+  #"Chydorus sp."  346
+      #"Chydorus sphaericus"  922
+
+  #"Alona sp."  22
+      #"Alona setulosa"  9
+      #"Alona quadrangularis"  1
+
+  #"Ceriodaphnia sp."  487
+      #"Ceriodaphnia reticulata"  1
+
+  #"Daphnia sp."  6
+      #"Daphnia galeata mendotae"  2115
+      #"Daphnia retrocurva"  1202
+      #"Daphnia parvula"  81
+      #"Daphnia rosea"   3
+      #"Daphnia pulicaria"  529
+      #"Daphnia pulex"  80
+      #"Daphnia ambigua"  6
+      #"Daphnia longiremis"  281
+      #"Daphnia lumholtzi"  26
+
+
+#these taxa seem okay
+    #"Acroperus harpae"  13
+    #"Holopedium gibberum"   516
+    #"Eurycercus lamellatus"  201
+    #"Graptoleberis sp."  1
+    #"Polyphemus pediculus"  10
+    #"Latona setifera"  8
+    #"Sida crystallina"  18
+    #"Diaphanosoma birgei"  1045
+    #"Moina sp."   28
+    #"Simocephalus sp."  6
+    #"Scapholeberis sp."  2
+    #"Macrothricidae"  9
+    #"Ergasilus sp."   16  (this is a copepod but in the order Poecilostomatoida, not a cylopoid or a calanoid)
+
+
+#find the lake/years with just "Daphnia sp."
+Daphnia.sp <- prelim.raw.zoop %>%
+  filter(species == "Daphnia sp.")
+
+#its Belle 2008: 470049 2008
+#and Leech 2020: 110203 2020
+
+#look at entire samples from those lake/years
+Daphnia.sp.samples <- prelim.raw.zoop %>%
+  filter(parentdow.zoop.year == "470049 2008" | parentdow.zoop.year == "110203 2020")
+
+#It looks like there were a few samples Belle in 2008 (samples 4404, 4405, 4406) where all Daphnia just got called Daphnia sp., but all the other samples from Belle in 2008 IDed the Daphnia to species. In some samples from Leech in 2020 (samples 6763, 6766, and 6774), there are Daphnia sp. along with other identified Daphnia species.
+
+
+#ORIGINAL METHOD - forgot there were multiple samples on each date...
+#calculate shannon diversity index on each sampling date
+zoop_SDI_sample <- prelim.raw.zoop %>%
+  group_by(parentdow.zoop.year, sample_date) %>%
+  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
+#now take mean over all the sampling dates in a year
+zoop_SDI <- zoop_SDI_sample %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(zoop.Shannon.DI = mean(zoop.Shannon.DI), .groups = 'drop')
+
+#NEW CODE FOR THIS
+#I want to simulate how we will find zoops in sediment, which means I should get a total count of each species for each lake/year and use this to calculate Shannon Diversity, richness, and evenness
+zoop_diversity <- prelim.raw.zoop %>%
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_new <- zoop_diversity %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
+
+#compare the histograms of these two methods:
+SDI.original <- ggplot(zoop_SDI, aes( x = zoop.Shannon.DI )) +
+  geom_histogram() +
+  theme_minimal()
+print(SDI.original)
+
+SDI.new <- ggplot(zoop_SDI_new, aes( x = zoop.Shannon.DI )) +
+  geom_histogram() +
+  theme_minimal()
+print(SDI.new)
+
+#already data looks much better without even fixing the taxonomy problems
