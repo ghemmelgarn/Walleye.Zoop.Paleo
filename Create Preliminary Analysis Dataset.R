@@ -960,7 +960,7 @@ unique(Data.no.missing.5z.finc$LakeName)
 
 #create file of raw zoop data for only lake/years used in preliminary analysis
 prelim.raw.zoop <- zoop_parentdow %>%
- # filter(parentdow.zoop.year %in% Data.no.missing.5z.finc$parentdow.zoop.year)
+ filter(parentdow.zoop.year %in% Data.no.missing.5z.finc$parentdow.zoop.year)
 #to run this code, need to remake the zoop_parentdow data frame because it gets automatically removed in the code above
 #save this file to send to Kylie and maybe refer to later
 #write.csv(prelim.raw.zoop, file = "Data/Output/Preliminary Raw Zoop Data.csv")
@@ -1070,7 +1070,18 @@ zoop_diversity <- prelim.raw.zoop %>%
 #now calculate Shannon diversity
 zoop_SDI_new <- zoop_diversity %>%
   group_by(parentdow.zoop.year) %>%
-  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
+  summarize(zoop.Shannon.DI.test = diversity(count, index = "shannon"), .groups = 'drop')
+#do this again but without the copepods
+zoop_nocopepods <- prelim.raw.zoop %>%
+  filter(grp == "Cladocerans")
+zoop_SDI_new2 <- zoop_nocopepods %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(zoop.Shannon.DI.nocope = diversity(count, index = "shannon"), .groups = 'drop')
+
+#code to join this to other data and create a test prelim dataset
+#test <- left_join(Data.no.missing.5z.finc, zoop_SDI_new, by = "parentdow.zoop.year")
+#test2 <- left_join(test, zoop_SDI_new2, by = "parentdow.zoop.year")
+#write.csv(test2, file = "Data/Output/PreliminaryNewTest.csv")
 
 #compare the histograms of these two methods:
 SDI.original <- ggplot(zoop_SDI, aes( x = zoop.Shannon.DI )) +
