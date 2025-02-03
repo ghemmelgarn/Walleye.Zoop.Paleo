@@ -28,7 +28,7 @@ Data <- read.csv("Data/Input/Preliminary Data.csv")
 WAE.CPUE <- gf_histogram(~WAE.CPUE.inc, data = Data, xlab = "Walleye CPUE")
 Prop.Clad <- gf_histogram(~prop.Cladoceran.biomass, data = Data, xlab = "Porportion Cladocerans")
 Length <- gf_histogram(~zoop.mean.length, data = Data, xlab = "Zooplankton Mean Length (mm)")
-SDI <- gf_histogram(~zoop.Shannon.DI, data = Data, xlab = "Zooplankton Shannon Diversity Index")
+SDI <- gf_histogram(~zoop.Shannon.DI.nocope, data = Data, xlab = "Zooplankton Shannon Diversity Index")
 Temp <- gf_histogram(~gdd_wtr_5c, data = Data, xlab = "Water Temperature Degree Days")
 Secchi <- gf_histogram(~mean.summer.secchi.meters, data = Data, xlab = "Secchi Depth (m)")
 Area <- gf_histogram(~lakesize, data = Data, xlab = "Lake Area (acres)")
@@ -48,7 +48,7 @@ grid.arrange(WAE.CPUE,
 pairs.panels(dplyr::select(Data,
                     prop.Cladoceran.biomass,
                     zoop.mean.length,
-                    zoop.Shannon.DI,
+                    zoop.Shannon.DI.nocope,
                     gdd_wtr_5c,
                     mean.summer.secchi.meters,
                     lakesize),
@@ -60,7 +60,7 @@ pairs.panels(dplyr::select(Data,
 lm.zoop.fish <- lm(WAE.CPUE.inc ~
                      prop.Cladoceran.biomass +
                      zoop.mean.length +
-                     zoop.Shannon.DI +
+                     zoop.Shannon.DI.nocope +
                      gdd_wtr_5c +
                      mean.summer.secchi.meters +
                      lakesize,

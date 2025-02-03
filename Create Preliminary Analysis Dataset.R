@@ -1074,6 +1074,9 @@ zoop_SDI_new <- zoop_diversity %>%
 #do this again but without the copepods
 zoop_nocopepods <- prelim.raw.zoop %>%
   filter(grp == "Cladocerans")
+zoop_nocopepods <- zoop_nocopepods %>%
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
 zoop_SDI_new2 <- zoop_nocopepods %>%
   group_by(parentdow.zoop.year) %>%
   summarize(zoop.Shannon.DI.nocope = diversity(count, index = "shannon"), .groups = 'drop')
