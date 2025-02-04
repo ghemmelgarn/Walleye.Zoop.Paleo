@@ -159,21 +159,21 @@ lake.area <- plot(effect6, show_residuals = TRUE, facet = TRUE, jitter = FALSE) 
   ylim(0,17)
 print(lake.area)
 
-tiff("Prelim Zoop Effect Plots Row 1.tiff", width = 12, height = 3.5, units = "in", res = 300)
+#tiff("Prelim Zoop Effect Plots Row 1.tiff", width = 12, height = 3.5, units = "in", res = 300)
 grid.arrange(p.clad.biom,
              zoop.m.l,
              clad.sdi,
              ncol=3, nrow=1
 )
-dev.off()
+#dev.off()
 
-tiff("Prelim Zoop Effect Plots Row 2.tiff", width = 12, height = 3.5, units = "in", res = 300)
+#tiff("Prelim Zoop Effect Plots Row 2.tiff", width = 12, height = 3.5, units = "in", res = 300)
 grid.arrange(temp,
              secchi,
              lake.area,
              ncol=3, nrow=1
 )
-dev.off()
+#dev.off()
 
 #added variable plots / partial regression plots
 # 1) regresses Y against all other predictors
