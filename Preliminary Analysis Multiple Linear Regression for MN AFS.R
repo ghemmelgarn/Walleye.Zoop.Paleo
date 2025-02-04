@@ -20,6 +20,199 @@ library(MuMIn) #to get r squared for mixed effects model
 
 Data <- read.csv("Data/Input/Preliminary Data.csv")
 
+#THE VERSION ON THE POSTER
+#All original predictors, lake as random effect, corrected zooplankton diversity without copepods
+#prop large cladocerans is in the histogram and colinearity plots because I was curious, not in model
+
+#log transform lake area so Lake of the Woods isn't such an outlier
+Data$lakesize.log <- log(Data$lakesize, base = 10)
+
+#center and scale all the variables
+Data$prop.Cladoceran.biomass.scale <- scale(Data$prop.Cladoceran.biomass)
+Data$zoop.mean.length.scale <- scale(Data$zoop.mean.length)
+Data$zoop.Shannon.DI.nocope.scale <- scale(Data$zoop.Shannon.DI.nocope)
+Data$gdd_wtr_5c.scale <- scale(Data$gdd_wtr_5c)
+Data$mean.summer.secchi.meters.scale <- scale(Data$mean.summer.secchi.meters)
+Data$lakesize.log.scale <- scale(Data$lakesize.log)
+Data$prop.large.cladoceran.scale <- scale(Data$prop.large.cladoceran)
+
+#plot histograms of each variable to see centered, scaled distributions
+WAE.CPUE <- gf_histogram(~WAE.CPUE.inc, data = Data, xlab = "Walleye CPUE")
+Prop.Clad <- gf_histogram(~prop.Cladoceran.biomass.scale, data = Data, xlab = "Porportion Cladocerans")
+Length <- gf_histogram(~zoop.mean.length.scale, data = Data, xlab = "Zooplankton Mean Length (mm)")
+SDI <- gf_histogram(~zoop.Shannon.DI.nocope.scale, data = Data, xlab = "Zooplankton Shannon Diversity Index")
+Temp <- gf_histogram(~gdd_wtr_5c.scale, data = Data, xlab = "Water Temperature Degree Days")
+Secchi <- gf_histogram(~mean.summer.secchi.meters.scale, data = Data, xlab = "Secchi Depth (m)")
+Area <- gf_histogram(~lakesize.log.scale, data = Data, xlab = "Lake Area (acres)")
+p.large.clad <- gf_histogram(~prop.large.cladoceran.scale, data = Data, xlab = "Proportion Large Cladocerans")
+grid.arrange(WAE.CPUE,
+             Prop.Clad,
+             Length,
+             SDI,
+             Temp,
+             Secchi,
+             Area,
+             p.large.clad,
+             ncol=2, nrow=4
+)
+
+#check for colinearity between predictors
+pairs.panels(dplyr::select(Data,
+                           prop.Cladoceran.biomass.scale,
+                           zoop.mean.length.scale,
+                           zoop.Shannon.DI.nocope.scale,
+                           gdd_wtr_5c.scale,
+                           mean.summer.secchi.meters.scale,
+                           lakesize.log.scale,
+                           prop.large.cladoceran.scale),
+             gap = 0.1,
+             ellipses = FALSE
+)
+
+
+#linear mixed effects model
+lm.poster <- lmer(WAE.CPUE.inc ~
+                           prop.Cladoceran.biomass.scale +
+                           zoop.mean.length.scale +
+                           zoop.Shannon.DI.nocope.scale +
+                           gdd_wtr_5c.scale +
+                           mean.summer.secchi.meters.scale +
+                           lakesize.log.scale +
+                           (1 | LakeName),
+                         data = Data
+)
+
+#check assumptions for the linear model
+check_model(lm.poster, check = c("linearity", "homogeneity", "qq", "normality"))
+
+#results
+summary(lm.poster)
+r.squaredGLMM(lm.poster)
+
+#VISUALIZATIONS
+#effect plots
+#provide predicted Y by predictor variable of interest with all other predictors set to their mean
+library(effects)
+plot(allEffects(lm.poster))
+#okay this worked but it is ugly.... let's try with ggplot
+#code adapted from https://lmudge13.github.io/sample_code/mixed_effects.html
+
+library(ggeffects)
+effect1 <- ggeffect(lm.poster, terms = c("prop.Cladoceran.biomass.scale [all]"))
+effect1
+p.clad.biom <- plot(effect1, show_residuals = TRUE, facet = TRUE, jitter = FALSE) + 
+  labs( x = "Cladoceran Biomass Proportion", y = "Walleye CPUE", title = "Cladoceran Biomass Proportion") +
+  theme_classic() +
+  theme(strip.text = element_blank())+
+  xlim(-3,3) +
+  ylim(0,17)
+print(p.clad.biom)
+
+effect2 <- ggeffect(lm.poster, terms = c("zoop.mean.length.scale [all]"))
+effect2
+zoop.m.l <- plot(effect2, show_residuals = TRUE, facet = TRUE, jitter = FALSE) + 
+  labs( x = "Zooplankton Mean Length", y = "Walleye CPUE", title = "Zooplankton Mean Length") +
+  theme_classic() + 
+  theme(strip.text = element_blank())+
+  xlim(-3,3) +
+  ylim(0,17)
+print(zoop.m.l)
+
+effect3 <- ggeffect(lm.poster, terms = c("zoop.Shannon.DI.nocope.scale [all]"))
+effect3
+clad.sdi <- plot(effect3, show_residuals = TRUE, facet = TRUE, jitter = FALSE) +
+  labs( x = "Cladoceran Shannon Diversity Index", y = "Walleye CPUE", title = "Cladoceran Shannon Diversity Index") +
+  theme_classic() + 
+  theme(strip.text = element_blank())+
+  xlim(-3,3) +
+  ylim(0,17)
+print(clad.sdi)
+
+effect4 <- ggeffect(lm.poster, terms = c("gdd_wtr_5c.scale [all]"))
+effect4
+temp <- plot(effect4, show_residuals = TRUE, facet = TRUE, jitter = FALSE) +
+  labs( x = "Growing Degree Days", y = "Walleye CPUE", title = "Temperature") +
+  theme_classic() + 
+  theme(strip.text = element_blank())+
+  xlim(-3,3) +
+  ylim(0,17)
+print(temp)
+
+effect5 <- ggeffect(lm.poster, terms = c("mean.summer.secchi.meters.scale [all]"))
+effect5
+secchi <- plot(effect5, show_residuals = TRUE, facet = TRUE, jitter = FALSE) +
+  labs( x = "Secchi Depth", y = "Walleye CPUE", title = "Clarity") +
+  theme_classic() + 
+  theme(strip.text = element_blank())+
+  xlim(-3,3) +
+  ylim(0,17)
+print(secchi)
+
+
+effect6 <- ggeffect(lm.poster, terms = c("lakesize.log.scale [all]"))
+effect6
+lake.area <- plot(effect6, show_residuals = TRUE, facet = TRUE, jitter = FALSE) +
+  labs( x = expression(log[10](Lake~Area)), y = "Walleye CPUE", title = "Lake Area") +
+  theme_classic() + 
+  theme(strip.text = element_blank()) +
+  xlim(-3,3) +
+  ylim(0,17)
+print(lake.area)
+
+tiff("Prelim Zoop Effect Plots Row 1.tiff", width = 12, height = 3.5, units = "in", res = 300)
+grid.arrange(p.clad.biom,
+             zoop.m.l,
+             clad.sdi,
+             ncol=3, nrow=1
+)
+dev.off()
+
+tiff("Prelim Zoop Effect Plots Row 2.tiff", width = 12, height = 3.5, units = "in", res = 300)
+grid.arrange(temp,
+             secchi,
+             lake.area,
+             ncol=3, nrow=1
+)
+dev.off()
+
+#added variable plots / partial regression plots
+# 1) regresses Y against all other predictors
+# 2) then regresses variable of interest against all other predictors
+# 3) plots residuals of part 1 vs. residuals of part 2
+# library(car)
+# avPlots(lm.poster)
+#nevermind.... apparently can't do this with the mixed effect model
+
+
+#component + residual plots / partial residual plots
+#plots the entire model including residuals on y vs. predictor of interest on x
+#not as good at depicting amount of variability explained by model
+# library(car)
+# car::crPlots(lm.poster)
+#getting an error... not going to mess with this now
+
+#from https://optimumsportsperformance.com/blog/plotting-mixed-model-outputs/ :
+# look at the random effects
+random_effects <- ranef(lm.poster) %>%
+  pluck(1) %>%
+  rownames_to_column() %>%
+  rename(Subject = rowname, Intercept = "(Intercept)") 
+
+random_effects %>%
+  knitr::kable()
+
+## plot random effects
+library(lattice)
+dotplot(ranef(lm.poster))
+#he has additional ggplot code to make a prettier version of this if I want it
+
+## Plot Residual
+plot(lm.poster)
+hist(resid(lm.poster))
+#again, he has ggplot code to make it pretty if I want it
+#then he has code to plot predictions for each case... not what I am looking for
+
+
 #---------------------------------------------------------------------------------------------
 
 #THE ORIGINAL VERSION FROM BIOMETRY PROJECT
@@ -84,7 +277,7 @@ confint(lm.zoop.fish, method = "percentile", level = 0.95)
 lm.random.effect <- lmer(WAE.CPUE.inc ~
                      prop.Cladoceran.biomass +
                      zoop.mean.length +
-                     zoop.Shannon.DI +
+                     zoop.Shannon.DI.nocope +
                      gdd_wtr_5c +
                      mean.summer.secchi.meters +
                      lakesize +
@@ -122,7 +315,7 @@ Data.scaled <- Data %>%
 WAE.CPUE <- gf_histogram(~WAE.CPUE.inc, data = Data.scaled, xlab = "Walleye CPUE")
 Prop.Clad <- gf_histogram(~prop.Cladoceran.biomass, data = Data.scaled, xlab = "Porportion Cladocerans")
 Length <- gf_histogram(~zoop.mean.length, data = Data.scaled, xlab = "Zooplankton Mean Length (mm)")
-SDI <- gf_histogram(~zoop.Shannon.DI, data = Data.scaled, xlab = "Zooplankton Shannon Diversity Index")
+SDI <- gf_histogram(~zoop.Shannon.DI.nocope, data = Data.scaled, xlab = "Zooplankton Shannon Diversity Index")
 Temp <- gf_histogram(~GDD1000days, data = Data.scaled, xlab = "1,000 Water Temperature Degree Days")
 Secchi <- gf_histogram(~mean.summer.secchi.meters, data = Data.scaled, xlab = "Secchi Depth (m)")
 Area <- gf_histogram(~LS10000acres, data = Data.scaled, xlab = "Lake Area (10,000 acres)")
@@ -141,7 +334,7 @@ grid.arrange(WAE.CPUE,
 lm.random.effect.scaled <- lmer(WAE.CPUE.inc ~
                            prop.Cladoceran.biomass +
                            zoop.mean.length +
-                           zoop.Shannon.DI +
+                           zoop.Shannon.DI.nocope +
                            GDD1000days +
                            mean.summer.secchi.meters +
                            LS10000acres +
@@ -374,7 +567,7 @@ Data.scaled.filtered <- Data.scaled %>%
 lm.test10 <- lmer(WAE.CPUE.inc ~
                      prop.Cladoceran.biomass +
                      zoop.mean.length +
-                     zoop.Shannon.DI +
+                     zoop.Shannon.DI.nocope +
                      GDD1000days +
                      mean.summer.secchi.meters +
                      LS10000acres +
@@ -431,7 +624,7 @@ r.squaredGLMM(lm.test11)
 lm.test12 <- lmer(WAE.CPUE.inc ~
                     prop.Cladoceran.biomass +
                     zoop.mean.length +
-                    zoop.Shannon.DI +
+                    zoop.Shannon.DI.nocope +
                     GDD1000days +
                     mean.summer.secchi.meters +
                     (1 | DOW),
