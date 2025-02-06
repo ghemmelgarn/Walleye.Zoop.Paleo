@@ -958,6 +958,8 @@ unique(Data.no.missing.5z.finc$LakeName)
 
 #---------------------------------------------------------------------------------------------------------------
 
+#CODE USED TO INVESTIGATE THE ZOOPLANKTON TAXONOMY ISSUES
+
 #create file of raw zoop data for only lake/years used in preliminary analysis
 prelim.raw.zoop <- zoop_parentdow %>%
  filter(parentdow.zoop.year %in% Data.no.missing.5z.finc$parentdow.zoop.year)
@@ -1051,6 +1053,33 @@ Daphnia.sp.samples <- prelim.raw.zoop %>%
 
 #It looks like there were a few samples Belle in 2008 (samples 4404, 4405, 4406) where all Daphnia just got called Daphnia sp., but all the other samples from Belle in 2008 IDed the Daphnia to species. In some samples from Leech in 2020 (samples 6763, 6766, and 6774), there are Daphnia sp. along with other identified Daphnia species.
 
+#Fix the taxonomy problems:
+# 1. remove all the copepods
+zoop_nocopepods <- prelim.raw.zoop %>%
+  filter(grp == "Cladocerans")
+# 2. rename taxa that need it based on conversation with Heidi and Kylie
+  #targeted just the Belle lake Daphnia based on Jodie's notes from when she IDed them
+  #I know I can run these together but I was getting an error I didn't have time to deal with when I tried that
+zoop_clean_taxa <- zoop_nocopepods %>%
+  mutate(species = ifelse(species == "Chydorus sp.", "Chydorus sphaericus", species)) 
+zoop_clean_taxa <- zoop_clean_taxa %>%
+  mutate(species = ifelse(species == "Bosmina longirostris", "Bosmina sp.", species))
+zoop_clean_taxa <- zoop_clean_taxa %>%
+  mutate(species = ifelse(species == "Alona setulosa" | species == "Alona quadrangularis" , "Alona sp.", species))
+zoop_clean_taxa <- zoop_clean_taxa %>%  
+  mutate(species = ifelse(species == "Ceriodaphnia reticulata", "Ceriodaphnia sp.", species))
+zoop_clean_taxa <- zoop_clean_taxa %>%
+  mutate(species = ifelse(species == "Daphnia pulex", "Daphnia pulicaria", species))
+  #below I am targeting just the Belle lake Daphnia based on Jodie's notes from when she IDed them
+zoop_clean_taxa <- zoop_clean_taxa %>%
+  mutate(species = ifelse(species == "Daphnia sp." & parentdow.zoop.year == "470049 2008", "Daphnia rosea", species))
+# 3. remove the Daphnia sp. observations from Leech lake (1 daphnia in 3 samples not IDed to species)
+zoop_clean_taxa2 <- zoop_clean_taxa %>%
+  filter(species != "Daphnia sp.")
+
+#check that it worked
+unique(zoop_clean_taxa2$species)
+#yay!
 
 #ORIGINAL METHOD - forgot there were multiple samples on each date...
 #calculate shannon diversity index on each sampling date
