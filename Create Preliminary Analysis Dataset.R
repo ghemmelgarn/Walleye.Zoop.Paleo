@@ -298,27 +298,27 @@ zoop_Prop_large_clad <- zoop_size_sample_abundance_wide %>%
 #see how many rows of each unique species I have
 table(zoop_parentdow$species)
 
-#calculate shannon diversity index on each sampling date
+#zooplankton shannon diversity is calculated at the end of this R script
 
-
-zoop_SDI_sample <- zoop_parentdow %>%
-  group_by(parentdow.zoop.year, sample_date) %>%
-  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
-#now take mean over all the sampling dates in a year
-zoop_SDI <- zoop_SDI_sample %>%
-  group_by(parentdow.zoop.year) %>%
-  summarize(zoop.Shannon.DI = mean(zoop.Shannon.DI), .groups = 'drop')
+#THE SDI CODE HERE IS WRONG, DON'T USE IT
+# zoop_SDI_sample <- zoop_parentdow %>%
+#   group_by(parentdow.zoop.year, sample_date) %>%
+#   summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
+# #now take mean over all the sampling dates in a year
+# zoop_SDI <- zoop_SDI_sample %>%
+#   group_by(parentdow.zoop.year) %>%
+#   summarize(zoop.Shannon.DI = mean(zoop.Shannon.DI), .groups = 'drop')
 
 #join all the zoop metrics together
 zoop_a <- left_join(zoop_biomass_metrics, zoop_length_all, by = "parentdow.zoop.year")
 zoop_b <- left_join(zoop_a, zoop_Prop_large_clad, by = "parentdow.zoop.year")
-zoop_AllMetrics <- left_join(zoop_b, zoop_SDI, by = "parentdow.zoop.year")
+#zoop_AllMetrics <- left_join(zoop_b, zoop_SDI, by = "parentdow.zoop.year")
 
 # #write .csv with this file of all the preliminary zoop metrics
 # write.csv(zoop_AllMetrics, file = "Data/Output/Zoop_Preliminary_Metrics.csv")
 
 #join the relevant zoop metrics to the fish data
-Data_a <- left_join(MatchData_parentdow, zoop_AllMetrics, by = "parentdow.zoop.year")
+Data_a <- left_join(MatchData_parentdow, zoop_b, by = "parentdow.zoop.year")
 
 #remove unneeded intermediate data frames to keep environment clean
 rm(zoop,
@@ -355,7 +355,6 @@ rm(zoop,
    zoop_length_clad_sample,
    zoop_length_sample,
    zoop_months,
-   zoop_parentdow,
    zoop_Prop_large_clad,
    zoop_sample_total_biomass,
    zoop_SDI,
@@ -953,12 +952,11 @@ unique(Data.no.missing.5z.finc$LakeName)
 
 #DECIDED ON AT LEAST 5 MONTHS OF FISH AND FISH SURVEYS UP TO 3 LESS THAN IDEAL MINIMUM
 
-# #save complete preliminary dataset as .csv
-# write.csv(Data.no.missing.5z.finc, file = "Data/Output/Preliminary Data.csv")
+
 
 #---------------------------------------------------------------------------------------------------------------
-
-#CODE USED TO INVESTIGATE THE ZOOPLANKTON TAXONOMY ISSUES
+#CALCULATE ZOOP SHANNON DIVERSITY CORRECTLY, JOIN IT, SAVE PRELIMINARY DATASET
+#THIS CODE ALSO USED TO INVESTIGATE THE ZOOPLANKTON TAXONOMY ISSUES 
 
 #create file of raw zoop data for only lake/years used in preliminary analysis
 prelim.raw.zoop <- zoop_parentdow %>%
@@ -969,11 +967,11 @@ prelim.raw.zoop <- zoop_parentdow %>%
 
 #CODE BELOW IS TROUBLESHOOTING WHAT TO DO WITH TAXONOMIC RESOLUTION FOR ZOOP DIVERSITY METRICS:
 
-#see the unique species names in the zoop data I am using 
-unique(prelim.raw.zoop$species)
-
-#see how many rows of each unique species I have
-table(prelim.raw.zoop$species)
+# #see the unique species names in the zoop data I am using 
+# unique(prelim.raw.zoop$species)
+# 
+# #see how many rows of each unique species I have
+# table(prelim.raw.zoop$species)
 
 #problematic taxa:
   #juvenile copepods
@@ -1040,16 +1038,16 @@ table(prelim.raw.zoop$species)
     #"Ergasilus sp."   16  (this is a copepod but in the order Poecilostomatoida, not a cylopoid or a calanoid)
 
 
-#find the lake/years with just "Daphnia sp."
-Daphnia.sp <- prelim.raw.zoop %>%
-  filter(species == "Daphnia sp.")
-
-#its Belle 2008: 470049 2008
-#and Leech 2020: 110203 2020
-
-#look at entire samples from those lake/years
-Daphnia.sp.samples <- prelim.raw.zoop %>%
-  filter(parentdow.zoop.year == "470049 2008" | parentdow.zoop.year == "110203 2020")
+# #find the lake/years with just "Daphnia sp."
+# Daphnia.sp <- prelim.raw.zoop %>%
+#   filter(species == "Daphnia sp.")
+# 
+# #its Belle 2008: 470049 2008
+# #and Leech 2020: 110203 2020
+# 
+# #look at entire samples from those lake/years
+# Daphnia.sp.samples <- prelim.raw.zoop %>%
+#   filter(parentdow.zoop.year == "470049 2008" | parentdow.zoop.year == "110203 2020")
 
 #It looks like there were a few samples Belle in 2008 (samples 4404, 4405, 4406) where all Daphnia just got called Daphnia sp., but all the other samples from Belle in 2008 IDed the Daphnia to species. In some samples from Leech in 2020 (samples 6763, 6766, and 6774), there are Daphnia sp. along with other identified Daphnia species.
 
@@ -1076,54 +1074,51 @@ zoop_clean_taxa <- zoop_clean_taxa %>%
 # 3. remove the Daphnia sp. observations from Leech lake (1 daphnia in 3 samples not IDed to species)
 zoop_clean_taxa2 <- zoop_clean_taxa %>%
   filter(species != "Daphnia sp.")
+# 
+# #check that it worked
+# unique(zoop_clean_taxa2$species)
+# #yay!
 
-#check that it worked
-unique(zoop_clean_taxa2$species)
-#yay!
+# #check that none of these are littoral samples
+# unique(zoop_clean_taxa2$remarks)[1000:1200]
+# #Kylie didn't think any of them are and none of the remarks say anything so looks ok
 
-#ORIGINAL METHOD - forgot there were multiple samples on each date...
-#calculate shannon diversity index on each sampling date
-zoop_SDI_sample <- prelim.raw.zoop %>%
-  group_by(parentdow.zoop.year, sample_date) %>%
-  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
-#now take mean over all the sampling dates in a year
-zoop_SDI <- zoop_SDI_sample %>%
-  group_by(parentdow.zoop.year) %>%
-  summarize(zoop.Shannon.DI = mean(zoop.Shannon.DI), .groups = 'drop')
+# #ORIGINAL METHOD - forgot there were multiple samples on each date...
+# #calculate shannon diversity index on each sampling date
+# zoop_SDI_sample <- prelim.raw.zoop %>%
+#   group_by(parentdow.zoop.year, sample_date) %>%
+#   summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
+# #now take mean over all the sampling dates in a year
+# zoop_SDI <- zoop_SDI_sample %>%
+#   group_by(parentdow.zoop.year) %>%
+#   summarize(zoop.Shannon.DI = mean(zoop.Shannon.DI), .groups = 'drop')
 
 #NEW CODE FOR THIS
 #I want to simulate how we will find zoops in sediment, which means I should get a total count of each species for each lake/year and use this to calculate Shannon Diversity, richness, and evenness
-zoop_diversity <- prelim.raw.zoop %>%
+zoop_diversity <- zoop_clean_taxa2 %>%
   group_by(parentdow.zoop.year, species) %>%
   summarize(count = sum(count), .groups = 'drop')
 #now calculate Shannon diversity
 zoop_SDI_new <- zoop_diversity %>%
   group_by(parentdow.zoop.year) %>%
-  summarize(zoop.Shannon.DI.test = diversity(count, index = "shannon"), .groups = 'drop')
-#do this again but without the copepods
-zoop_nocopepods <- prelim.raw.zoop %>%
-  filter(grp == "Cladocerans")
-zoop_nocopepods <- zoop_nocopepods %>%
-  group_by(parentdow.zoop.year, species) %>%
-  summarize(count = sum(count), .groups = 'drop')
-zoop_SDI_new2 <- zoop_nocopepods %>%
-  group_by(parentdow.zoop.year) %>%
-  summarize(zoop.Shannon.DI.nocope = diversity(count, index = "shannon"), .groups = 'drop')
+  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
 
 #code to join this to other data and create a test prelim dataset
-#test <- left_join(Data.no.missing.5z.finc, zoop_SDI_new, by = "parentdow.zoop.year")
-#test2 <- left_join(test, zoop_SDI_new2, by = "parentdow.zoop.year")
-#write.csv(test2, file = "Data/Output/PreliminaryNewTest.csv")
+Data.final <- left_join(Data.no.missing.5z.finc, zoop_SDI_new, by = "parentdow.zoop.year")
 
-#compare the histograms of these two methods:
-SDI.original <- ggplot(zoop_SDI, aes( x = zoop.Shannon.DI )) +
-  geom_histogram() +
-  theme_minimal()
-print(SDI.original)
+# #save complete preliminary dataset as .csv
+#write.csv(Data.final, file = "Data/Output/Preliminary Data.csv")
 
-SDI.new <- ggplot(zoop_SDI_new, aes( x = zoop.Shannon.DI )) +
-  geom_histogram() +
-  theme_minimal()
-print(SDI.new)
+
+# #compare the histograms of the two zoop diversity methods:
+# SDI.original <- ggplot(zoop_SDI, aes( x = zoop.Shannon.DI )) +
+#   geom_histogram() +
+#   theme_minimal()
+# print(SDI.original)
+# 
+# SDI.new <- ggplot(zoop_SDI_new, aes( x = zoop.Shannon.DI )) +
+#   geom_histogram() +
+#   theme_minimal()
+# print(SDI.new)
 
 #already data looks much better without even fixing the taxonomy problems
