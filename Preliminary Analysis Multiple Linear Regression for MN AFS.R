@@ -30,7 +30,7 @@ Data$lakesize.log <- log(Data$lakesize, base = 10)
 #center and scale all the variables
 Data$prop.Cladoceran.biomass.scale <- scale(Data$prop.Cladoceran.biomass)
 Data$zoop.mean.length.scale <- scale(Data$zoop.mean.length)
-Data$zoop.Shannon.DI.nocope.scale <- scale(Data$zoop.Shannon.DI.nocope)
+Data$zoop.Shannon.DI.scale <- scale(Data$zoop.Shannon.DI)
 Data$gdd_wtr_5c.scale <- scale(Data$gdd_wtr_5c)
 Data$mean.summer.secchi.meters.scale <- scale(Data$mean.summer.secchi.meters)
 Data$lakesize.log.scale <- scale(Data$lakesize.log)
@@ -40,7 +40,7 @@ Data$prop.large.cladoceran.scale <- scale(Data$prop.large.cladoceran)
 WAE.CPUE <- gf_histogram(~WAE.CPUE.inc, data = Data, xlab = "Walleye CPUE")
 Prop.Clad <- gf_histogram(~prop.Cladoceran.biomass.scale, data = Data, xlab = "Porportion Cladocerans")
 Length <- gf_histogram(~zoop.mean.length.scale, data = Data, xlab = "Zooplankton Mean Length (mm)")
-SDI <- gf_histogram(~zoop.Shannon.DI.nocope.scale, data = Data, xlab = "Zooplankton Shannon Diversity Index")
+SDI <- gf_histogram(~zoop.Shannon.DI.scale, data = Data, xlab = "Cladocercan Shannon Diversity Index")
 Temp <- gf_histogram(~gdd_wtr_5c.scale, data = Data, xlab = "Water Temperature Degree Days")
 Secchi <- gf_histogram(~mean.summer.secchi.meters.scale, data = Data, xlab = "Secchi Depth (m)")
 Area <- gf_histogram(~lakesize.log.scale, data = Data, xlab = "Lake Area (acres)")
@@ -60,7 +60,7 @@ grid.arrange(WAE.CPUE,
 pairs.panels(dplyr::select(Data,
                            prop.Cladoceran.biomass.scale,
                            zoop.mean.length.scale,
-                           zoop.Shannon.DI.nocope.scale,
+                           zoop.Shannon.DI.scale,
                            gdd_wtr_5c.scale,
                            mean.summer.secchi.meters.scale,
                            lakesize.log.scale,
@@ -74,7 +74,7 @@ pairs.panels(dplyr::select(Data,
 lm.poster <- lmer(WAE.CPUE.inc ~
                            prop.Cladoceran.biomass.scale +
                            zoop.mean.length.scale +
-                           zoop.Shannon.DI.nocope.scale +
+                           zoop.Shannon.DI.scale +
                            gdd_wtr_5c.scale +
                            mean.summer.secchi.meters.scale +
                            lakesize.log.scale +
@@ -103,7 +103,12 @@ effect1
 p.clad.biom <- plot(effect1, show_residuals = TRUE, facet = TRUE, jitter = FALSE) + 
   labs( x = "Cladoceran Biomass Proportion", y = "Walleye CPUE", title = "Cladoceran Biomass Proportion") +
   theme_classic() +
-  theme(strip.text = element_blank())+
+  theme(strip.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) +
   xlim(-3,3) +
   ylim(0,17)
 print(p.clad.biom)
@@ -111,19 +116,29 @@ print(p.clad.biom)
 effect2 <- ggeffect(lm.poster, terms = c("zoop.mean.length.scale [all]"))
 effect2
 zoop.m.l <- plot(effect2, show_residuals = TRUE, facet = TRUE, jitter = FALSE) + 
-  labs( x = "Zooplankton Mean Length", y = "Walleye CPUE", title = "Zooplankton Mean Length") +
+  labs( x = "Zooplankton Mean Length", y = " ", title = "Zooplankton Mean Length") +
   theme_classic() + 
-  theme(strip.text = element_blank())+
+  theme(strip.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) +
   xlim(-3,3) +
   ylim(0,17)
 print(zoop.m.l)
 
-effect3 <- ggeffect(lm.poster, terms = c("zoop.Shannon.DI.nocope.scale [all]"))
+effect3 <- ggeffect(lm.poster, terms = c("zoop.Shannon.DI.scale [all]"))
 effect3
 clad.sdi <- plot(effect3, show_residuals = TRUE, facet = TRUE, jitter = FALSE) +
-  labs( x = "Cladoceran Shannon Diversity Index", y = "Walleye CPUE", title = "Cladoceran Shannon Diversity Index") +
+  labs( x = "Cladoceran Shannon Diversity Index", y = " ", title = "Cladoceran Diversity") +
   theme_classic() + 
-  theme(strip.text = element_blank())+
+  theme(strip.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) +
   xlim(-3,3) +
   ylim(0,17)
 print(clad.sdi)
@@ -133,7 +148,12 @@ effect4
 temp <- plot(effect4, show_residuals = TRUE, facet = TRUE, jitter = FALSE) +
   labs( x = "Growing Degree Days", y = "Walleye CPUE", title = "Temperature") +
   theme_classic() + 
-  theme(strip.text = element_blank())+
+  theme(strip.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) +
   xlim(-3,3) +
   ylim(0,17)
 print(temp)
@@ -141,9 +161,14 @@ print(temp)
 effect5 <- ggeffect(lm.poster, terms = c("mean.summer.secchi.meters.scale [all]"))
 effect5
 secchi <- plot(effect5, show_residuals = TRUE, facet = TRUE, jitter = FALSE) +
-  labs( x = "Secchi Depth", y = "Walleye CPUE", title = "Clarity") +
+  labs( x = "Secchi Depth", y = " ", title = "Clarity") +
   theme_classic() + 
-  theme(strip.text = element_blank())+
+  theme(strip.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) +
   xlim(-3,3) +
   ylim(0,17)
 print(secchi)
@@ -152,27 +177,32 @@ print(secchi)
 effect6 <- ggeffect(lm.poster, terms = c("lakesize.log.scale [all]"))
 effect6
 lake.area <- plot(effect6, show_residuals = TRUE, facet = TRUE, jitter = FALSE) +
-  labs( x = expression(log[10](Lake~Area)), y = "Walleye CPUE", title = "Lake Area") +
-  theme_classic() + 
-  theme(strip.text = element_blank()) +
+  labs( x = expression(log[10](Lake~Area)), y = " ", title = "Lake Area") +
+  theme_classic() +
+  theme(strip.text = element_blank(), 
+        plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) +
   xlim(-3,3) +
   ylim(0,17)
 print(lake.area)
 
-#tiff("Prelim Zoop Effect Plots Row 1.tiff", width = 12, height = 3.5, units = "in", res = 300)
+#tiff("Prelim Zoop Effect Plots Row 1.tiff", width = 14, height = 3.5, units = "in", res = 300)
 grid.arrange(p.clad.biom,
              zoop.m.l,
              clad.sdi,
              ncol=3, nrow=1
-)
+            )
 #dev.off()
 
-#tiff("Prelim Zoop Effect Plots Row 2.tiff", width = 12, height = 3.5, units = "in", res = 300)
+#tiff("Prelim Zoop Effect Plots Row 2.tiff", width = 14, height = 3.5, units = "in", res = 300)
 grid.arrange(temp,
              secchi,
              lake.area,
              ncol=3, nrow=1
-)
+            )
 #dev.off()
 
 #added variable plots / partial regression plots
