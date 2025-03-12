@@ -20,6 +20,7 @@
   # identify this folder on Drive
   # let googledrive know this is a file ID or URL, as opposed to file name
     outfolder <- drive_get(as_id("https://drive.google.com/drive/folders/1SpUY4K8Ytg0iNth-9Z01eoUqcJl0lZH2"))
+    #pushes to "Processed Data" in google drive - manually put in 'To Pull to R" folder if you want to pull the new version into input folder
 
   # update the drive folder with your local folder version:
   #identify a list of files in your current folder

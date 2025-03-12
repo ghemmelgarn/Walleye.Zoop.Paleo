@@ -34,7 +34,8 @@ drive_auth(email = FALSE)
 # identify this folder on Drive - copy link from the drive folder
 # let googledrive know this is a file ID or URL, as opposed to file name
 datafolder <- drive_get(
-  as_id("https://drive.google.com/drive/folders/1tr-IxjwNF5SKuDT0EICvG1MhGTjlAEIL")) 
+  as_id("https://drive.google.com/drive/folders/1lldeobfvMtr-2BVCUwgit0Fv0uNctg-5")) 
+#3-12-25 changed this to a dedicated pull folder that I will manually put files into - the old system got too slow with too many big files
 
 # identify the files in each folder
 input_files <- data.table(drive_ls(datafolder, recursive = T))
