@@ -5,7 +5,8 @@
 #calculates preliminary zoop metrics (Bytho and Lepto excluded) and joins them
 #Formats and joins walleye cpue, mean summer secchi, water temp (degree days), and area data which are downloaded and calculated in other R scripts
 #Downloads and joins invasive species information from DNR infested waters list
-#Filters out to just complete and best data - see description at end
+#Filters out to just complete and best data - see description at end\
+#corrects zooplankton taxonomy issues in the selected data and calculates an accurate Shannon Diversity Index
 
 
 #packages
@@ -298,7 +299,9 @@ zoop_Prop_large_clad <- zoop_size_sample_abundance_wide %>%
 #see how many rows of each unique species I have
 table(zoop_parentdow$species)
 
-#zooplankton shannon diversity is calculated at the end of this R script
+#zooplankton shannon diversity is calculated correctly and joined at the end of this R script
+#corrects taxonomy issues in dataset
+#pools all abundance data over the year and then calculates SDI with that - this is how it will show up in sediments
 
 #THE SDI CODE HERE IS WRONG, DON'T USE IT
 # zoop_SDI_sample <- zoop_parentdow %>%
