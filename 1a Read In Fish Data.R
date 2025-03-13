@@ -69,7 +69,7 @@ mn_data %>%
   distinct(survey_type, survey_type_2) %>%
   collect() %>% arrange(survey_type) %>% print(n=nrow(.))
 
-#remove unnecessary columns
+#read initial fish inclusion table and remove unnecessary columns
 incl.table <- read.csv("Data/Input/Fish Inclusion Table.csv")%>%
   select(-ZoopYear)%>%
   select(-ZoopTows)%>%
@@ -169,12 +169,13 @@ good.surveys <- mn_data %>%
            lakesize_units, 
            nhdhr_id, 
            latitude_lake_centroid, 
-           longitude_lake_centroid) %>% 
-  collect()
+           longitude_lake_centroid) 
+
+good.survey.list <- collect(good.surveys)
 #collect actually brings data into R
 #end up with more rows than the inclusion table because different gillnet types are separated
 #not collecting flag anymore because it confuses things with the join to fish data later
-#note that this DOES NOT INCLUDE 2023 DATA
+#note that this DOES NOT INCLUDE 2023 DATA OR LATER
 
 
 # #use and modify this code to troubleshoot why certain lakes are and are not included
