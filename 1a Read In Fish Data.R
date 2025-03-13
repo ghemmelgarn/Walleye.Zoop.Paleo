@@ -83,6 +83,19 @@ incl.table <- read.csv("Data/Input/Fish Inclusion Table.csv")%>%
 incl.table <-incl.table %>% 
   filter(Match == "Exact")
 
+#Add rows for each gravity core lake/year - based on FISH data year, not zoop year
+#want these in the inclusion table, will eventually get data filled in
+#read in .csv file I created manually in excel with the info on the core lakes (full and gravity)
+core.incl.table <- read.csv("Data/Input/Core.lake.inclusion.table.csv")
+#calculate parentdow.fish.year column
+core.incl.table$parentdow.fish.year = paste(core.incl.table$parentdow, core.incl.table$year)
+
+#combine the core lake rows to the original inclusion table
+#first check column names are same
+names(core.incl.table) <- names(incl.table)
+incl.table <- rbind(incl.table, core.incl.table)
+
+
 #rename dow and year columns to match fish database
 #leading zeros not in either data frame so that should be okay
 incl.table <- incl.table %>%   
@@ -92,6 +105,9 @@ incl.table <- incl.table %>%
 incl.table <- incl.table %>% 
   mutate(lake_id = as.character(lake_id))%>% 
   mutate(year = as.double(year))
+
+#remove row 336 (it's blank with an NA)
+incl.table <- incl.table[-336,]
 
 # #save this inclusion table for use with water quality data
 # #this title means it is cleaned in R and contains only exact fish/zoop matches
