@@ -279,6 +279,10 @@ good.surveys.area.cse <- good.surveys.area.cse %>%
 good.surveys.final <- good.surveys.area.cse %>% 
   filter(fish.effort.sufficient == "yes")
 
+#REMOVE Piepenburg Park Pond - this was included as a mistake (looks like a DOW typo in dataset)
+good.surveys.final <- good.surveys.final %>% 
+  filter(LAKE_NAME != "Piepenburg Park Pond")
+
 # #save this survey table as a .csv - this includes all surveys in the fish database with sufficient effort and gear
 #write_csv(good.surveys.final, "Data/Output/Usable_Fish_Surveys.csv")
 
