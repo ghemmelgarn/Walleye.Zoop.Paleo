@@ -1,6 +1,6 @@
 #this script downloads fish data and creates a "raw" fish data csv file called FishData.csv
 #determines which surveys have gear and sufficient effort to use the fish data
-#this also pulls out the nhdid, coordinates, and area for all the exact match lakes - at end of script
+#this also pulls out the nhdid, coordinates, and area for all the exact match lakes - at end of script - NOT USING ANYMORE
 
 
 library(lubridate)
@@ -287,13 +287,9 @@ good.surveys.final <- good.surveys.area.cse %>%
 
 #GO BACK FOR THE FISH
 fish <- mn_data %>% 
-  right_join(good.surveys.effort, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
+  right_join(good.surveys.final, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
   collect()
 
-#sample size testing
-fish.inclusive <- mn_data %>% 
-  right_join(good.surveys.effort.inclusive, by = c("total_effort_ident", "total_effort_1", "lake_id")) %>% 
-  collect()
 
 #CAN'T DO THIS BECAUSE CAN'T ID WHICH NETS ARE BAD, REMOVED ENTIRE FLAGGED SURVEYS ABOVE
 # #need to filter out nets flagged with gear issues
@@ -303,32 +299,43 @@ fish.inclusive <- mn_data %>%
 # #remove any rows from the fish data flagged with a gear issue - this removes bad sub-efforts (individual nets) but keeps the rest of the survey
 # #gear issue is the only flag with my data
 
+#BUT I do need to filter out the don't use in CPUE fish
+#how many of each type of flag are there?
+fish %>% 
+  as.tibble() %>% 
+  count(flag.x)
+#filter and keep the NAs
+good.fish <- fish %>% 
+  filter(flag.x != "Do not use in CPUE calcs" & flag.x != "Do not use in CPUE calcs; high effort" | is.na(flag.x))
+#Check that it worked
+good.fish %>% 
+  as.tibble() %>% 
+  count(flag.x)
+#I AM A WIZARD
 
 # #save this fish table as a .csv
-# write_csv(fish, "Data/Output/FishData.csv")
-
-# #save this fish table as a .csv
-# write_csv(fish.inclusive, "Data/Output/FishData.inclusive.csv")
+#write_csv(good.fish, "Data/Output/FishData.csv")
 
 
 
 
 
+#NOT USING THIS ANYMORE - GETTING THIS DIRECTLY FROM MN LAKE LIST NOW: (but leaving code here for future reference)
 
-#PULL JUST THE NHDID, COORDINATES, AND AREA DATA I WANT FOR MY LAKES, YEAR DOESN'T MATTER FOR THIS ------------------------------
-nhdid.lat.long.area <- mn_data %>%
-  right_join(incl.table, by = c("lake_id")) %>% 
-  distinct(lake_id, nhdhr_id, latitude_lake_centroid, longitude_lake_centroid, lakesize, lakesize_units) %>% 
-  collect()
-#fix area for upper red, says 0 here but should be 119295 based on lakefinder
-nhdid.lat.long.area$lakesize <- replace(nhdid.lat.long.area$lakesize, nhdid.lat.long.area$lakesize == 0, 119295)
-#fix area for Belle, says 1 here but should be 864 based on lakefinder
-nhdid.lat.long.area$lakesize <- replace(nhdid.lat.long.area$lakesize, nhdid.lat.long.area$lakesize == 1, 864)
-#join back to inclusion table to match this data with all the lakes and years
-lakes.lat.long.area <- left_join(incl.table, nhdid.lat.long.area, by = "lake_id")
-
-# #write this as a .csv so I can use it to get temp data and join it to the preliminary data
-# write_csv(lakes.lat.long.area, "Data/Output/Selected_Lakes_Location_Area.csv")
+# #PULL JUST THE NHDID, COORDINATES, AND AREA DATA I WANT FOR MY LAKES, YEAR DOESN'T MATTER FOR THIS ------------------------------
+# nhdid.lat.long.area <- mn_data %>%
+#   right_join(incl.table, by = c("lake_id")) %>% 
+#   distinct(lake_id, nhdhr_id, latitude_lake_centroid, longitude_lake_centroid, lakesize, lakesize_units) %>% 
+#   collect()
+# #fix area for upper red, says 0 here but should be 119295 based on lakefinder
+# nhdid.lat.long.area$lakesize <- replace(nhdid.lat.long.area$lakesize, nhdid.lat.long.area$lakesize == 0, 119295)
+# #fix area for Belle, says 1 here but should be 864 based on lakefinder
+# nhdid.lat.long.area$lakesize <- replace(nhdid.lat.long.area$lakesize, nhdid.lat.long.area$lakesize == 1, 864)
+# #join back to inclusion table to match this data with all the lakes and years
+# lakes.lat.long.area <- left_join(incl.table, nhdid.lat.long.area, by = "lake_id")
+# 
+# # #write this as a .csv so I can use it to get temp data and join it to the preliminary data
+# # write_csv(lakes.lat.long.area, "Data/Output/Selected_Lakes_Location_Area.csv")
 
 
 
