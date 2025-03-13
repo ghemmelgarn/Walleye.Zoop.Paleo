@@ -137,6 +137,52 @@ incl.table$lake_id <- replace(incl.table$lake_id, incl.table$lake_id == 4003500,
 #joining by lake Id and year - ALL ROWS THAT ARE IN BOTH TABLES NEED TO BE LISTED HERE OR YOU WILL GET .x and .y columns
 #takes the distinct columns from the mn_data
 #glimpse at end shows me if it did what I wanted
+
+
+# good.surveys <- mn_data %>% 
+#   filter((sampling_method == "gill_net_standard" | 
+#             sampling_method == "gill_net_stratified_deep" | 
+#             sampling_method =="gill_net_stratified_shallow" ) & 
+#            (survey_type == "Standard Survey" | 
+#               survey_type == "HISTORICAL"| 
+#               survey_type == "Population Assessment"| 
+#               survey_type == "Re-Survey"| 
+#               survey_type == "Large Lake Survey"| 
+#               survey_type == "Initial Survey" | 
+#               (survey_type == "Special Assessment" & lake_id == 69000400) | 
+#               (survey_type == "Special Assessment" & lake_id == 69025400) | 
+#               (survey_type == "Targeted Survey" & lake_id == 3057600) | 
+#               (survey_type == "Targeted Survey" & lake_id == 11041500) | 
+#               (survey_type == "Targeted Survey" & lake_id == 13002700)| 
+#               (survey_type == "Targeted Survey" & lake_id == 18030800) | 
+#               (survey_type == "Targeted Survey" & lake_id == 38039300) | 
+#               (survey_type == "Targeted Survey" & lake_id == 47004600 & year == 2020) | 
+#               (survey_type == "Targeted Survey" & lake_id == 47006800) | 
+#               (survey_type == "Targeted Survey" & lake_id == 69025400)))  %>% 
+#   right_join(incl.table, by = c("lake_id", "year")) %>% 
+#   distinct(lake_id, 
+#            year, 
+#            total_effort_ident, 
+#            total_effort_1,  
+#            sampling_method_simple, 
+#            sampling_method, 
+#            survey_type, 
+#            lakesize, 
+#            lakesize_units, 
+#            nhdhr_id, 
+#            latitude_lake_centroid, 
+#            longitude_lake_centroid) %>%
+#   collect()
+# #collect actually brings data into R
+# #end up with more rows than the inclusion table because different gillnet types are separated
+# #not collecting flag anymore because it confuses things with the join to fish data later
+# #note that this DOES NOT INCLUDE 2023 DATA OR LATER
+
+
+#the above collect function is giving me an error message, going to try collecting all the MN data and then filtering it, even though its a big file
+#Denver says I could also just download after the filter and before the join to make it a smaller data file - try if necessary
+mn_data <- collect(mn_data)
+
 good.surveys <- mn_data %>% 
   filter((sampling_method == "gill_net_standard" | 
             sampling_method == "gill_net_stratified_deep" | 
@@ -163,19 +209,17 @@ good.surveys <- mn_data %>%
            total_effort_ident, 
            total_effort_1,  
            sampling_method_simple, 
+           flag,
            sampling_method, 
-           survey_type, flag, 
+           survey_type, 
            lakesize, 
            lakesize_units, 
            nhdhr_id, 
            latitude_lake_centroid, 
-           longitude_lake_centroid) 
+           longitude_lake_centroid)
+#took my computer a minute but it worked!
 
-good.survey.list <- collect(good.surveys)
-#collect actually brings data into R
-#end up with more rows than the inclusion table because different gillnet types are separated
-#not collecting flag anymore because it confuses things with the join to fish data later
-#note that this DOES NOT INCLUDE 2023 DATA OR LATER
+
 
 
 # #use and modify this code to troubleshoot why certain lakes are and are not included
@@ -190,47 +234,56 @@ good.survey.list <- collect(good.surveys)
 #surveys with gear issue have two rows, one that says gear issue and one that doesn't, so need to combine those
 good.surveys.flag.summarize <- good.surveys %>%
   group_by(lake_id, year, total_effort_ident, total_effort_1, sampling_method_simple, sampling_method, survey_type, lakesize, lakesize_units) %>%
-  summarize(flag = ifelse(any(flag == "gear issue", na.rm = TRUE), "gear issue", NA), .groups = 'drop')
+  summarize(flag = ifelse(any(flag == "gear issue" | flag =="Do not use in CPUE calcs;gear issue" | flag == "Do not use in CPUE calcs;gear issue; high effort", na.rm = TRUE), "gear issue", NA), .groups = 'drop')
 #remove NA total effort rows and gear issue flagged rows
 good.surveys.filter <- filter(good.surveys.flag.summarize, !is.na(total_effort_1) & is.na(flag))
 #not doing this because there are no na values for total effort and I want to pulled out flagged nets but not entire surveys
 
 #check that effort is sufficient for lake size, based on DNR sampling manual
-#fix area for upper red, says 0 here but should be 119295 based on lakefinder
-good.surveys.filter$lakesize <- replace(good.surveys.filter$lakesize, good.surveys.filter$lakesize == 0, 119295)
-#fix area for Belle, says 1 here but should be 864 based on lakefinder
-good.surveys.filter$lakesize <- replace(good.surveys.filter$lakesize, good.surveys.filter$lakesize == 1, 864)
-#no other areas are too small to be believable, checked the next 2 smallest and they are accurate
+#first need to import lake area data because they took it out of the fish database :(
+lake.area <- read.csv("Data/Input/Copy of Copy of mn_lake_list.csv")
+#create parentdow in good.surveys.filter
+good.surveys.filter <- good.surveys.filter %>%
+  mutate(parentdow = case_when(
+    nchar(good.surveys.filter$lake_id) == 7 ~ substr(lake_id, 1, 5),
+    nchar(good.surveys.filter$lake_id) == 8 ~ substr(lake_id, 1, 6)
+  ))
+#isolate and rename columns from area data, set paretndow as character
+lake.area <- lake.area %>% 
+  select(DOW_NBR_PRIMARY, LAKE_AREA_MN_ACRES, LAKE_NAME) %>% 
+  rename(parentdow = DOW_NBR_PRIMARY, lake.area.acres = LAKE_AREA_MN_ACRES)
+lake.area$parentdow <- as.character(lake.area$parentdow)
+#join to good surveys
+good.surveys.area <- left_join(good.surveys.filter, lake.area, by = "parentdow")
+
 
 #create lake size bin column
-good.surveys.filter <- good.surveys.filter %>%
-  mutate(size.bin = ifelse(lakesize < 100, "<100", ifelse(lakesize >= 100 & lakesize < 300, "100-300", ifelse(lakesize >= 300 & lakesize < 600, "300-600", ifelse(lakesize >= 600 & lakesize < 1500, "600-1500", ">1500")))))
+good.surveys.area <- good.surveys.area %>%
+  mutate(size.bin = ifelse(lake.area.acres < 100, "<100", ifelse(lake.area.acres >= 100 & lake.area.acres < 300, "100-300", ifelse(lake.area.acres >= 300 & lake.area.acres < 600, "300-600", ifelse(lake.area.acres >= 600 & lake.area.acres < 1500, "600-1500", ">1500")))))
 #create column for minimum net-night effort based on size bin
-good.surveys.filter <- good.surveys.filter %>%
+good.surveys.area <- good.surveys.area %>%
   mutate(min.effort = ifelse(size.bin == "<100", 0, ifelse(size.bin == "100-300", 6, ifelse(size.bin == "300-600", 9, ifelse(size.bin == "600-1500", 12, 15)))))
 #add effort from shallow and deep stratified surveys
-combined.stratified.effort <- good.surveys.filter %>%
+combined.stratified.effort <- good.surveys.area %>%
   group_by(lake_id, year) %>%
   summarize(total_effort_cse = sum(total_effort_1), .groups = 'drop')
 #join this combined effort back to the good surveys filter, keep all good.surveys.filter rows and add in the matching cse effort
-good.surveys.filter.cse <- good.surveys.filter %>% 
+good.surveys.area.cse <- good.surveys.area %>% 
   left_join(combined.stratified.effort, by = c("lake_id", "year"))
 #create a column that subtracts total effort from minimum required effort
-good.surveys.filter.cse$effort.test <- good.surveys.filter.cse$total_effort_cse - good.surveys.filter.cse$min.effort
-#create a column with the effort conclusion
-good.surveys.filter.cse <- good.surveys.filter.cse %>%
-  mutate(fish.effort.sufficient = ifelse (effort.test >= 0, "yes", "no"))
+good.surveys.area.cse$effort.test <- good.surveys.area.cse$total_effort_cse - good.surveys.area.cse$min.effort
+#create a column with the effort conclusion - I HAVE DECIDED TO ACCEPT UP TO 3 NET NIGHTS LESS THAN PUBLISHED MIN - I HAND INVESTIGATED EACH ONE AND DECIDED THEY ARE ALL OK
+good.surveys.area.cse <- good.surveys.area.cse %>%
+  mutate(fish.effort.sufficient = ifelse (effort.test >= -3, "yes", "no"))
+#filter only the good surveys with sufficient effort
+good.surveys.final <- good.surveys.area.cse %>% 
+  filter(fish.effort.sufficient == "yes")
 
-# #save this survey table as a .csv - this includes all surveys regardless of effort but with sufficient effort noted
-# write_csv(good.surveys.filter.cse, "Data/Output/Usable_Fish_Surveys.csv")
+# #save this survey table as a .csv - this includes all surveys in the fish database with sufficient effort and gear
+#write_csv(good.surveys.final, "Data/Output/Usable_Fish_Surveys.csv")
 
-#filter out only the surveys with good enough effort
-good.surveys.effort <- filter(good.surveys.filter.cse, fish.effort.sufficient == "yes")
 
-#trying out what happens if I allow 3 nets less than minimum to improve my total sample size
-good.surveys.effort.inclusive <- filter(good.surveys.filter.cse, effort.test >= -3)
-
-#at the end of this, I should feel confident that all of these surveys are good quality and ok to use - will filter for gear issues later
+#at the end of this, I should feel confident that all of these surveys are good quality and ok to use - will filter for individual row CPUE issues later
 
 #GO BACK FOR THE FISH
 fish <- mn_data %>% 
