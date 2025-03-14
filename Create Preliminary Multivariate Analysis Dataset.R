@@ -220,28 +220,33 @@ rm(secchi.data,
 
 
 
-#LAKE AREA DATA - also brings coordinates and nhdhr-id ----------------------------------------------------------
+#LAKE AREA DATA - also brings coordinates  ----------------------------------------------------------
 
-#this came from the fish database
-#import selected data
-area.data <- read.csv("Data/Input/Selected_Lakes_Location_Area.csv")
-#already has parentdow.fish.year to join
-#select just the columns you want to add
-area.data.select <- area.data %>%
-  select(parentdow.fish.year, 
-         nhdhr_id, 
-         latitude_lake_centroid,
-         longitude_lake_centroid,
-         lakesize,
-         lakesize_units
-  )
+#first need to import lake area data because they took it out of the fish database :(
+lake.area <- read.csv("Data/Input/Copy of Copy of mn_lake_list.csv")
+
+#isolate and rename columns from area data
+lake.area.select <- lake.area %>% 
+  select(LAKE_NAME, DOW_NBR_PRIMARY, LAKE_AREA_GIS_ACRES, LAKE_CENTER_LAT_DD5, LAKE_CENTER_LONG_DD5) %>% 
+  rename(parentdow = DOW_NBR_PRIMARY, lake.area.acres = LAKE_AREA_GIS_ACRES, lake.center.lat.dds = LAKE_CENTER_LAT_DD5, lake.center.long.dds = LAKE_CENTER_LONG_DD5)
+
+
 #join to the rest of the preliminary data
-Data_c <- left_join(Data_b, area.data.select, by = "parentdow.fish.year")
+Data_c <- left_join(Data_b, lake.area.select, by = "parentdow")
+
+#remove some duplicates created with the parentdows
+Data_c <- Data_c %>% 
+  filter(LAKE_NAME != "Piepenburg Park Pond" & LAKE_NAME != "Lake of the Woods(4 Mi B)")
+
+#remove redundant lake name column
+Data_c <- Data_c %>% 
+  select(-LAKE_NAME)
+
 
 #remove unneeded intermediate data frames to keep environment clean
-rm(area.data,
-   area.data.select
-)
+rm(lake.area,
+   lake.area.select
+  )
 
 
 
@@ -249,7 +254,8 @@ rm(area.data,
 
 
 
-#FISH CPUE JOIN - ALL THE FISH :))))) ----------------------------------------------------------------
+
+#FISH CPUE JOIN - ALL THE FISH and nhdhr-id :))))) ----------------------------------------------------------------
 
 #read in fish metrics that I downloaded from fish database, quality checked, and calculated the metrics in other scripts
 fish <- read.csv("Data/Input/Walleye_CPUE.csv")
