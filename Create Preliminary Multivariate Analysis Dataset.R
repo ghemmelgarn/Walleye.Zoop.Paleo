@@ -258,7 +258,7 @@ rm(lake.area,
 #FISH CPUE JOIN - ALL THE FISH and nhdhr-id :))))) ----------------------------------------------------------------
 
 #read in fish metrics that I downloaded from fish database, quality checked, and calculated the metrics in other scripts
-fish <- read.csv("Data/Input/Walleye_CPUE.csv")
+fish <- read.csv("Data/Input/All_Fish_CPUE.csv")
 
 
 #make parentdow column
@@ -273,15 +273,12 @@ fish_parentdow$parentdow.fish.year = paste(fish_parentdow$parentdow, fish_parent
 
 #filter just the fish columns to join
 fish.join <- fish_parentdow %>%
-  select(parentdow.fish.year, walleye_count, WAE.CPUE, LMB_count, LMB.CPUE, fish.effort.sufficient)
+  select(-year.x, -lake_name, -lake_id, -X, -parentdow)
 
-#join walleye CPUE to dataset 
+#join fish CPUE to dataset 
 #full_join will retain all rows in both initial tables and create NA values when the other table doesn't have info for that lake/year
-Data_b <- left_join(Data_a, fish.join, by = "parentdow.fish.year")
+Data_d <- left_join(Data_c, fish.join, by = "parentdow.fish.year")
 
-#add "no" when fish effort not sufficient instead of NA
-Data_b <- Data_b %>%
-  mutate(fish.effort.sufficient = if_else(is.na(fish.effort.sufficient), "no", "yes"))
 
 #remove unneeded intermediate data frames to keep environment clean
 rm(fish,
@@ -289,44 +286,8 @@ rm(fish,
    fish.join
 )
 
+#not all the rows in the inclusion table have fish data - some of these are core surveys with fish data too recent to be in the BMFD and some are not good enough quality surveys/not enough sampling effort
 
-#A VERSION OF THE FISH DATA ALLOWING EFFORT TO BE 3 NET NIGHTS LESS THAN REQUIRED MINIMUM
-
-fish.inclusive <- read.csv("Data/Input/Walleye_CPUE.inclusive.csv")
-
-#make parentdow column
-fish_parentdow.inc <- fish.inclusive %>%
-  mutate(parentdow = case_when(
-    nchar(fish.inclusive$lake_id) == 7 ~ substr(lake_id, 1, 5),
-    nchar(fish.inclusive$lake_id) == 8 ~ substr(lake_id, 1, 6)
-  ))
-
-#make parentdow.fish.year column to join to master datasheet
-fish_parentdow.inc$parentdow.fish.year = paste(fish_parentdow.inc$parentdow, fish_parentdow.inc$year)
-
-#filter just the fish columns to join
-fish.join.inc <- fish_parentdow.inc %>%
-  select(parentdow.fish.year, walleye_count, WAE.CPUE, LMB_count, LMB.CPUE)
-
-#rename the walleye CPUE and count columns to show that they are the inclusive version
-fish.join.inc <- fish.join.inc %>%
-  rename(walleye_count_inc = walleye_count,
-         WAE.CPUE.inc = WAE.CPUE,
-         LMB_count_inc = LMB_count,
-         LMB.CPUE.inc = LMB.CPUE
-  )
-
-#join walleye CPUE to dataset 
-#full_join will retain all rows in both initial tables and create NA values when the other table doesn't have info for that lake/year
-Data_b2 <- left_join(Data_b, fish.join.inc, by = "parentdow.fish.year")
-
-
-
-#remove unneeded intermediate data frames to keep environment clean
-rm(fish.inclusive,
-   fish_parentdow.inc,
-   fish.join.inc
-)
 
 
 
@@ -341,7 +302,8 @@ rm(fish.inclusive,
 #ZOOP METRIC JOIN -------------------------------------------------------------------------
 
 #read data
-zoop <- read.csv("Data/Input/ZoopDB_data_20241004.csv")
+zoop <- read.csv("Data/Input/ZoopDB_data_20250204.csv")
+#this is the zoop data Kylie sent me on Feb 4, 2025 - it is up to date with what she had processed at that time
 
 #make parentdow column
 zoop_parentdow <- zoop %>%
