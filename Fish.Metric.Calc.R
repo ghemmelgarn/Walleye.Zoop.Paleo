@@ -581,7 +581,7 @@ length.weight.surv.prop <- ggplot()+
   coord_flip() +
   labs(y = "Proprotion of Individuals with Data", x = "Fish Survey", title = "Length and Weight x Fish Survey")+
   geom_text(data = lw.ly.name, aes(label = total, x = lake.year, y = length.prop), hjust = -0.1)+
-  geom_text(aes(label = "n", x = 68, y = 1.01), vjust = 0.9, size = 5)+
+  geom_text(aes(label = "n", x = 261, y = 1.01), vjust = 0.9, size = 5)+
   theme_classic()+
   geom_tile(data = data.frame(x = 4, y = 0.9), aes(x = x, y = y), 
             width = 1, height = 0.01, fill = "lightblue") +  # Color box
