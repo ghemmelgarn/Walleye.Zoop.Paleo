@@ -315,7 +315,7 @@ zoop_parentdow <- zoop %>%
 #make parentdow.zoop.year column to join to master datasheet
 zoop_parentdow$parentdow.zoop.year = paste(zoop_parentdow$parentdow, zoop_parentdow$year)
 
-#remove bythotrephes and leptodora from the zoop data - discuss with Kylie if I want to include these taxa and get data separately in the future
+#remove bythotrephes and leptodora from the zoop data -  - discussed with Kylie and Heidi and we don't have the data resolution to include them
 zoop_parentdow <- filter(zoop_parentdow, species != "Bythotrephes longimanus" & species != "Leptodora kindti")
 
 #with zoops we know we have many replicates within a year - we need to decide what to do with them
