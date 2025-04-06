@@ -65,6 +65,7 @@ print(LMB.TN_GN)
 
 
 #Walleye Gillnet vs. walleye Trapnet (just out of curiosity - I know gillnets are better)
+#tiff("WAE Gear.tiff", width = 7, height = 7, units = "in", res = 300)
 WAE.TN_GN <- ggplot(Exp.Data, aes(x = TN.walleye, y = GN.walleye)) +
   geom_point()+
   labs(title = "WAE Gillnet vs. Trapnet", y = "Walleye CPUE Gillnet", x = "Walleye Trapnet") +
@@ -76,6 +77,7 @@ WAE.TN_GN <- ggplot(Exp.Data, aes(x = TN.walleye, y = GN.walleye)) +
     axis.line = element_line(color = "black")  # Add axis lines
   )
 print(WAE.TN_GN)
+#dev.off()
 #error message because lots of NA (goes away if you filter them out)
 
 #PLOTS WITH ALL MN LAKES, not just lakes matched to zoop data
