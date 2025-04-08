@@ -4,6 +4,10 @@
 #examine effect of removing each month - which one has the biggest effect? least effect? Pay attention to the months I am often missing
 #which months matter the most?
 
+#THE LOWEST SECTION REDOES THE SHANNON DIVERSITY INVESTIGATION WITH COPEPODS AT THE TAXONOMIC LEVEL OF: cyclopoids, calanoids, nauplii, copepodite
+      #Did not do this with species richness because results would be obvious (all 4 would always be present because very general taxonomic level)
+      #Biomass already has all the zoops
+
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
@@ -267,7 +271,7 @@ zoop_all_6month <- zoop_all_summer %>%
   filter(Zoop.Month.Count == 6) 
 zoop_clad_6month <- zoop_clad_summer %>% 
   filter(Zoop.Month.Count == 6) 
-#these are what I will use for the follow sections
+#these are what I will use for the following sections
 
 #remove the previous zoop data versions so I don't get confused later
 rm(zoop_clean_taxa3,
@@ -1047,5 +1051,274 @@ month.boxplot <- ggplot(data = month_data_long, aes(x = month.x, y = standardize
   labs(y = "Standardized Value", x = "Month", title = "Zooplankton Data within each Month")+
   theme_classic()
 month.boxplot
+#dev.off()
+
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------
+#do the same thing with shannon diversity index but include COPEPODS AT THE TAXONOMIC LEVEL OF: cyclopoids, calanoids, nauplii, copepodite
+
+#HOW DOES SAMPLING MONTH AFFECT CLADOCERAN SHANNON DIVERSITY INDEX?
+#use cladoceran AND COPEPOD data for this
+
+#clean up zoop taxonomy for shannon diversity in dataset with copepods
+#check species present
+unique(zoop_months_clean$species)
+#this dataset already has all the littoral samples removed
+# 1. rename taxa that need it based on conversation with Heidi and Kylie
+#targeted just the Belle lake Daphnia based on Jodie's notes from when she IDed them
+#I know I can run these together but I was getting an error I didn't have time to deal with when I tried that
+all_zoop_clean_taxa <- zoop_months_clean %>%
+  mutate(species = ifelse(species == "Chydorus sp." | species == "Chydoridae" | species == "Chydorus bicornutus", "Chydorus sphaericus", species)) 
+all_zoop_clean_taxa <- all_zoop_clean_taxa %>%
+  mutate(species = ifelse(species == "Bosmina longirostris", "Bosmina sp.", species))
+all_zoop_clean_taxa <- all_zoop_clean_taxa %>%
+  mutate(species = ifelse(species == "Alona setulosa" | species == "Alona quadrangularis" , "Alona sp.", species))
+all_zoop_clean_taxa <- all_zoop_clean_taxa %>%  
+  mutate(species = ifelse(species == "Ceriodaphnia reticulata" | species == "Ceriodaphnia quadrangula" | species == "Ceriodaphnia lacustris", "Ceriodaphnia sp.", species))
+all_zoop_clean_taxa <- all_zoop_clean_taxa %>%
+  mutate(species = ifelse(species == "Daphnia pulex", "Daphnia pulicaria", species))
+#below I am targeting just the Belle lake Daphnia based on Jodie's notes from when she IDed them
+all_zoop_clean_taxa <- all_zoop_clean_taxa %>%
+  mutate(species = ifelse(species == "Daphnia sp." & parentdow.zoop.year == "470049 2008", "Daphnia rosea", species))
+# 2. remove the Daphnia sp. observations without species - counts are all low
+all_zoop_clean_taxa2 <- all_zoop_clean_taxa %>%
+  filter(species != "Daphnia sp.")
+# 3. remove other problematic taxononimic resolutions with low counts
+all_zoop_clean_taxa2 <- all_zoop_clean_taxa2 %>%
+  filter(species != "Pleuroxus sp." & species != "Harpacticoida")
+              #Harpacticoida is another order of copepods (like cyclopoids and calanoids) but only 6 individuals in entire dataset and most not measured
+# 4. rename copepod "species" to the taxonomic level we consistently have for them
+all_zoop_clean_taxa3 <- all_zoop_clean_taxa2 %>%
+  mutate(species = ifelse(grp2 == "calanoids", "calanoids", 
+                          ifelse(grp2 == "cyclopoids", "cyclopoids", species)))
+
+
+# #check that it worked
+sort(unique(all_zoop_clean_taxa3$species))
+# #yay!
+
+#join the tows per month data
+zoop_all_clean_months <- left_join(all_zoop_clean_taxa3, zoop_summer_month_all, by = "parentdow.zoop.year")
+#isolate the summer samples (May to Oct) 
+zoop_all_summer2 <- zoop_all_clean_months %>%
+  filter(month == "05" | month == "06" | month == "07" | month == "08" | month == "09" | month == "10")
+
+#isolate samples that have samples in all 6 summer months
+zoop_all_6month2 <- zoop_all_summer2 %>% 
+  filter(Zoop.Month.Count == 6) 
+
+#calculate SDI with all 6 months present
+
+#first need counts of each species
+zoop_count_all2 <- zoop_all_6month2 %>%
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_all2 <- zoop_count_all2 %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(SDI.6.month.cope = diversity(count, index = "shannon"), .groups = 'drop')
+
+#compare SDI for all 6 months with and without copepods
+        SDI.cope.test <- data.frame(parentdow.zoop.year = zoop_SDI_all$parentdow.zoop.year, SDI.clad = zoop_SDI_all$SDI.6.month, SDI.all = zoop_SDI_all2$SDI.6.month.cope)
+        
+        #tiff("SDI_Copepod_test.tiff", width = 8, height = 6, units = "in", res = 300) 
+        SDI.cope <- ggplot(data = SDI.cope.test, aes(y = SDI.all, x = SDI.clad))+
+          geom_abline(slope = 1, intercept = 0, color = "red") +
+          geom_point(size = 1) + 
+          scale_y_continuous(limits = c(0, 2.3)) +
+          scale_x_continuous(limits = c(0, 2.3)) +
+          labs(y = "Shannon Diversity Index All Spp", x = "Shannon Diversity Index Cladocerans Only", title = "Shannon Diversity Drop Copepods")+
+          theme_classic()
+        SDI.cope
+        #dev.off()
+    #CONCLUSION: SDI is consistently higher with the copepods
+
+#calculate SDI without May
+
+#first need counts of each species
+zoop_count_no_may2 <- zoop_all_6month2 %>%
+  filter(month != "05") %>% 
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_no_may2 <- zoop_count_no_may2 %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(SDI.no.may = diversity(count, index = "shannon"), .groups = 'drop')
+
+#calculate SDI without June
+
+#first need counts of each species
+zoop_count_no_june2 <- zoop_all_6month2 %>%
+  filter(month != "06") %>% 
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_no_june2 <- zoop_count_no_june2 %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(SDI.no.june = diversity(count, index = "shannon"), .groups = 'drop')
+
+
+#calculate SDI without July
+
+#first need counts of each species
+zoop_count_no_july2 <- zoop_all_6month2 %>%
+  filter(month != "07") %>% 
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_no_july2 <- zoop_count_no_july2 %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(SDI.no.july = diversity(count, index = "shannon"), .groups = 'drop')
+
+#calculate SDI without August
+
+#first need counts of each species
+zoop_count_no_aug2 <- zoop_all_6month2 %>%
+  filter(month != "08") %>% 
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_no_aug2 <- zoop_count_no_aug2 %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(SDI.no.aug = diversity(count, index = "shannon"), .groups = 'drop')
+
+#calculate SDI without September
+
+#first need counts of each species
+zoop_count_no_sept2 <- zoop_all_6month2 %>%
+  filter(month != "09") %>% 
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_no_sept2 <- zoop_count_no_sept2 %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(SDI.no.sept = diversity(count, index = "shannon"), .groups = 'drop')
+
+#calculate SDI without October
+
+#first need counts of each species
+zoop_count_no_oct2 <- zoop_all_6month2 %>%
+  filter(month != "10") %>% 
+  group_by(parentdow.zoop.year, species) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_no_oct2 <- zoop_count_no_oct2 %>%
+  group_by(parentdow.zoop.year) %>%
+  summarize(SDI.no.oct = diversity(count, index = "shannon"), .groups = 'drop')
+
+#combine these all into one dataframe
+SDI_month_elim2 <- data.frame(parentdow.zoop.year = zoop_SDI_all2$parentdow.zoop.year, 
+                             SDI.6.month = zoop_SDI_all2$SDI.6.month.cope, 
+                             Drop.May = zoop_SDI_no_may2$SDI.no.may,
+                             Drop.June = zoop_SDI_no_june2$SDI.no.june,
+                             Drop.July = zoop_SDI_no_july2$SDI.no.july,
+                             Drop.August = zoop_SDI_no_aug2$SDI.no.aug,
+                             Drop.September = zoop_SDI_no_sept2$SDI.no.sept,
+                             Drop.October = zoop_SDI_no_oct2$SDI.no.oct
+)
+
+#now plot these
+
+#convert to long format
+SDI_month_elim_long2 <- pivot_longer(data = SDI_month_elim2, cols = 3:8, names_to = "Month", values_to = "SDI")
+#set month as a factor with the right order for legend
+SDI_month_elim_long2$Month <- factor(SDI_month_elim_long2$Month, levels = c("Drop.May", "Drop.June", "Drop.July", "Drop.August", "Drop.September", "Drop.October"))
+
+
+#plot together with months as colors
+#tiff("SDI_Month_Drop_color_copepods.tiff", width = 8, height = 6, units = "in", res = 300) 
+SDI.drop.month2 <- ggplot(data = SDI_month_elim_long2, aes(y = SDI.6.month, x = SDI, color = Month))+
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  geom_point(size = 1) + 
+  scale_y_continuous(limits = c(0, 2.3)) +
+  scale_x_continuous(limits = c(0, 2.3)) +
+  labs(y = "Complete Shannon Diversity Index", x = "Drop Month", title = "Shannon Diversity Index (Cladocerans and Copepods)")+
+  theme_classic()
+SDI.drop.month2
+#dev.off()
+
+
+#plot individual months
+SDI.drop.may2 <- ggplot(data = SDI_month_elim2, aes(y = SDI.6.month))+
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  geom_point(aes(x = Drop.May), color = "black") + 
+  scale_y_continuous(limits = c(0, 2.3)) +
+  scale_x_continuous(limits = c(0, 2.3)) +
+  labs(y = "Complete Shannon Diversity Index", x = "Drop May Shannon Diversity", title = "Shannon Diversity Index: Drop May")+
+  theme_classic()
+SDI.drop.may2
+
+SDI.drop.june2 <- ggplot(data = SDI_month_elim2, aes(y = SDI.6.month))+
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  geom_point(aes(x = Drop.June), color = "black") + 
+  scale_y_continuous(limits = c(0, 2.3)) +
+  scale_x_continuous(limits = c(0, 2.3)) +
+  labs(y = "Complete Shannon Diversity Index", x = "Drop June Shannon Diversity", title = "Shannon Diversity Index: Drop June")+
+  theme_classic()
+SDI.drop.june2
+
+SDI.drop.july2 <- ggplot(data = SDI_month_elim2, aes(y = SDI.6.month))+
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  geom_point(aes(x = Drop.July), color = "black") + 
+  scale_y_continuous(limits = c(0, 2.3)) +
+  scale_x_continuous(limits = c(0, 2.3)) +
+  labs(y = "Complete Shannon Diversity Index", x = "Drop July Shannon Diversity", title = "Shannon Diversity Index: Drop July")+
+  theme_classic()
+SDI.drop.july2
+
+SDI.drop.aug2 <- ggplot(data = SDI_month_elim2, aes(y = SDI.6.month))+
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  geom_point(aes(x = Drop.August), color = "black") + 
+  scale_y_continuous(limits = c(0, 2.3)) +
+  scale_x_continuous(limits = c(0, 2.3)) +
+  labs(y = "Complete Shannon Diversity Index", x = "Drop August Shannon Diversity", title = "Shannon Diversity Index: Drop August")+
+  theme_classic()
+SDI.drop.aug2
+
+SDI.drop.sept2 <- ggplot(data = SDI_month_elim2, aes(y = SDI.6.month))+
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  geom_point(aes(x = Drop.September), color = "black") + 
+  scale_y_continuous(limits = c(0, 2.3)) +
+  scale_x_continuous(limits = c(0, 2.3)) +
+  labs(y = "Complete Shannon Diversity Index", x = "Drop September Shannon Diversity", title = "Shannon Diversity Index: Drop September")+
+  theme_classic()
+SDI.drop.sept2
+
+SDI.drop.oct2 <- ggplot(data = SDI_month_elim2, aes(y = SDI.6.month))+
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  geom_point(aes(x = Drop.October), color = "black") + 
+  scale_y_continuous(limits = c(0, 2.3)) +
+  scale_x_continuous(limits = c(0, 2.3)) +
+  labs(y = "Complete Shannon Diversity Index", x = "Drop October Shannon Diversity", title = "Shannon Diversity Index: Drop October")+
+  theme_classic()
+SDI.drop.oct2
+
+#make a layout of all 6 plots together
+#tiff("SDI_Month_Drop_layout_copepods.tiff", width = 10, height = 12.5, units = "in", res = 300) 
+SDI.drop.month.plot.6.cope <- grid.arrange(SDI.drop.may2, SDI.drop.june2, SDI.drop.july2, SDI.drop.aug2, SDI.drop.sept2, SDI.drop.oct2)
+SDI.drop.month.plot.6.cope
+#dev.off()
+
+
+
+#LOOK AT SDI WITHIN EACH MONTH - JUST BECAUSE I AM CURIOUS:
+#first need counts of each species
+zoop_count_month2 <- zoop_all_6month2 %>%
+  group_by(parentdow.zoop.year, species, month) %>%
+  summarize(count = sum(count), .groups = 'drop')
+#now calculate Shannon diversity
+zoop_SDI_month2 <- zoop_count_month2 %>%
+  group_by(parentdow.zoop.year, month) %>%
+  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
+#NOTE: shannon diversity of 0 means only one species present
+
+#make a boxplot of this
+#tiff("SDI_Month_Boxplot_copepods.tiff", width = 8, height = 6, units = "in", res = 300) 
+SDI.by.month2 <- ggplot(data = zoop_SDI_month2, aes(x = month, y = zoop.Shannon.DI))+
+  geom_boxplot() +
+  labs(y = "Shannon Diversity Index", x = "Month", title = "Shannon Diversity Index within each Month (Cladocerans and Copepods)")+
+  theme_classic()
+SDI.by.month2
 #dev.off()
 
