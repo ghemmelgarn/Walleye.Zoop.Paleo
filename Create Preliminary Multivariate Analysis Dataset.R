@@ -380,7 +380,8 @@ zoop_summer_month_count <- zoop_summer %>%
     zoop_clean_taxa <- zoop_good_effort %>%
       mutate(species = ifelse(species == "Chydorus sp." | species == "Chydoridae" | species == "Chydorus bicornutus", "Chydorus sphaericus", species)) 
     zoop_clean_taxa <- zoop_clean_taxa %>%
-      mutate(species = ifelse(species == "Bosmina longirostris", "Bosmina sp.", species))
+      mutate(species = ifelse(species == "Bosmina longirostris" | species == "Bosmina sp.", "Bosminidae", species))
+             #Bosminid taxonomy here is what we decided with Heidi
     zoop_clean_taxa <- zoop_clean_taxa %>%
       mutate(species = ifelse(species == "Alona setulosa" | species == "Alona quadrangularis" , "Alona sp.", species))
     zoop_clean_taxa <- zoop_clean_taxa %>%  
@@ -393,7 +394,7 @@ zoop_summer_month_count <- zoop_summer %>%
     # 2. remove the Daphnia sp. observations without species - counts are all low
     zoop_clean_taxa <- zoop_clean_taxa %>%
       filter(species != "Daphnia sp.")
-    # 3. remove other problematic taxononimic resolutions with low counts
+    # 3. remove other problematic taxonomic resolutions with low counts
     zoop_clean_taxa <- zoop_clean_taxa %>%
       filter(species != "Pleuroxus sp." & species != "Harpacticoida")
     #Harpacticoida is another order of copepods (like cyclopoids and calanoids) but only 6 individuals in entire dataset and most not measured
@@ -405,6 +406,26 @@ zoop_summer_month_count <- zoop_summer %>%
     # #check that it worked
     sort(unique(zoop_clean_taxa$species))
     # #yay!
+    
+#Here I need to check for the "wonky" samples that Heidi warned me about
+    #I want a count of how many sample_IDs we have for each lake-year
+    zoop_sample_id_check <- zoop_clean_taxa %>%
+      group_by(parentdow.zoop.year, sample_date, site_number, haul_depth_m) %>%
+      summarize(sample.id.Count = n_distinct(sample_id), .groups = 'drop')
+    
+    #Here I need to check for species with multiple rows within a sample ID
+    #I want a count of how many sample_IDs we have for each lake-year
+    zoop_species_row_check <- zoop_clean_taxa %>%
+      group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
+      summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
+    
+    #does this also happen before I rename? - try with pre-taxonomic fix zoop data
+    zoop_species_row_check2 <- zoop_good_effort %>%
+      group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
+      summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
+    #YES IT DOES
+    
+#TAKEAWAY: WE HAVE PROBLEMS HERE- CURRENTLY WORKING THIS OUT WITH HEIDI, KYLIE, JAKE
     
     
 #need to make sure all species have a row for all tows - even if the biomass value is 0 so that my means calculate correctly
