@@ -407,25 +407,26 @@ zoop_summer_month_count <- zoop_summer %>%
     sort(unique(zoop_clean_taxa$species))
     # #yay!
     
-#Here I need to check for the "wonky" samples that Heidi warned me about
-    #I want a count of how many sample_IDs we have for each lake-year
-    zoop_sample_id_check <- zoop_clean_taxa %>%
-      group_by(parentdow.zoop.year, sample_date, site_number, haul_depth_m) %>%
-      summarize(sample.id.Count = n_distinct(sample_id), .groups = 'drop')
-    
-    #Here I need to check for species with multiple rows within a sample ID
-    #I want a count of how many sample_IDs we have for each lake-year
-    zoop_species_row_check <- zoop_clean_taxa %>%
-      group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
-      summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
-    
-    #does this also happen before I rename? - try with pre-taxonomic fix zoop data
-    zoop_species_row_check2 <- zoop_good_effort %>%
-      group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
-      summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
-    #YES IT DOES
-    
-#TAKEAWAY: WE HAVE PROBLEMS HERE- CURRENTLY WORKING THIS OUT WITH HEIDI, KYLIE, JAKE
+# #Here I need to check for the "wonky" samples that Heidi warned me about
+#     #I want a count of how many sample_IDs we have for each lake-year
+#     zoop_sample_id_check <- zoop_clean_taxa %>%
+#       group_by(parentdow.zoop.year, sample_date, site_number, haul_depth_m) %>%
+#       summarize(sample.id.Count = n_distinct(sample_id), .groups = 'drop')
+#     
+#     #Here I need to check for species with multiple rows within a sample ID
+#     #I want a count of how many sample_IDs we have for each lake-year
+#     zoop_species_row_check <- zoop_clean_taxa %>%
+#       group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
+#       summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
+#     
+#     #does this also happen before I rename? - try with pre-taxonomic fix zoop data
+#     zoop_species_row_check2 <- zoop_good_effort %>%
+#       group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
+#       summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
+#     #YES IT DOES
+#     
+# #TAKEAWAY: WE HAVE PROBLEMS HERE- CURRENTLY WORKING THIS OUT WITH HEIDI, KYLIE, JAKE
+    #FOR NOW (4-10-25) proceeding with analyses for stats class without addressing this - circle back to this.
     
     
 #need to make sure all species have a row for all tows - even if the biomass value is 0 so that my means calculate correctly
@@ -452,12 +453,16 @@ zoop_biom_year_mean <- zoop_biom_month_mean %>%
 
 #convert to wide so there is a column for each species
 zoop_wide <- pivot_wider(data = zoop_biom_year_mean, names_from = species, values_from = biomass)
+#add the zoop sampling month info back in so it makes it to master dataset
+zoop_wide_month <- left_join(zoop_wide, zoop_summer_month_all, by = "parentdow.zoop.year")
 #rename parentdow.zoop.year so I can join it
-zoop_wide <- zoop_wide %>% 
+zoop_wide_month <- zoop_wide_month %>% 
   rename(parentdow.fish.year = parentdow.zoop.year)
 
+
+
 #join the zoop biomass metrics to the rest of the data
-Data_e <- left_join(Data_d, zoop_wide, by = "parentdow.fish.year")
+Data_e <- left_join(Data_d, zoop_wide_month, by = "parentdow.fish.year")
 
 #clean up the environment
 rm(zoop_month_tows,
@@ -466,6 +471,7 @@ rm(zoop_month_tows,
    zoop,
    zoop_wide,
    zoop_wide_short,
+   zoop_wide_month,
    zoop_summer_month_count,
    zoop_complete,
    zoop_biom_day_mean,
@@ -648,374 +654,166 @@ Data_all$ZebraMussel <- ifelse(is.na(Data_all$ZebraMussel), "no",
 
 #remove extra columns I never used or don't need like the empty invasive species and the walleye count from the old spreadsheet
 Data_all <- Data_all %>%
-  select(-ZoopMonths,
-         -Invasive.species,
-         -WalleyeCPUE)
+  select(-Chosen.for.analysis.)
 
 #Requirements:
 #conditions filtered above in this script:
   #lake/years with exact matches of fish/zoop data
-  #zoops: at least 6 tows for each lake/year, removed Bytho and Lepto
+  #zoops: at least 5 summer months for each lake/year, removed Bytho and Lepto
 
 #conditions filtered as I generated data in other scripts:
   #fish: acceptable survey and gear types, sufficient effort, removed surveys with gear issues
   #productivity: secchi data must have samples from June, July, and August in the lake/year, no secchi values of 0, all secchi data from MPCA and DNR 
 
-#need to filter now:
-
-# #6 distinct months of zoop tows
-# Data.all.zoop.month.restrict.6 <- Data_all %>%
-#   filter(Zoop.Month.Count >= 6)
-# #have all the data: zoops, fish, temp, productivity, area (invasive species will only be listed if present - this is ok)
-# Data.no.missing.6z <- Data.all.zoop.month.restrict.6 %>%
-#   filter(!is.na(zoop.total.biomass) & 
-#            !is.na(WAE.CPUE) & 
-#            !is.na(gdd_wtr_5c) & 
-#            !is.na(mean.summer.secchi.meters) & 
-#            !is.na(lakesize)
-#          )
-# #end up with 61 observations
-# #how many unique lakes is this?
-# unique(Data.no.missing.6z$LakeName)
-# #21 lakes... not many
-
-#BELOW IS EXPERIMENTING WITH DIFFERENT DATA FILTERS TO INCREASE SAMPLE SIZE
-#I started very restrictive knowing I may have to loosen some to get enough data
-
-# #TRY BEING LESS RESTRICTIVE ON THE ZOOPS:
-# #5 distinct months of zoop tows
-# Data.all.zoop.month.restrict.5 <- Data_all %>%
-#   filter(Zoop.Month.Count >= 5)
-# #have all the data: zoops, fish, temp, productivity, area (invasive species will only be listed if present - this is ok)
-# Data.no.missing.5z <- Data.all.zoop.month.restrict.5 %>%
-#   filter(!is.na(zoop.total.biomass) &
-#            !is.na(WAE.CPUE) &
-#            !is.na(gdd_wtr_5c) &
-#            !is.na(mean.summer.secchi.meters) &
-#            !is.na(lakesize)
-#   )
-# #end up with 94 observations
-# #how many unique lakes is this?
-# unique(Data.no.missing.5z$LakeName)
-# #24 lakes... still not many
-# 
-# #4 distinct months of zoop tows
-# Data.all.zoop.month.restrict.4 <- Data_all %>%
-#   filter(Zoop.Month.Count >= 4)
-# #have all the data: zoops, fish, temp, productivity, area (invasive species will only be listed if present - this is ok)
-# Data.no.missing.4z <- Data.all.zoop.month.restrict.4 %>%
-#   filter(!is.na(zoop.total.biomass) &
-#            !is.na(WAE.CPUE) &
-#            !is.na(gdd_wtr_5c) &
-#            !is.na(mean.summer.secchi.meters) &
-#            !is.na(lakesize)
-#   )
-# #end up with 104 observations
-# #how many unique lakes is this?
-# unique(Data.no.missing.4z$LakeName)
-# #26 lakes
-# 
-# #for comparison, no restriction on zoops:
-# Data.no.missing.allZ <- Data_all %>%
-#   filter(!is.na(zoop.total.biomass) &
-#            !is.na(WAE.CPUE) &
-#            !is.na(gdd_wtr_5c) &
-#            !is.na(mean.summer.secchi.meters) &
-#            !is.na(lakesize)
-#   )
-# #end up with 120 observations
-# #how many unique lakes is this?
-# unique(Data.no.missing.allZ$LakeName)
-# #29 lakes
-# 
-# #TRY ALL THE ZOOP VARIATIONS WITH MORE INCLUSIVE FISH
-# 
-# #6 distinct months of zoop tows + inclusive fish
-# Data.all.zoop.month.restrict.6 <- Data_all %>%
-#   filter(Zoop.Month.Count >= 6)
-# #have all the data: zoops, fish, temp, productivity, area (invasive species will only be listed if present - this is ok)
-# Data.no.missing.6z.finc <- Data.all.zoop.month.restrict.6 %>%
-#   filter(!is.na(zoop.total.biomass) & 
-#            !is.na(WAE.CPUE.inc) & 
-#            !is.na(gdd_wtr_5c) & 
-#            !is.na(mean.summer.secchi.meters) & 
-#            !is.na(lakesize)
-#   )
-# #end up with 80 observations
-# #how many unique lakes is this?
-# unique(Data.no.missing.6z.finc$LakeName)
-# #28 lakes
-# 
-#USING THIS FOR NOW:
-
-#5 distinct months of zoop tows + inclusive fish
-Data.all.zoop.month.restrict.5 <- Data_all %>%
-  filter(Zoop.Month.Count >= 5)
-#have all the data: zoops, fish, temp, productivity, area (invasive species will only be listed if present - this is ok)
-Data.no.missing.5z.finc <- Data.all.zoop.month.restrict.5 %>%
-  filter(!is.na(zoop.total.biomass) &
-           !is.na(WAE.CPUE.inc) &
+#need to filter to lake-years that have all the data: fish survey, zoop survey, temp, clarity, area AND require May and June zoop samples
+Data_complete <- Data_all %>%    
+  filter(!is.na(calanoids) &
+           !is.na(WAE.CPUE) &
            !is.na(gdd_wtr_5c) &
            !is.na(mean.summer.secchi.meters) &
-           !is.na(lakesize)
+           !is.na(lake.area.acres)&
+           May != 0 &
+           June != 0
+           )
+#sample size = 110 lake-years (it's 119 if I don't require any specific zoop months)
+unique(Data_complete$LakeName)
+#31 different lakes represented
+
+#INVEESTIGATE EFFECT OF EXCLUDING MONTHS WITHOUT OCTOBER
+Data_req_Oct <- Data_all %>%    
+  filter(!is.na(calanoids) &
+           !is.na(WAE.CPUE) &
+           !is.na(gdd_wtr_5c) &
+           !is.na(mean.summer.secchi.meters) &
+           !is.na(lake.area.acres)&
+           May != 0 &
+           June != 0 &
+           Oct != 0
   )
-#end up with 115 observations
-#how many unique lakes is this?
-unique(Data.no.missing.5z.finc$LakeName)
-#32 lakes... looking better!
-# 
-# #4 distinct months of zoop tows + inclusive fish
-# Data.all.zoop.month.restrict.4 <- Data_all %>%
-#   filter(Zoop.Month.Count >= 4)
-# #have all the data: zoops, fish, temp, productivity, area (invasive species will only be listed if present - this is ok)
-# Data.no.missing.4z.finc <- Data.all.zoop.month.restrict.4 %>%
-#   filter(!is.na(zoop.total.biomass) &
-#            !is.na(WAE.CPUE.inc) &
-#            !is.na(gdd_wtr_5c) &
-#            !is.na(mean.summer.secchi.meters) &
-#            !is.na(lakesize)
-#   )
-# #end up with 131 observations
-# #how many unique lakes is this?
-# unique(Data.no.missing.4z.finc$LakeName)
-# #37 lakes
-# 
-# #for comparison, no restriction on zoops + inclusive fish:
-# Data.no.missing.allZ.finc <- Data_all %>%
-#   filter(!is.na(zoop.total.biomass) &
-#            !is.na(WAE.CPUE.inc) &
-#            !is.na(gdd_wtr_5c) &
-#            !is.na(mean.summer.secchi.meters) &
-#            !is.na(lakesize)
-#   )
-# #end up with 158 observations
-# #how many unique lakes is this?
-# unique(Data.no.missing.allZ.finc$LakeName)
-# #47 lakes
-# 
-# 
-# 
+
+#requiring october brings the sample size down to 82
+unique(Data_req_Oct$LakeName)
+#29 different lakes represented - lose Freeborn and Garfield
+
+#WHAT IF I REQUIRE MAY-SEPTEMBER 
+Data_req_M_S <- Data_all %>%    
+  filter(!is.na(calanoids) &
+           !is.na(WAE.CPUE) &
+           !is.na(gdd_wtr_5c) &
+           !is.na(mean.summer.secchi.meters) &
+           !is.na(lake.area.acres)&
+           May != 0 &
+           June != 0 &
+           July != 0 &
+           Aug != 0 &
+           Sept != 0
+        )
+
+#This gets us a sample size of 106. I think this is the best option.
+unique(Data_req_M_S$LakeName)
+#31 different lakes represented - SO WE DON'T LOSE ANY LAKES - THIS IS GOOD
+table(Data_req_M_S$LakeName)
+
+#Save this output!
+#write.csv(Data_req_M_S, file = "Data/Output/PrelimMultivarData.csv")
+
 # #What is the effect of the potential confounding variable lack of data?
 # 
-# #what is our sample size if we don't consider, temp, area, productivity data coverage but keep the 6 month zoop restriction, , fish strict?
-# test <- Data.all.zoop.month.restrict.6 %>%
-#   filter(!is.na(zoop.total.biomass) & 
-#            !is.na(WAE.CPUE)
-#   )
+# #what is our sample size if we don't consider, temp, area, productivity data coverage but keep the May-Sept zoop restriction?
+# test <- Data_all %>%    
+#       filter(!is.na(calanoids) &
+#          !is.na(WAE.CPUE) &
+#          May != 0 &
+#          June != 0 &
+#          July != 0 &
+#          Aug != 0 &
+#          Sept != 0
+# )
 # unique(test$LakeName)
-# #99 observations on 27 lakes
-# #so these potential confounding variables take 38 observations and 6 lakes from us... not that many really
+# #168 observations on 38 lakes
+# #so these potential confounding variables take 62 observations and 7 lakes from us...
 # 
-# #what is our sample size if we don't consider, temp, area, productivity data coverage but keep the 5 month zoop restriction, , fish strict?
-# test <- Data.all.zoop.month.restrict.5 %>%
-#   filter(!is.na(zoop.total.biomass) & 
-#            !is.na(WAE.CPUE)
+# #How many of which observations are we missing?
+# test2 <- Data_all %>%    
+#   filter(!is.na(calanoids) &
+#            !is.na(WAE.CPUE) &
+#            is.na(gdd_wtr_5c) &
+#            May != 0 &
+#            June != 0 &
+#            July != 0 &
+#            Aug != 0 &
+#            Sept != 0
 #   )
-# unique(test$LakeName)
-# #162 observations on 29 lakes
+# unique(test2$LakeName)
+# #29 lake-years on 6 lakes missing temp data
 # 
-# #what is our sample size if we don't consider, temp, area, productivity data coverage and no zoop restriction, fish strict?
-# test <- Data_all %>%
-#   filter(!is.na(zoop.total.biomass) & 
-#            !is.na(WAE.CPUE)
+# test3 <- Data_all %>%    
+#   filter(!is.na(calanoids) &
+#            !is.na(WAE.CPUE) &
+#            is.na(mean.summer.secchi.meters) &
+#            May != 0 &
+#            June != 0 &
+#            July != 0 &
+#            Aug != 0 &
+#            Sept != 0
 #   )
-# unique(test$LakeName)
-# #202 observations on 36 lakes
+# unique(test3$LakeName)
+# #37 lake-years on 11 lakes missing secchi data
 # 
-# #what is our sample size if we don't consider, temp, area, productivity data coverage but keep the 6 month zoop restriction, , fish inclusive?
-# test <- Data.all.zoop.month.restrict.6 %>%
-#   filter(!is.na(zoop.total.biomass) & 
-#            !is.na(WAE.CPUE.inc)
+# test4 <- Data_all %>%    
+#   filter(!is.na(calanoids) &
+#            !is.na(WAE.CPUE) &
+#            is.na(lake.area.acres) &
+#            May != 0 &
+#            June != 0 &
+#            July != 0 &
+#            Aug != 0 &
+#            Sept != 0
 #   )
-# unique(test$LakeName)
-# #118 observations on 34 lakes
-# #so these potential confounding variables take 38 observations and 6 lakes from us... not that many really
+# unique(test4$LakeName)
+# #None are missing lake area!
 # 
-# #what is our sample size if we don't consider, temp, area, productivity data coverage but keep the 5 month zoop restriction, , fish inclusive?
-# test <- Data.all.zoop.month.restrict.5 %>%
-#   filter(!is.na(zoop.total.biomass) & 
-#            !is.na(WAE.CPUE.inc)
+# #How many are missing BOTH temp and secchi?
+# test5 <- Data_all %>%    
+#   filter(!is.na(calanoids) &
+#            !is.na(WAE.CPUE) &
+#            is.na(mean.summer.secchi.meters) &
+#            is.na(gdd_wtr_5c) &
+#            May != 0 &
+#            June != 0 &
+#            July != 0 &
+#            Aug != 0 &
+#            Sept != 0
 #   )
-# unique(test$LakeName)
-# #184 observations on 38 lakes
+# unique(test5$LakeName)
+# #only 4 observations on two lakes: Namakan and Winnie
 # 
-# #what is our sample size if we don't consider, temp, area, productivity data coverage and no zoop restriction, fish inclusive?
-# test <- Data_all %>%
-#   filter(!is.na(zoop.total.biomass) & 
-#            !is.na(WAE.CPUE.inc)
+# #lakes missing only secchi
+# test6 <- Data_all %>%
+#   filter(!is.na(calanoids) &
+#            !is.na(WAE.CPUE) &
+#            is.na(mean.summer.secchi.meters) &
+#            !is.na(gdd_wtr_5c) &
+#            May != 0 &
+#            June != 0 &
+#            July != 0 &
+#            Aug != 0 &
+#            Sept != 0
 #   )
-# unique(test$LakeName)
-# #242 observations on 56 lakes
-
-#DECIDED ON AT LEAST 5 MONTHS OF FISH AND FISH SURVEYS UP TO 3 LESS THAN IDEAL MINIMUM
-
-
-
-#---------------------------------------------------------------------------------------------------------------
-#CALCULATE ZOOP SHANNON DIVERSITY CORRECTLY, JOIN IT, SAVE PRELIMINARY DATASET
-#THIS CODE ALSO USED TO INVESTIGATE THE ZOOPLANKTON TAXONOMY ISSUES 
-
-#create file of raw zoop data for only lake/years used in preliminary analysis
-prelim.raw.zoop <- zoop_parentdow %>%
- filter(parentdow.zoop.year %in% Data.no.missing.5z.finc$parentdow.zoop.year)
-#to run this code, need to remake the zoop_parentdow data frame because it gets automatically removed in the code above
-#save this file to send to Kylie and maybe refer to later
-#write.csv(prelim.raw.zoop, file = "Data/Output/Preliminary Raw Zoop Data.csv")
-
-#CODE BELOW IS TROUBLESHOOTING WHAT TO DO WITH TAXONOMIC RESOLUTION FOR ZOOP DIVERSITY METRICS:
-
-# #see the unique species names in the zoop data I am using 
-# unique(prelim.raw.zoop$species)
+# table(test6$LakeName)
 # 
-# #see how many rows of each unique species I have
-# table(prelim.raw.zoop$species)
-
-#problematic taxa:
-  #juvenile copepods
-      #"nauplii"  2642
-      #"copepodites"  2695
-
-  #"calanoids"  1208
-      #"Senecella calanoides"  94
-      #"Epischura lacustris"  393
-      #"Limnocalanus macrurus"  140
-      #"Diaptomidae"   1443
-          #"Leptodiaptomus minutus"  13
-          #"Leptodiaptomus sicilis"  2
-          #"Onychodiaptomus sanguineus"  1
-          #"Skistodiaptomus oregonensis"  4
-
-  #"cyclopoids"  1592
-      #"Acanthocyclops vernalis"  14
-      #"Diacyclops sp."   1
-          #"Diacyclops bicuspidatus thomasi"  1059
-      #"Macrocyclops sp."  2
-      #"Mesocyclops edax"  958
-      #"Tropocyclops prasinus mexicanus"  914
-
-  #"Bosmina sp."  1849
-      #"Bosmina longirostris"  163
-      #"Eubosmina coregoni"   771  - Do you consider this a genus or subgenus. Could it be included in "Bosmina sp."?
-
-  #"Chydorus sp."  346
-      #"Chydorus sphaericus"  922
-
-  #"Alona sp."  22
-      #"Alona setulosa"  9
-      #"Alona quadrangularis"  1
-
-  #"Ceriodaphnia sp."  487
-      #"Ceriodaphnia reticulata"  1
-
-  #"Daphnia sp."  6
-      #"Daphnia galeata mendotae"  2115
-      #"Daphnia retrocurva"  1202
-      #"Daphnia parvula"  81
-      #"Daphnia rosea"   3
-      #"Daphnia pulicaria"  529
-      #"Daphnia pulex"  80
-      #"Daphnia ambigua"  6
-      #"Daphnia longiremis"  281
-      #"Daphnia lumholtzi"  26
+# #lakes missing only temp
+# test7 <- Data_all %>%
+#   filter(!is.na(calanoids) &
+#            !is.na(WAE.CPUE) &
+#            !is.na(mean.summer.secchi.meters) &
+#            is.na(gdd_wtr_5c) &
+#            May != 0 &
+#            June != 0 &
+#            July != 0 &
+#            Aug != 0 &
+#            Sept != 0
+#   )
+# table(test7$LakeName)
 
 
-#these taxa seem okay
-    #"Acroperus harpae"  13
-    #"Holopedium gibberum"   516
-    #"Eurycercus lamellatus"  201
-    #"Graptoleberis sp."  1
-    #"Polyphemus pediculus"  10
-    #"Latona setifera"  8
-    #"Sida crystallina"  18
-    #"Diaphanosoma birgei"  1045
-    #"Moina sp."   28
-    #"Simocephalus sp."  6
-    #"Scapholeberis sp."  2
-    #"Macrothricidae"  9
-    #"Ergasilus sp."   16  (this is a copepod but in the order Poecilostomatoida, not a cylopoid or a calanoid)
-
-
-# #find the lake/years with just "Daphnia sp."
-# Daphnia.sp <- prelim.raw.zoop %>%
-#   filter(species == "Daphnia sp.")
-# 
-# #its Belle 2008: 470049 2008
-# #and Leech 2020: 110203 2020
-# 
-# #look at entire samples from those lake/years
-# Daphnia.sp.samples <- prelim.raw.zoop %>%
-#   filter(parentdow.zoop.year == "470049 2008" | parentdow.zoop.year == "110203 2020")
-
-#It looks like there were a few samples Belle in 2008 (samples 4404, 4405, 4406) where all Daphnia just got called Daphnia sp., but all the other samples from Belle in 2008 IDed the Daphnia to species. In some samples from Leech in 2020 (samples 6763, 6766, and 6774), there are Daphnia sp. along with other identified Daphnia species.
-
-#Fix the taxonomy problems:
-# 1. remove all the copepods
-zoop_nocopepods <- prelim.raw.zoop %>%
-  filter(grp == "Cladocerans")
-# 2. rename taxa that need it based on conversation with Heidi and Kylie
-  #targeted just the Belle lake Daphnia based on Jodie's notes from when she IDed them
-  #I know I can run these together but I was getting an error I didn't have time to deal with when I tried that
-zoop_clean_taxa <- zoop_nocopepods %>%
-  mutate(species = ifelse(species == "Chydorus sp.", "Chydorus sphaericus", species)) 
-zoop_clean_taxa <- zoop_clean_taxa %>%
-  mutate(species = ifelse(species == "Bosmina longirostris", "Bosmina sp.", species))
-zoop_clean_taxa <- zoop_clean_taxa %>%
-  mutate(species = ifelse(species == "Alona setulosa" | species == "Alona quadrangularis" , "Alona sp.", species))
-zoop_clean_taxa <- zoop_clean_taxa %>%  
-  mutate(species = ifelse(species == "Ceriodaphnia reticulata", "Ceriodaphnia sp.", species))
-zoop_clean_taxa <- zoop_clean_taxa %>%
-  mutate(species = ifelse(species == "Daphnia pulex", "Daphnia pulicaria", species))
-  #below I am targeting just the Belle lake Daphnia based on Jodie's notes from when she IDed them
-zoop_clean_taxa <- zoop_clean_taxa %>%
-  mutate(species = ifelse(species == "Daphnia sp." & parentdow.zoop.year == "470049 2008", "Daphnia rosea", species))
-# 3. remove the Daphnia sp. observations from Leech lake (1 daphnia in 3 samples not IDed to species)
-zoop_clean_taxa2 <- zoop_clean_taxa %>%
-  filter(species != "Daphnia sp.")
-# 
-# #check that it worked
-# unique(zoop_clean_taxa2$species)
-# #yay!
-
-# #check that none of these are littoral samples
-# unique(zoop_clean_taxa2$remarks)[1000:1200]
-# #Kylie didn't think any of them are and none of the remarks say anything so looks ok
-
-# #ORIGINAL METHOD - forgot there were multiple samples on each date...
-# #calculate shannon diversity index on each sampling date
-# zoop_SDI_sample <- prelim.raw.zoop %>%
-#   group_by(parentdow.zoop.year, sample_date) %>%
-#   summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
-# #now take mean over all the sampling dates in a year
-# zoop_SDI <- zoop_SDI_sample %>%
-#   group_by(parentdow.zoop.year) %>%
-#   summarize(zoop.Shannon.DI = mean(zoop.Shannon.DI), .groups = 'drop')
-
-#NEW CODE FOR THIS
-#I want to simulate how we will find zoops in sediment, which means I should get a total count of each species for each lake/year and use this to calculate Shannon Diversity, richness, and evenness
-zoop_diversity <- zoop_clean_taxa2 %>%
-  group_by(parentdow.zoop.year, species) %>%
-  summarize(count = sum(count), .groups = 'drop')
-#now calculate Shannon diversity
-zoop_SDI_new <- zoop_diversity %>%
-  group_by(parentdow.zoop.year) %>%
-  summarize(zoop.Shannon.DI = diversity(count, index = "shannon"), .groups = 'drop')
-
-#code to join this to other data and create a test prelim dataset
-Data.final <- left_join(Data.no.missing.5z.finc, zoop_SDI_new, by = "parentdow.zoop.year")
-
-# #save complete preliminary dataset as .csv
-#write.csv(Data.final, file = "Data/Output/Preliminary Data.csv")
-
-
-# #compare the histograms of the two zoop diversity methods:
-# SDI.original <- ggplot(zoop_SDI, aes( x = zoop.Shannon.DI )) +
-#   geom_histogram() +
-#   theme_minimal()
-# print(SDI.original)
-# 
-# SDI.new <- ggplot(zoop_SDI_new, aes( x = zoop.Shannon.DI )) +
-#   geom_histogram() +
-#   theme_minimal()
-# print(SDI.new)
-
-#already data looks much better without even fixing the taxonomy problems
