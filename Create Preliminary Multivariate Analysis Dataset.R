@@ -408,25 +408,46 @@ zoop_summer_month_count <- zoop_summer %>%
     # #yay!
     
 # #Here I need to check for the "wonky" samples that Heidi warned me about
-#     #I want a count of how many sample_IDs we have for each lake-year
+#     #I AM JOINING THIS TO AN INCLUSION TABLE FROM THE END RESULT OF THIS ENTIRE SCRIPT SO I AM ONLY LOOKING AT DB ISSUES THAT AFFECT THE DATA I WANT TO USE
+#     
+#     #read in end result of this script (already saved as .csv file)
+#     incl.tab <- read.csv("Data/output/PrelimMultivarData.csv")
+#     #pull out only the columns you want for the inclusion table
+#     incl.tab2 <- incl.tab %>% 
+#       select(LakeName, lake_id, parentdow.fish.year) %>% 
+#       rename(parentdow.zoop.year = parentdow.fish.year)
+#    
+#     
+#      #I want a count of how many sample_IDs we have for each lake-year
 #     zoop_sample_id_check <- zoop_clean_taxa %>%
 #       group_by(parentdow.zoop.year, sample_date, site_number, haul_depth_m) %>%
 #       summarize(sample.id.Count = n_distinct(sample_id), .groups = 'drop')
-#     
+#     #join this to the inclusion table to only get the ones that matter
+#     zoop_sample_id_check_relevant <- left_join(incl.tab2, zoop_sample_id_check, by = "parentdow.zoop.year")
+# 
 #     #Here I need to check for species with multiple rows within a sample ID
 #     #I want a count of how many sample_IDs we have for each lake-year
 #     zoop_species_row_check <- zoop_clean_taxa %>%
 #       group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
 #       summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
-#     
+#     #join this to the inclusion table to only get the ones that matter
+#     zoop_species_row_check_relevant <- left_join(incl.tab2, zoop_species_row_check, by = "parentdow.zoop.year")
+#     #remove cyclopoids and calanoids because I created that here
+#     zoop_species_row_check_relevant_filter <- zoop_species_row_check_relevant %>% 
+#       filter(species != "calanoids" & species != "cyclopoids")
+#     #There are a few problematic surveys: Mille Lacs 2010-9-14, Mille Lacs 2010-6-29, Ten Mile 2010-5-19 and Ten Mile 2010-6-21
+# 
 #     #does this also happen before I rename? - try with pre-taxonomic fix zoop data
 #     zoop_species_row_check2 <- zoop_good_effort %>%
 #       group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
 #       summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
 #     #YES IT DOES
-#     
+#     #DO I get the same list here as when I checked this after renaming? - YES I DO - end up with same list of surveys
+#     #join this to the inclusion table to only get the ones that matter
+#     zoop_species_row_check_relevant2 <- left_join(incl.tab2, zoop_species_row_check2, by = "parentdow.zoop.year")
+# 
 # #TAKEAWAY: WE HAVE PROBLEMS HERE- CURRENTLY WORKING THIS OUT WITH HEIDI, KYLIE, JAKE
-    #FOR NOW (4-10-25) proceeding with analyses for stats class without addressing this - circle back to this.
+# #FOR NOW (4-10-25) proceeding with analyses for stats class without addressing this - circle back to this.
     
     
 #need to make sure all species have a row for all tows - even if the biomass value is 0 so that my means calculate correctly
