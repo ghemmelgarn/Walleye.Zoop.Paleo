@@ -15,6 +15,10 @@
 #PCA of raw and Hellinger transformed fish data (CPUE (abundance/net night) per species AND pooled total fish CPUE as an additional variable)
 #PCA of raw and Hellinger transformed zoop data (biomass/L per species AND total zoop biomass as an additional variable)
             #This allows me to look at relative abundance separately from total abundance/biomass
+          #when total abundance or biomass included, uses correlation matrix instead of covariance matrix because not same unit or scale
+#PCA of fish and zoops together - Kieran suggested this
+        #correlation matrix for these
+
 
 #Partial least squares on how these two sets of variables covary
 
@@ -228,7 +232,7 @@ hist(fish3$WAE.Cent.Ind.scale)
   fish.Htrans$Total.CPUE.scaled <- fish3$Total.CPUE.scaled
 
   #now do the PCA on this data and see how it changes
-  pca.fish.Htrans <- prcomp(fish.Htrans)
+  pca.fish.Htrans <- prcomp(fish.Htrans, scale. = TRUE)
   
   #look at importance of each PC axis
   summary(pca.fish.Htrans)
@@ -249,7 +253,7 @@ hist(fish3$WAE.Cent.Ind.scale)
   # #apply the lake color vector
   # col_vector <- lake.colors[fish3$LakeName]
   # #make sure axes are the same scale and export as a square
-  # plot(scores.fish.Htrans[,1], scores.fish.Htrans[,2], xlab="PC1 (75.1%)", ylab="PC2 (8.7%)", ylim = c(-0.7,0.8), xlim = c(-0.7,0.8), cex=0.8, pch=19, col=col_vector, cex.lab=1.25)
+  # plot(scores.fish.Htrans[,1], scores.fish.Htrans[,2], xlab="PC1 (20.6%)", ylab="PC2 (11.3%)", ylim = c(-0.7,0.8), xlim = c(-0.7,0.8), cex=0.8, pch=19, col=col_vector, cex.lab=1.25)
   # abline(h=0,v=0,lty=2)
   # legend(x=.8,y=.8,pch=19,legend=c("Bearhead", "Belle", "Carlos","Carrie","Cass","Cedar","Cut Foot Sioux", "Elk",              
   #                                  "Freeborn","Garfield","Green", "Greenwood","Hill", "Kabetogama","Lake of the Woods",
@@ -268,7 +272,7 @@ fish.pca.plot.data <- data.frame(scores.fish.Htrans, fish3$WAE.LMB.Ind.scale, fi
  
   #I don't think coloring by lake adds value - lets do it without that
   #make sure axes are the same scale and export as a square
-  plot(scores.fish.Htrans[,1], scores.fish.Htrans[,2], xlab="PC1 (75.1%)", ylab="PC2 (8.7%)", ylim = c(-2,5), xlim = c(-2,5), cex=0.8, pch=19, cex.lab=1.25)
+  plot(scores.fish.Htrans[,1], scores.fish.Htrans[,2], xlab="PC1 (20.6%)", ylab="PC2 (11.3%)", ylim = c(-6,6.2), xlim = c(-6,6.2), cex=0.8, pch=19, cex.lab=1.25)
   abline(h=0,v=0,lty=2)
   
   #ggplot to color by walleye vs. bass ratio
@@ -276,9 +280,9 @@ fish.pca.plot.data <- data.frame(scores.fish.Htrans, fish3$WAE.LMB.Ind.scale, fi
   ggplot(fish.pca.plot.data, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
     geom_point()+
     #scale_color_gradient(low = "blue", high = "red")+
-    labs(title = "Fish Community PCA", y = "PC2 (8.7%)", x = "PC1 (75.1%)") +
-    scale_x_continuous(limits = c(-2,5))+
-    scale_y_continuous(limits = c(-2,5))+
+    labs(title = "Fish Community PCA", y = "PC2 (11.3%)", x = "PC1 (20.6%)") +
+    scale_x_continuous(limits = c(-6.5,6.5))+
+    scale_y_continuous(limits = c(-6.5,6.5))+
     scale_color_gradient(low = "blue", high = "red")+
     coord_fixed()+
     theme_classic()
@@ -506,7 +510,7 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     zoop.Htrans$Total.biomass.scaled <- zoop3$Total.biomass.scaled
     
     #now do the PCA on this data and see how it changes
-    pca.zoop.Htrans <- prcomp(zoop.Htrans)
+    pca.zoop.Htrans <- prcomp(zoop.Htrans, scale. = TRUE) #scale to use correlation matrix here - no longer same unit and scale
     
     #look at importance of each PC axis
     summary(pca.zoop.Htrans)
@@ -528,7 +532,7 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     # #apply the lake color vector
     # col_vector <- lake.colors[zoop3$LakeName]
     # #make sure axes are the same scale and export as a square
-    # plot(scores.zoop.Htrans[,1], scores.zoop.Htrans[,2], xlab="PC1 (86.7%)", ylab="PC2 (3.2%)", ylim = c(-0.7,0.5), xlim = c(-0.7,0.5), cex=0.8, pch=19, col=col_vector, cex.lab=1.25)
+    # plot(scores.zoop.Htrans[,1], scores.zoop.Htrans[,2], xlab="PC1 (16.2%)", ylab="PC2 (13.3%)", ylim = c(-0.7,0.5), xlim = c(-0.7,0.5), cex=0.8, pch=19, col=col_vector, cex.lab=1.25)
     # abline(h=0,v=0,lty=2)
     # legend(x=.8,y=.8,pch=19,legend=c("Bearhead", "Belle", "Carlos","Carrie","Cass","Cedar","Cut Foot Sioux", "Elk",              
     #                                  "Freeborn","Garfield","Green", "Greenwood","Hill", "Kabetogama","Lake of the Woods",
@@ -543,7 +547,7 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     
     #I don't think coloring by lake adds value - lets do it without that
     #make sure axes are the same scale and export as a square
-    plot(scores.zoop.Htrans[,1], scores.zoop.Htrans[,2], xlab="PC1 (86.7%)", ylab="PC2 (3.2%)", ylim = c(-4.5,1), xlim = c(-4.5,1), cex=0.8, pch=19, cex.lab=1.25)
+    plot(scores.zoop.Htrans[,1], scores.zoop.Htrans[,2], xlab="PC1 (16.2%)", ylab="PC2 (13.3%)", ylim = c(-4.5,4), xlim = c(-4.5,4), cex=0.8, pch=19, cex.lab=1.25)
     abline(h=0,v=0,lty=2)
     
     #add color scale variables to PCA output
@@ -554,9 +558,9 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     ggplot(zoop.pca.plot.data, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
       geom_point()+
       #scale_color_gradient(low = "blue", high = "red")+
-      labs(title = "Zoop Community PCA", x = "PC1 (86.7%)", y = "PC2 (3.2%)") +
-      scale_x_continuous(limits = c(-4.5,1.1))+
-      scale_y_continuous(limits = c(-4.5,1.1))+
+      labs(title = "Zoop Community PCA", x = "PC1 (16.2%)", y = "PC2 (13.3%)") +
+      scale_x_continuous(limits = c(-4.5,4))+
+      scale_y_continuous(limits = c(-4.5,4))+
       scale_color_gradient(low = "blue", high = "red")+
       coord_fixed()+
       theme_classic()
@@ -647,7 +651,125 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     )
     #dev.off()
     
+ 
+#-----------------------------------------------------------------------------------------------------------------------------------------------
+  #PCA OF FISH AND ZOOPS TOGETHER WITH TOTAL ABUNDANCE/BIOMASS
+    #use correlation matrix here (probably should have above but oh well and not going to use it anwyays)
     
+    #combine the data
+    FZ.data <- data.frame(fish.Htrans, zoop.Htrans)
+    
+    #now do the PCA on this data
+    pca.fish.zoop.T <- prcomp(FZ.data, scale. = TRUE) #scale argument uses correlation matrix instead of covariance matrix
+    
+    #look at importance of each PC axis
+    summary(pca.fish.zoop.T)
+    #now we are explaining much less of the variance
+    #create a vector that has the proportion of variance explained by each new principal component
+    eigval.fish.zoop.T <- pca.fish.zoop.T$sdev^2/sum(pca.fish.zoop.T$sdev^2)
+    #look at eigenvalues
+    eigval.fish.zoop.T
+    #look at the eigenvectors
+    pca.fish.zoop.T
+    #create a matrix of the eigenvectors
+    eigvec.fish.zoop.T <- pca.fish.zoop.T$rotation
+    #eigvec.zoop.Htrans
+    #create a matrix that has the PC scores of the lake-years
+    scores.fish.zoop.T <- pca.fish.zoop.T$x
+    rownames(scores.fish.zoop.T) <- zoop3$parentdow.fish.year
+    
+    #I don't think coloring by lake adds value - lets do it without that
+    #make sure axes are the same scale and export as a square
+    plot(scores.fish.zoop.T[,1], scores.fish.zoop.T[,2], xlab="PC1 (15.4%)", ylab="PC2 (9.1%)", ylim = c(-6,6), xlim = c(-6,6), cex=0.8, pch=19, cex.lab=1.25)
+    abline(h=0,v=0,lty=2)
+    
+    #add color scale variables to PCA output
+    fish.zoop.pca.plot.data.T <- data.frame(scores.fish.zoop.T, fish3$WAE.LMB.Ind.scale, fish3$WAE.Cent.Ind.scale)
+    
+    #ggplot to color by walleye vs. bass ratio
+    #tiff("PCA_Fish_Zoop_T.tiff", width = 10, height = 7, units = "in", res = 300)
+    ggplot(fish.zoop.pca.plot.data.T, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
+      geom_point()+
+      #scale_color_gradient(low = "blue", high = "red")+
+      labs(title = "Fish and Zoop Community PCA", x = "PC1 (15.4%)", y = "PC2 (9.1%)") +
+      scale_x_continuous(limits = c(-6,6))+
+      scale_y_continuous(limits = c(-6,6))+
+      scale_color_gradient(low = "blue", high = "red")+
+      coord_fixed()+
+      theme_classic()
+    #dev.off()
+    # 
+    # #lets make a biplot out of this
+    #tiff("PCA_biplot_Fish_Zoop_T.tiff", width = 10, height = 7, units = "in", res = 300)
+    fviz_pca_biplot(pca.fish.zoop.T,
+                    repel = TRUE,     # avoids text overlap
+                    col.var = "red",  # variable arrows color
+                    col.ind = "blue",  # individuals color
+                    label = "var"    #only label the variables, not the individuals
+    )
+    #dev.off()
+    
+    
+    
+    
+    
+    
+  #PCA OF FISH AND ZOOPS TOGETHER WITHOUT TOTAL ABUNDANCE/BIOMASS
+    #remove total abundance and biomass
+    FZ.data2 <- select(FZ.data, -Total.biomass.scaled, -Total.CPUE.scaled)
+    
+    #now do the PCA on this data
+    pca.fish.zoop <- prcomp(FZ.data2, scale. = TRUE) #scale argument uses correlation matrix instead of covariance matrix
+    
+    #look at importance of each PC axis
+    summary(pca.fish.zoop)
+    #now we are explaining much less of the variance
+    #create a vector that has the proportion of variance explained by each new principal component
+    eigval.fish.zoop <- pca.fish.zoop$sdev^2/sum(pca.fish.zoop$sdev^2)
+    #look at eigenvalues
+    eigval.fish.zoop
+    #look at the eigenvectors
+    pca.fish.zoop
+    #create a matrix of the eigenvectors
+    eigvec.fish.zoop <- pca.fish.zoop$rotation
+    #eigvec.zoop.Htrans
+    #create a matrix that has the PC scores of the lake-years
+    scores.fish.zoop <- pca.fish.zoop$x
+    rownames(scores.fish.zoop) <- zoop3$parentdow.fish.year
+    
+    #I don't think coloring by lake adds value - lets do it without that
+    #make sure axes are the same scale and export as a square
+    plot(scores.fish.zoop[,1], scores.fish.zoop[,2], xlab="PC1 (15.2%)", ylab="PC2 (8.7%)", ylim = c(-6,6), xlim = c(-6,6), cex=0.8, pch=19, cex.lab=1.25)
+    abline(h=0,v=0,lty=2)
+    
+    #add color scale variables to PCA output
+    fish.zoop.pca.plot.data <- data.frame(scores.fish.zoop, fish3$WAE.LMB.Ind.scale, fish3$WAE.Cent.Ind.scale)
+    
+    #ggplot to color by walleye vs. bass ratio
+    #tiff("PCA_Fish_Zoop.tiff", width = 10, height = 7, units = "in", res = 300)
+    ggplot(fish.zoop.pca.plot.data, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
+      geom_point()+
+      #scale_color_gradient(low = "blue", high = "red")+
+      labs(title = "Fish and Zoop Community PCA", x = "PC1 (15.2%)", y = "PC2 (8.7%)") +
+      scale_x_continuous(limits = c(-6,6))+
+      scale_y_continuous(limits = c(-6,6))+
+      scale_color_gradient(low = "blue", high = "red")+
+      coord_fixed()+
+      theme_classic()
+    #dev.off()
+    # 
+    # #lets make a biplot out of this
+    #tiff("PCA_biplot_Fish_Zoop.tiff", width = 10, height = 7, units = "in", res = 300)
+    fviz_pca_biplot(pca.fish.zoop,
+                    repel = TRUE,     # avoids text overlap
+                    col.var = "red",  # variable arrows color
+                    col.ind = "blue",  # individuals color
+                    label = "var"    #only label the variables, not the individuals
+    )
+    #dev.off()
+    
+    
+       
 #-------------------------------------------------------------------------------------------------------------------------------------
 #LETS DO THE PARTIAL LEAST SQUARES
     
