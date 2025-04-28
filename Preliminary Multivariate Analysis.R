@@ -234,7 +234,7 @@ hist(fish3$WAE.Cent.Ind.scale)
   summary(pca.fish.Htrans)
   #create a vector that has the proportion of variance explained by each new principal component
   eigval.fish.Htrans <- pca.fish.Htrans$sdev^2/sum(pca.fish.Htrans$sdev^2)
-  #eigval.fish.Htrans
+  eigval.fish.Htrans
   #look at the eigenvectors
   pca.fish.Htrans
   #create a matrix of the eigenvectors
@@ -272,6 +272,7 @@ fish.pca.plot.data <- data.frame(scores.fish.Htrans, fish3$WAE.LMB.Ind.scale, fi
   abline(h=0,v=0,lty=2)
   
   #ggplot to color by walleye vs. bass ratio
+  #tiff("PCA_Fish_HTrans_TA.tiff", width = 10, height = 7, units = "in", res = 300)
   ggplot(fish.pca.plot.data, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
     geom_point()+
     #scale_color_gradient(low = "blue", high = "red")+
@@ -279,8 +280,9 @@ fish.pca.plot.data <- data.frame(scores.fish.Htrans, fish3$WAE.LMB.Ind.scale, fi
     scale_x_continuous(limits = c(-2,5))+
     scale_y_continuous(limits = c(-2,5))+
     scale_color_gradient(low = "blue", high = "red")+
+    coord_fixed()+
     theme_classic()
- 
+  #dev.off()
   
   # #ggplot to color by walleye vs. centrarchid ratio - same pattern as bass but harder to see
   # #ggplot to color by walleye vs. bass ratio
@@ -298,16 +300,79 @@ fish.pca.plot.data <- data.frame(scores.fish.Htrans, fish3$WAE.LMB.Ind.scale, fi
   # #lets make a biplot out of this
   # biplot(pca.fish.Htrans)
   #ok this is way too much to look at and is very clumped, but this is visual confirmation that PC1 is almost entirely yellow perch and PC2 is white sucker and black crappie
+  #tiff("PCA_biplot_Fish_HTrans_TA.tiff", width = 10, height = 7, units = "in", res = 300)
   fviz_pca_biplot(pca.fish.Htrans,
                   repel = TRUE,     # avoids text overlap
                   col.var = "red",  # variable arrows color
                   col.ind = "blue",  # individuals color
-                  label = "var"    #only label the variables, not the individuals
+                  label = "var",    #only label the variables, not the individuals
+                  asp = 1           #makes axis scales the same
   )
+  #dev.off()
   #clean up the variable labels if I want to use this biplot for anything
   
   #this solved the outlier problem, now we see most variation driven by yellow perch and cisco
   #may want to explore later PC axes when I have time
+  
+
+  
+#DO THE FISH PCA WITHOUT TOTAL ABUNDANCE
+  #do the transformation
+  fish.Htrans2 <- decostand(fish3[,5:33], method = "hellinger")
+  #don't add the total abundance to this
+  
+  #now do the PCA on this data and see how it changes
+  pca.fish.Htrans2 <- prcomp(fish.Htrans2)
+  
+  #look at importance of each PC axis
+  summary(pca.fish.Htrans2)
+  #create a vector that has the proportion of variance explained by each new principal component
+  eigval.fish.Htrans2 <- pca.fish.Htrans2$sdev^2/sum(pca.fish.Htrans2$sdev^2)
+  eigval.fish.Htrans2
+  #look at the eigenvectors
+  pca.fish.Htrans2
+  #create a matrix of the eigenvectors
+  eigvec.fish.Htrans2 <- pca.fish.Htrans2$rotation
+  #eigvec.fish.Htrans
+  #create a matrix that has the PC scores of the lake-years
+  scores.fish.Htrans2 <- pca.fish.Htrans2$x
+  rownames(scores.fish.Htrans2) <- fish3$parentdow.fish.year
+  #head(scores.fish.Htrans)
+  
+  #add color scale variables to PCA output
+  fish.pca.plot.data2 <- data.frame(scores.fish.Htrans2, fish3$WAE.LMB.Ind.scale, fish3$WAE.Cent.Ind.scale)
+  
+  #I don't think coloring by lake adds value - lets do it without that
+  #make sure axes are the same scale and export as a square
+  plot(scores.fish.Htrans2[,1], scores.fish.Htrans2[,2], xlab="PC1 (35.8%)", ylab="PC2 (13.8%)", ylim = c(-0.7,0.8), xlim = c(-0.7,0.8), cex=0.8, pch=19, cex.lab=1.25)
+  abline(h=0,v=0,lty=2)
+  
+  #ggplot to color by walleye vs. bass ratio
+  #tiff("PCA_Fish_HTrans.tiff", width = 10, height = 7, units = "in", res = 300)
+  ggplot(fish.pca.plot.data2, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
+    geom_point()+
+    #scale_color_gradient(low = "blue", high = "red")+
+    labs(title = "Fish Community PCA", y = "PC2 (13.8%)", x = "PC1 (35.8%)") +
+    scale_x_continuous(limits = c(-0.7,0.8))+
+    scale_y_continuous(limits = c(-0.7,0.8))+
+    scale_color_gradient(low = "blue", high = "red")+
+    coord_fixed()+
+    theme_classic()
+  #dev.off()
+  
+  
+  
+  # #lets make a biplot out of this
+  # biplot(pca.fish.Htrans)
+  #tiff("PCA_biplot_Fish_HTrans.tiff", width = 10, height = 7, units = "in", res = 300)
+  fviz_pca_biplot(pca.fish.Htrans2,
+                  repel = TRUE,     # avoids text overlap
+                  col.var = "red",  # variable arrows color
+                  col.ind = "blue",  # individuals color
+                  label = "var",    #only label the variables, not the individuals
+                  asp = 1           #makes axis scales the same
+  )
+  #dev.off()
 
 #----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -448,7 +513,7 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
           #now we are explaining much less of the variance
     #create a vector that has the proportion of variance explained by each new principal component
     eigval.zoop.Htrans <- pca.zoop.Htrans$sdev^2/sum(pca.zoop.Htrans$sdev^2)
-    #eigval.zoop.Htrans
+    eigval.zoop.Htrans
     #look at the eigenvectors
     pca.zoop.Htrans
     #create a matrix of the eigenvectors
@@ -485,6 +550,7 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     zoop.pca.plot.data <- data.frame(scores.zoop.Htrans, fish3$WAE.LMB.Ind.scale, fish3$WAE.Cent.Ind.scale)
     
     #ggplot to color by walleye vs. bass ratio
+    #tiff("PCA_Zoop_HTrans_TB.tiff", width = 10, height = 7, units = "in", res = 300)
     ggplot(zoop.pca.plot.data, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
       geom_point()+
       #scale_color_gradient(low = "blue", high = "red")+
@@ -492,8 +558,9 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
       scale_x_continuous(limits = c(-4.5,1.1))+
       scale_y_continuous(limits = c(-4.5,1.1))+
       scale_color_gradient(low = "blue", high = "red")+
+      coord_fixed()+
       theme_classic()
-    
+    #dev.off()
     
     # #ggplot to color by walleye vs. centrarchid ratio - same pattern as bass but harder to see
     # #ggplot to color by walleye vs. bass ratio
@@ -511,20 +578,74 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     # #lets make a biplot out of this
     # biplot(pca.zoop.Htrans)
     #ok this is way too much to look at and is very clumped, but this is visual confirmation that PC1 is almost entirely yellow perch and PC2 is white sucker and black crappie
+    #tiff("PCA_biplot_Zoop_HTrans_TB.tiff", width = 10, height = 7, units = "in", res = 300)
     fviz_pca_biplot(pca.zoop.Htrans,
                     repel = TRUE,     # avoids text overlap
                     col.var = "red",  # variable arrows color
                     col.ind = "blue",  # individuals color
-                    label = "var"    #only label the variables, not the individuals
+                    label = "var",    #only label the variables, not the individuals
                   )
-    
+    #dev.off()
     #similar most important species, describing less variance after transformation, there are other important PC axes. 
     #dominated by total biomass
 
     
-
+#DO THE ZOOP PCA ON HELLINGER TRANSFORMED DATA WITHOUT TOTAL BIOMASS
+    #take the total biomass out of the dataset
+    zoop.Htrans.noTB <- select(zoop.Htrans, -Total.biomass.scaled)
     
+    #now do the PCA on this data and see how it changes
+    pca.zoop.Htrans.noTB <- prcomp(zoop.Htrans.noTB)
     
+    #look at importance of each PC axis
+    summary(pca.zoop.Htrans.noTB)
+    #now we are explaining much less of the variance
+    #create a vector that has the proportion of variance explained by each new principal component
+    eigval.zoop.Htrans.noTB <- pca.zoop.Htrans.noTB$sdev^2/sum(pca.zoop.Htrans.noTB$sdev^2)
+    #look at eigenvalues
+    eigval.zoop.Htrans.noTB
+    #look at the eigenvectors
+    pca.zoop.Htrans.noTB
+    #create a matrix of the eigenvectors
+    eigvec.zoop.Htrans.noTB <- pca.zoop.Htrans.noTB$rotation
+    #eigvec.zoop.Htrans
+    #create a matrix that has the PC scores of the lake-years
+    scores.zoop.Htrans.noTB <- pca.zoop.Htrans.noTB$x
+    rownames(scores.zoop.Htrans.noTB) <- zoop3$parentdow.fish.year
+    
+    #I don't think coloring by lake adds value - lets do it without that
+    #make sure axes are the same scale and export as a square
+    plot(scores.zoop.Htrans.noTB[,1], scores.zoop.Htrans.noTB[,2], xlab="PC1 (24.5%)", ylab="PC2 (18.3%)", ylim = c(-0.65,0.5), xlim = c(-0.65,0.5), cex=0.8, pch=19, cex.lab=1.25)
+    abline(h=0,v=0,lty=2)
+    
+    #add color scale variables to PCA output
+    zoop.pca.plot.data.noTB <- data.frame(scores.zoop.Htrans.noTB, fish3$WAE.LMB.Ind.scale, fish3$WAE.Cent.Ind.scale)
+    
+    #ggplot to color by walleye vs. bass ratio
+    #tiff("PCA_Zoop_HTrans.tiff", width = 10, height = 7, units = "in", res = 300)
+    ggplot(zoop.pca.plot.data.noTB, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
+      geom_point()+
+      #scale_color_gradient(low = "blue", high = "red")+
+      labs(title = "Zoop Community PCA", x = "PC1 (24.5%)", y = "PC2 (18.3%)") +
+      scale_x_continuous(limits = c(-0.65,0.5))+
+      scale_y_continuous(limits = c(-0.65,0.5))+
+      scale_color_gradient(low = "blue", high = "red")+
+      coord_fixed()+
+      theme_classic()
+    #dev.off()
+    # 
+    # #lets make a biplot out of this
+    # biplot(pca.zoop.Htrans)
+    #ok this is way too much to look at and is very clumped, but this is visual confirmation that PC1 is almost entirely yellow perch and PC2 is white sucker and black crappie
+    #tiff("PCA_biplot_Zoop_HTrans.tiff", width = 10, height = 7, units = "in", res = 300)
+    fviz_pca_biplot(pca.zoop.Htrans.noTB,
+                    repel = TRUE,     # avoids text overlap
+                    col.var = "red",  # variable arrows color
+                    col.ind = "blue",  # individuals color
+                    label = "var",    #only label the variables, not the individuals
+                    asp = 1           #makes axis scales the same
+    )
+    #dev.off()
     
     
 #-------------------------------------------------------------------------------------------------------------------------------------
@@ -658,28 +779,76 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     #plot the second PLS component
     plot(scores.zoop.pls.Htrans[, 2], scores.fish.pls.Htrans[, 2], xlab = "Zooplankton Community", ylab = "Fish community",  main = "PLS Second Components (Hellinger transformed) (16.0%)", cex = 0.7, pch = 19, ylim = c(-0.4,0.5), xlim = c(-0.4,0.5))
     #plot with ggplot to get the fun walleye/bass colors
+    #tiff("PLS2.tiff", width = 10, height = 7, units = "in", res = 300)
     ggplot(pls.plot.data, aes(x = X2, y = X2.1, color = fish3.WAE.LMB.Ind.scale))+
       geom_point()+
       labs(title = "PLS Second Components (Hellinger transformed) (16.0%)", x = "Zooplankton Community", y = "Fish community") +
       scale_x_continuous(limits = c(-0.4,0.5))+
       scale_y_continuous(limits = c(-0.4,0.5))+
       scale_color_gradient(low = "blue", high = "red")+
+      coord_fixed()+
       theme_classic()
+    #dev.off()
     
     
+          #plot zoop loadings
+          #tiff("PLS2.Zoop.Loadings.tiff", width = 8, height = 5, units = "in", res = 300)
+          ggplot(zoop.pls.loadings, aes(x = taxa, y = X2, fill = color.cat))+
+            geom_bar(stat = "identity")+
+            labs(title = "PLS 2 Loadings by Zooplankton Taxa", x = "Taxon", y = "Relative Contribution to PLS 2", fill = NULL) +
+            scale_fill_manual(values = c("Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray"))+
+            theme_classic()+
+            geom_hline(yintercept = 0)+
+            theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+          #dev.off()
+    
+          #plot fish loadings
+          #tiff("PLS2.Fish.Loadings.tiff", width = 10, height = 5, units = "in", res = 300)
+          ggplot(fish.pls.loadings, aes(x = species, y = X2, fill = color.cat))+
+            geom_bar(stat = "identity")+
+            labs(title = "PLS 2 Loadings by Fish Species", x = "Species", y = "Relative Contribution to PLS 2", fill = NULL) +
+            scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray"))+
+            theme_classic()+
+            geom_hline(yintercept = 0)+
+            theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+          #dev.off()
+          
+          
     #plot the third PLS component
     plot(scores.zoop.pls.Htrans[, 3], scores.fish.pls.Htrans[, 3], xlab = "Zooplankton Community", ylab = "Fish community",  main = "PLS Third Components (Hellinger transformed) (12.1%)", cex = 0.7, pch = 19,ylim = c(-0.5,0.4), xlim = c(-0.5,0.4))
     #plot with ggplot to get the fun walleye/bass colors
+    #tiff("PLS3.tiff", width = 10, height = 7, units = "in", res = 300)
     ggplot(pls.plot.data, aes(x = X3, y = X3.1, color = fish3.WAE.LMB.Ind.scale))+
       geom_point()+
       labs(title = "PLS Third Components (Hellinger transformed) (12.1%)", x = "Zooplankton Community", y = "Fish community") +
       scale_x_continuous(limits = c(-0.5,0.4))+
       scale_y_continuous(limits = c(-0.5,0.4))+
+      coord_fixed()+
       scale_color_gradient(low = "blue", high = "red")+
       theme_classic()
+    #dev.off()
     
-    
-    
+          #plot zoop loadings
+          #tiff("PLS3.Zoop.Loadings.tiff", width = 8, height = 5, units = "in", res = 300)
+          ggplot(zoop.pls.loadings, aes(x = taxa, y = X3, fill = color.cat))+
+            geom_bar(stat = "identity")+
+            labs(title = "PLS 3 Loadings by Zooplankton Taxa", x = "Taxon", y = "Relative Contribution to PLS 3", fill = NULL) +
+            scale_fill_manual(values = c("Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray"))+
+            theme_classic()+
+            geom_hline(yintercept = 0)+
+            theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+          #dev.off()
+          
+          #plot fish loadings
+          #tiff("PLS3.Fish.Loadings.tiff", width = 10, height = 5, units = "in", res = 300)
+          ggplot(fish.pls.loadings, aes(x = species, y = X3, fill = color.cat))+
+            geom_bar(stat = "identity")+
+            labs(title = "PLS 3 Loadings by Fish Species", x = "Species", y = "Relative Contribution to PLS 3", fill = NULL) +
+            scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray"))+
+            theme_classic()+
+            geom_hline(yintercept = 0)+
+            theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+          #dev.off()    
   
     
     
@@ -732,44 +901,145 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
       #make a dataframe with all the scores and the color variable
       pls.plot.data2 <- data.frame(scores.zoop.pls.Htrans2, scores.fish.pls.Htrans2, fish3$WAE.LMB.Ind.scale, fish3$WAE.Cent.Ind.scale)
       
+      #make zoop loading data frame
+          zoop.pls.loadings2 <- data.frame(eigvec.zoop.pls.Htrans2)
+          zoop.pls.loadings2$taxa <- c("Acroperus harpae", "Alona spp.", "Bosminidae", "Ceriodaphnia spp.", "Chydorus sphaericus", 
+                                      "Daphnia galeata mendotae", "Daphnia longiremis", "Daphnia parvula", "Daphnia pulicaria", 
+                                      "Daphnia retrocurva", "Diaphanosoma birgei", "Eubosmina coregoni", "Eurycercus lamellatus", 
+                                      "Holopedium gibberum", "Latona setifera", "Sida crystallina", "Calanoids", "Copepodites", 
+                                      "Cyclopoids", "Nauplii", "Total Biomass Scaled")
+          #make a column that will make sediment preservation level different colors
+          zoop.pls.loadings2$color.cat <- c("Well Preserved in Sediments", "Well Preserved in Sediments", "Well Preserved in Sediments", "Partially Preserved in Sediments", "Well Preserved in Sediments", 
+                                           "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", 
+                                           "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Well Preserved in Sediments", "Well Preserved in Sediments", 
+                                           "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Not Preserved in Sediments", "Not Preserved in Sediments", 
+                                           "Not Preserved in Sediments", "Not Preserved in Sediments", "Not Preserved in Sediments")
+      #make fish loading data frame
+          #need a vector of names for the categories
+          fish.pls.loadings2 <- data.frame(eigvec.fish.pls.Htrans2)
+          fish.pls.loadings2$species <- c("Walleye", "Largemouth Bass", "Northern Pike", "White Sucker", "Bluegill", "Yellow Perch", 
+                                         "Shorthead Redhorse",  "Yellow Bullhead", "Bowfin", "Hybrid Sunfish", "Black Crappie", 
+                                         "Black Bullhead", "Rock Bass", "Brown Bullhead", "Pumpkinseed", "Common Carp", "Golden Shiner", 
+                                         "Redhorse", "Cisco", "Muskellunge", "Green Sunfish", "Smallmouth Bass", "Lake Whitefish", "Burbot", 
+                                         "Channel Catfish", "Silver Redhorse", "Rainbow Smelt", "Sauger", "Silver Lamprey", "Total CPUE Scaled")
+          #make a column that will make walleye red and centrarchids blue
+          fish.pls.loadings2$color.cat <- c("Walleye", "Centrarchid", "Other", "Other", "Centrarchid", "Other", 
+                                           "Other",  "Other", "Other", "Centrarchid", "Centrarchid", 
+                                           "Other", "Centrarchid", "Other", "Centrarchid", "Other", "Other", 
+                                           "Other", "Other", "Other", "Centrarchid", "Centrarchid", "Other", "Other", 
+                                           "Other", "Other", "Other", "Other", "Other", "Other")
+          
       #plot the first PLS component (not dealing with colors here)
       #axes don't have to be on same scale here (I don't think)
       plot(scores.zoop.pls.Htrans2[, 1], scores.fish.pls.Htrans2[, 1], xlab = "Zooplankton Community", ylab = "Fish community",  main = "PLS First Components (Hellinger transformed) (81.9%)", cex = 0.7, pch = 19, ylim = c(-1.5,5), xlim = c(-1.5,5))
       #alternate way to plot this
       plot(pls.Htrans2, pch = 19)
       #plot with ggplot to get the fun walleye/bass colors
+      #tiff("PLS1.totals.tiff", width = 10, height = 7, units = "in", res = 300)
       ggplot(pls.plot.data2, aes(x = X1, y = X1.1, color = fish3.WAE.LMB.Ind.scale))+
         geom_point()+
         labs(title = "PLS First Components (Hellinger transformed) (81.9%)", x = "Zooplankton Community", y = "Fish community") +
         scale_x_continuous(limits = c(-1.5,5))+
         scale_y_continuous(limits = c(-1.5,5))+
         scale_color_gradient(low = "blue", high = "red")+
+        coord_fixed()+
         theme_classic()
+      #dev.off() 
       
+            #plot zoop loadings
+            #tiff("PLS1.Zoop.Loadings.totals.tiff", width = 8, height = 5, units = "in", res = 300)
+            ggplot(zoop.pls.loadings2, aes(x = taxa, y = X1, fill = color.cat))+
+              geom_bar(stat = "identity")+
+              labs(title = "PLS 1 Loadings by Zooplankton Taxa", x = "Taxon", y = "Relative Contribution to PLS 1", fill = NULL) +
+              scale_fill_manual(values = c("Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray"))+
+              theme_classic()+
+              geom_hline(yintercept = 0)+
+              theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+            #dev.off()
+          
+            #plot fish loadings
+            #tiff("PLS1.Fish.Loadings.totals.tiff", width = 10, height = 5, units = "in", res = 300)
+            ggplot(fish.pls.loadings2, aes(x = species, y = X1, fill = color.cat))+
+              geom_bar(stat = "identity")+
+              labs(title = "PLS 1 Loadings by Fish Species", x = "Species", y = "Relative Contribution to PLS 1", fill = NULL) +
+              scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray"))+
+              theme_classic()+
+              geom_hline(yintercept = 0)+
+              theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+            #dev.off()
       
       #plot the second PLS component
       plot(scores.zoop.pls.Htrans2[, 2], scores.fish.pls.Htrans2[, 2], xlab = "Zooplankton Community", ylab = "Fish community",  main = "PLS Second Components (Hellinger transformed) (4.9%)", cex = 0.7, pch = 19, ylim = c(-0.7,1.5), xlim = c(-0.7,1.5))
       #plot with ggplot to get the fun walleye/bass colors
+      
+      #tiff("PLS2.totals.tiff", width = 10, height = 7, units = "in", res = 300)
       ggplot(pls.plot.data2, aes(x = X2, y = X2.1, color = fish3.WAE.LMB.Ind.scale))+
         geom_point()+
         labs(title = "PLS Second Components (Hellinger transformed) (4.9%)", x = "Zooplankton Community", y = "Fish community") +
         scale_x_continuous(limits = c(-0.7,1.5))+
         scale_y_continuous(limits = c(-0.7,1.5))+
         scale_color_gradient(low = "blue", high = "red")+
+        coord_fixed()+
         theme_classic()
+      #dev.off()  
       
+              #plot zoop loadings
+              #tiff("PLS2.Zoop.Loadings.totals.tiff", width = 8, height = 5, units = "in", res = 300)
+              ggplot(zoop.pls.loadings2, aes(x = taxa, y = X2, fill = color.cat))+
+                geom_bar(stat = "identity")+
+                labs(title = "PLS 2 Loadings by Zooplankton Taxa", x = "Taxon", y = "Relative Contribution to PLS 2", fill = NULL) +
+                scale_fill_manual(values = c("Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray"))+
+                theme_classic()+
+                geom_hline(yintercept = 0)+
+                theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+              #dev.off()
+              
+              #plot fish loadings
+              #tiff("PLS2.Fish.Loadings.totals.tiff", width = 10, height = 5, units = "in", res = 300)
+              ggplot(fish.pls.loadings2, aes(x = species, y = X2, fill = color.cat))+
+                geom_bar(stat = "identity")+
+                labs(title = "PLS 2 Loadings by Fish Species", x = "Species", y = "Relative Contribution to PLS 2", fill = NULL) +
+                scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray"))+
+                theme_classic()+
+                geom_hline(yintercept = 0)+
+                theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+              #dev.off()
       
       #plot the third PLS component
       plot(scores.zoop.pls.Htrans2[, 3], scores.fish.pls.Htrans2[, 3], xlab = "Zooplankton Community", ylab = "Fish community",  main = "PLS Third Components (Hellinger transformed) (3.9%)", cex = 0.7, pch = 19, ylim = c(-0.5,0.6), xlim = c(-0.5,0.6))
       #plot with ggplot to get the fun walleye/bass colors
+      #tiff("PLS3.totals.tiff", width = 10, height = 7, units = "in", res = 300)
       ggplot(pls.plot.data2, aes(x = X3, y = X3.1, color = fish3.WAE.LMB.Ind.scale))+
         geom_point()+
         labs(title = "PLS Third Components (Hellinger transformed) (3.9%)", x = "Zooplankton Community", y = "Fish community") +
         scale_x_continuous(limits = c(-0.5,0.6))+
         scale_y_continuous(limits = c(-0.5,0.6))+
         scale_color_gradient(low = "blue", high = "red")+
+        coord_fixed()+
         theme_classic()
+      #dev.off()  
       
+            #plot zoop loadings
+            #tiff("PLS3.Zoop.Loadings.totals.tiff", width = 8, height = 5, units = "in", res = 300)
+            ggplot(zoop.pls.loadings2, aes(x = taxa, y = X3, fill = color.cat))+
+              geom_bar(stat = "identity")+
+              labs(title = "PLS 3 Loadings by Zooplankton Taxa", x = "Taxon", y = "Relative Contribution to PLS 3", fill = NULL) +
+              scale_fill_manual(values = c("Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray"))+
+              theme_classic()+
+              geom_hline(yintercept = 0)+
+              theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+            #dev.off()
+            
+            #plot fish loadings
+            #tiff("PLS3.Fish.Loadings.totals.tiff", width = 10, height = 5, units = "in", res = 300)
+            ggplot(fish.pls.loadings2, aes(x = species, y = X3, fill = color.cat))+
+              geom_bar(stat = "identity")+
+              labs(title = "PLS 3 Loadings by Fish Species", x = "Species", y = "Relative Contribution to PLS 3", fill = NULL) +
+              scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray"))+
+              theme_classic()+
+              geom_hline(yintercept = 0)+
+              theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+            #dev.off() 
 
 
 #IN PRESENTATION, TALK ABOUT THE DOUBLE ZERO PROBLEM:
