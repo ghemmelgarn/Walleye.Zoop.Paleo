@@ -31,6 +31,7 @@ library(tidyr)
 library(factoextra) #for fancy biplots
 library(geomorph) #for PLS
 library(viridis) # for plot colors
+library(igraph) #for minimum spanning tree
 
 #read in data
 Data <- read.csv("Data/Input/PrelimMultivarData.csv")
@@ -357,8 +358,8 @@ fish.pca.plot.data <- data.frame(scores.fish.Htrans, fish3$WAE.LMB.Ind.scale, fi
     geom_point()+
     #scale_color_gradient(low = "blue", high = "red")+
     labs(title = "Fish Community PCA", y = "PC2 (13.8%)", x = "PC1 (35.8%)") +
-    scale_x_continuous(limits = c(-0.7,0.8))+
-    scale_y_continuous(limits = c(-0.7,0.8))+
+    #scale_x_continuous(limits = c(-0.7,0.8))+
+    #scale_y_continuous(limits = c(-0.7,0.8))+
     scale_color_gradient(low = "blue", high = "red")+
     coord_fixed()+
     theme_classic()
@@ -631,8 +632,8 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
       geom_point()+
       #scale_color_gradient(low = "blue", high = "red")+
       labs(title = "Zoop Community PCA", x = "PC1 (24.5%)", y = "PC2 (18.3%)") +
-      scale_x_continuous(limits = c(-0.65,0.5))+
-      scale_y_continuous(limits = c(-0.65,0.5))+
+      #scale_x_continuous(limits = c(-0.65,0.5))+
+      #scale_y_continuous(limits = c(-0.65,0.5))+
       scale_color_gradient(low = "blue", high = "red")+
       coord_fixed()+
       theme_classic()
@@ -769,7 +770,57 @@ zoop3$Total.biomass.scaled <- scale(zoop3$Total.biomass)
     #dev.off()
     
     
-       
+#--------------------------------------------------------------------------------------------------------------------------------
+#PUT A MINIMUM SPANNING TREE ON BEST PCA (fish and zoops together, Hellinger transformed, with total abundance and biomass, scaled with correlation matrix)
+    #PURPOSE = LOOK AT DISTORTION BECAUSE THESE LINES CONNECT MOST CLOSELY RELATED POINTS ON ALL PC AXES (ENTIRE MULTIVARIATE SPACE), NOT JUST THE FIRST 2
+    
+    #pull out coordintes from the PCA you want to use (which is all of them to include the full-dimensional space)
+    coords <- as.data.frame(pca.fish.zoop.T$x)
+    coords$label <- rownames(coords)
+    
+    #calculate MST
+    dist_matrix <- dist(coords[,1:51])
+    g <- graph_from_adjacency_matrix(as.matrix(dist_matrix), mode = "undirected", weighted = TRUE)
+    mst <- mst(g)  # get the minimum spanning tree
+    
+    #extract MST edges to plot
+    edges <- as_data_frame(mst, what = "edges")
+    
+    
+    # Merge edges with coordinates
+    edge_coords <- edges %>%
+      left_join(coords, by = c("from" = "label")) %>%
+      rename(x = PC1, y = PC2) %>%
+      left_join(coords, by = c("to" = "label")) %>%
+      rename(xend = PC1, yend = PC2)
+    
+    #plot
+    ggplot(coords, aes(x = PC1, y = PC2)) +
+      geom_point(color = "steelblue") +
+      geom_segment(data = edge_coords, 
+                   aes(x = x, y = y, xend = xend, yend = yend), 
+                   color = "red", linewidth = 0.7) +
+      theme_minimal()
+    
+    
+#okay what we see here is actually not too much distortion - makes me happy :), especially since our PC axes explain so little variance
+    
+#--------------------------------------------------------------------------------------------------------------------------------------
+#LOOK AT HISTOGRAMS OF SCALED INPUTS
+
+    #create scaled dataframe
+    FZ.hist.data <- data.frame(scale(FZ.data))
+    #make it long format
+    FZ.hist.data.long <- pivot_longer(FZ.hist.data, cols = everything(), names_to = "variable", values_to = "value")
+    
+    ggplot(FZ.hist.data.long, aes(x = value))+
+      geom_histogram()+
+      facet_wrap(~variable, scales = "free")+
+      theme_minimal()
+    
+#This is good to look at - most things are not normally distributed, even if they aren't usually 0. 
+    #may need to use NMDS... worry about this later, not for class project
+             
 #-------------------------------------------------------------------------------------------------------------------------------------
 #LETS DO THE PARTIAL LEAST SQUARES
     
