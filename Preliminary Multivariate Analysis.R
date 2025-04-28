@@ -914,7 +914,109 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
 #This is good to look at - most things are not normally distributed, even if they aren't usually 0. 
     #may need to use NMDS... worry about this later, not for class project
              
-#-------------------------------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------------------------------
+    #do a correspondence analysis on fish and zoops - don't include total abundance here - this ends up being relative composition when input is "raw"/untransformed data
+    require(ca) #need this package apparently
+    
+    #remove row 93 because it has no fish...
+    fish.ca.data <- filter(fish3, Total.CPUE != 0)
+    
+    #do the correspondence analysis on untransformed fish data           
+    fish.ca <- ca(fish.ca.data[,5:33])
+    
+    summary(fish.ca)          
+    
+    plot(fish.ca, mass = T, arrows = c(T,T))
+    
+    #plot the 2nd and 3rd axes
+    plot(fish.ca, , mass = T, dim = c(2,3), arrows = c(T,T))
+    
+    
+    #DO THE ZOOPS
+    zoop.ca <- ca(zoop3[,5:24])
+    summary(zoop.ca)
+    
+    plot(zoop.ca, mass = T, arrows = c(T,T))
+    
+    
+    #Can't get rid of effects of outliers here and don't have the time to dig into it right now
+    #none of the literature suggests this anyways... not going to do it
+    
+#-------------------------------------------------------------------------------------------------------------------------------------------
+    #OKAY TIME TO DO WHAT I ACTUALLY WANT TO PRESENT:
+    #Principal coordinates analysis (MDS) On Bray-curtis distances
+    
+    #according to https://www.davidzeleny.net/anadat-r/doku.php/en:pcoa_nmds
+    #I can use bray-curtis distance for NMDS
+    #if I take the square root of bray-curtis I can make it metric and use PCoA (MDS)
+    #don't get species loadings, but can plot species in the same space
+    
+    #compile data to use for bray-curtis distance: raw fish and zoop data
+    bc.data <- data.frame(fish3[,5:33], zoop3[,5:24])
+    
+    
+    #first calculate the dissimilarity matrix based on bray-curtis distances
+    bc.dist <- vegdist(bc.data, method = "bray")
+    bc.dist
+    #to look at the bc.dist values
+    bc.dist.data.frame <- data.frame(bc.dist)
+    hist(bc.dist.data.frame$bc.dist)
+    
+    #do the PCoA
+    pcoa <- pcoa(bc.dist)
+    
+    
+    pcoa2 <- capscale(bc.dist ~ 1)
+    
+    #look at eigenvalues
+    pcoa$values$Relative_eig
+    
+    #pull out scores and add color variable
+    pcoa.scores <- data.frame("PCo1" = pcoa$vectors[, 1], "PCo2" = pcoa$vectors[, 2], fish3$WAE.LMB.Ind.scale)
+    
+    #tiff("PCoA_Bray_Curtis.tiff", width = 10, height = 7, units = "in", res = 300)
+    ggplot(pcoa.scores, aes(x = PCo1, y = PCo2, color = fish3.WAE.LMB.Ind.scale))+
+      geom_point()+
+      labs(title = "Fish Community PCoA based on Bray-Curtis Similarity", y = "PCo2 (17.3%)", x = "PCo1 (29.2%)") +
+      scale_x_continuous(limits = c(-0.6,0.5))+
+      scale_y_continuous(limits = c(-0.6,0.5))+
+      scale_color_gradient(low = "blue", high = "red")+
+      coord_fixed()+
+      theme_classic()
+    #dev.off()                      
+    
+    #you can't make a true biplot for a PCoA, but you can add vectors that point in the direction of strongest correlation with axes
+    #fit variables as vectors
+    var.vec <- envfit(pcoa$vectors, bc.data, permutations = 999)
+    
+    #extract variable vectors
+    arrows_df <- as.data.frame(scores(var.vec, display = "vectors"))
+    arrows_df$var <- rownames(arrows_df) 
+    
+    #scale arrows for plotting
+    arrow_mult <- 0.5
+    arrows_df$xend <- arrows_df$Axis.1 * arrow_mult
+    arrows_df$yend <- arrows_df$Axis.2 * arrow_mult
+    
+    #plot it in ggplot2
+    ggplot(pcoa.scores, aes(x = PCo1, y = PCo2))+
+      geom_point()+
+      labs(title = "Fish Community PCoA based on Bray-Curtis Similarity", y = "PCo2 (17.3%)", x = "PCo1 (29.2%)") +
+      scale_x_continuous(limits = c(-0.6,0.5))+
+      scale_y_continuous(limits = c(-0.6,0.5))+
+      #scale_color_gradient(low = "blue", high = "red")+
+      geom_segment(data = arrows_df, 
+                   aes(x = 0, y = 0, xend = xend, yend = yend),
+                   arrow = arrow(length = unit(0.2, "cm")),
+                   color = "red")+
+      geom_text(data = arrows_df,
+                aes(x = xend, y = yend, label = var),
+                color = "red",
+                vjust = -0.05)+
+      coord_fixed()+
+      theme_classic()
+    
+    #-------------------------------------------------------------------------------------------------------------------------------------
 #LETS DO THE PARTIAL LEAST SQUARES
     
     
@@ -1307,107 +1409,7 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
               theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
             #dev.off() 
 
-#----------------------------------------------------------------------------------------------------------------------------------------------
-#do a correspondence analysis on fish and zoops - don't include total abundance here - this ends up being relative composition when input is "raw"/untransformed data
-require(ca) #need this package apparently
-            
-  #remove row 93 because it has no fish...
-fish.ca.data <- filter(fish3, Total.CPUE != 0)
 
-#do the correspondence analysis on untransformed fish data           
-fish.ca <- ca(fish.ca.data[,5:33])
-
-summary(fish.ca)          
-            
-plot(fish.ca, mass = T, arrows = c(T,T))
-
-#plot the 2nd and 3rd axes
-plot(fish.ca, , mass = T, dim = c(2,3), arrows = c(T,T))
-
-
-#DO THE ZOOPS
-zoop.ca <- ca(zoop3[,5:24])
-summary(zoop.ca)
-
-plot(zoop.ca, mass = T, arrows = c(T,T))
-
-
-#Can't get rid of effects of outliers here and don't have the time to dig into it right now
-#none of the literature suggests this anyways... not going to do it
-            
-#-------------------------------------------------------------------------------------------------------------------------------------------
-   #OKAY TIME TO DO WHAT I ACTUALLY WANT TO PRESENT:
-            #Principal coordinates analysis (MDS) On Bray-curtis distances
-
-#according to https://www.davidzeleny.net/anadat-r/doku.php/en:pcoa_nmds
-  #I can use bray-curtis distance for NMDS
-  #if I take the square root of bray-curtis I can make it metric and use PCoA (MDS)
-  #don't get species loadings, but can plot species in the same space
-
-#compile data to use for bray-curtis distance: raw fish and zoop data
-bc.data <- data.frame(fish3[,5:33], zoop3[,5:24])
-
-
-#first calculate the dissimilarity matrix based on bray-curtis distances
-bc.dist <- vegdist(bc.data, method = "bray")
-bc.dist
-#to look at the bc.dist values
-bc.dist.data.frame <- data.frame(bc.dist)
-hist(bc.dist.data.frame$bc.dist)
-
-#do the PCoA
-pcoa <- pcoa(bc.dist)
-
-
-pcoa2 <- capscale(bc.dist ~ 1)
-
-#look at eigenvalues
-pcoa$values$Relative_eig
-
-#pull out scores and add color variable
-pcoa.scores <- data.frame("PCo1" = pcoa$vectors[, 1], "PCo2" = pcoa$vectors[, 2], fish3$WAE.LMB.Ind.scale)
-                          
-#tiff("PCoA_Bray_Curtis.tiff", width = 10, height = 7, units = "in", res = 300)
-ggplot(pcoa.scores, aes(x = PCo1, y = PCo2, color = fish3.WAE.LMB.Ind.scale))+
-  geom_point()+
-  labs(title = "Fish Community PCoA based on Bray-Curtis Similarity", y = "PCo2 (17.3%)", x = "PCo1 (29.2%)") +
-  scale_x_continuous(limits = c(-0.6,0.5))+
-  scale_y_continuous(limits = c(-0.6,0.5))+
-  scale_color_gradient(low = "blue", high = "red")+
-  coord_fixed()+
-  theme_classic()
-#dev.off()                      
-                          
-#you can't make a true biplot for a PCoA, but you can add vectors that point in the direction of strongest correlation with axes
-    #fit variables as vectors
-    var.vec <- envfit(pcoa$vectors, bc.data, permutations = 999)
-    
-    #extract variable vectors
-    arrows_df <- as.data.frame(scores(var.vec, display = "vectors"))
-    arrows_df$var <- rownames(arrows_df) 
-    
-    #scale arrows for plotting
-    arrow_mult <- 0.5
-    arrows_df$xend <- arrows_df$Axis.1 * arrow_mult
-    arrows_df$yend <- arrows_df$Axis.2 * arrow_mult
-    
-    #plot it in ggplot2
-    ggplot(pcoa.scores, aes(x = PCo1, y = PCo2))+
-      geom_point()+
-      labs(title = "Fish Community PCoA based on Bray-Curtis Similarity", y = "PCo2 (17.3%)", x = "PCo1 (29.2%)") +
-      scale_x_continuous(limits = c(-0.6,0.5))+
-      scale_y_continuous(limits = c(-0.6,0.5))+
-      #scale_color_gradient(low = "blue", high = "red")+
-      geom_segment(data = arrows_df, 
-                   aes(x = 0, y = 0, xend = xend, yend = yend),
-                   arrow = arrow(length = unit(0.2, "cm")),
-                   color = "red")+
-      geom_text(data = arrows_df,
-                aes(x = xend, y = yend, label = var),
-                color = "red",
-                vjust = -0.05)+
-      coord_fixed()+
-      theme_classic()
             
 #----------------------------------------------------------------------------------------------------------------------------------------------
             
