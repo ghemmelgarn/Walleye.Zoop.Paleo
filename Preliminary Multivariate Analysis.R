@@ -833,6 +833,19 @@ bgpca <- groupPCA(BGPCA.FZ.data[,2:52], BGPCA.FZ.data$fish3.LakeName, weighting 
 eigval.bgpca <- bgpca$eigenvalues/sum(bgpca$eigenvalues)
 eigval.bgpca
 
+
+#PLOT EIGENVALUES
+eigval.bgpca.plot <- data.frame("PC.Axis" = c(1:30), "eigval" = eigval.bgpca, "label" = substr((eigval.bgpca),1,4))
+#tiff("BGPCA_eigenvalues.tiff", width = 7, height = 7, units = "in", res = 300)
+ggplot(eigval.bgpca.plot[1:15,], aes(x = PC.Axis, y = eigval))+
+  geom_bar(stat = "identity")+
+  labs(x = "PC Axis", y = "Proportion Variance Explained") +
+  geom_text(aes(label = label, x = PC.Axis, y = eigval), vjust = -0.5)+
+  theme_classic()+
+  theme(axis.title = element_text(size = 20),
+        axis.text = element_text(size = 15))
+#dev.off()
+
 #look at eigenvectors and extract them into a matrix
 bgpca.eigvec <- data.frame(bgpca$groupPCs)
 bgpca.eigvec
@@ -846,6 +859,7 @@ bgpca.scores <- rename(bgpca.scores, "PC1" = "X1", "PC2" = "X2", "PC3" = "X3", "
 
 
 #plot the BGPCA - all lake-years, PC1 and PC2
+#tiff("BGPCA.tiff", width = 10, height = 7, units = "in", res = 300)
 ggplot(bgpca.scores, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
   geom_point()+
   labs(title = "Fish and Zoop Community BGPCA", x = "PC1 (17.6%)", y = "PC2 (13.1%)") +
@@ -854,6 +868,25 @@ ggplot(bgpca.scores, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
   scale_color_gradient(low = "blue", high = "red")+
   coord_fixed()+
   theme_classic()
+#dev.off()
+
+#THE FANCY PLOT FOR THE PRESENTATION:
+#tiff("BGPCA.fancy.tiff", width = 10, height = 7, units = "in", res = 300)
+ggplot(bgpca.scores, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
+  geom_point(size = 2.5)+
+  labs(x = "PC1 (17.6%)", y = "PC2 (13.1%)") +
+  scale_x_continuous(limits = c(-6.3,7.6))+
+  scale_y_continuous(limits = c(-6.3,7.6))+
+  scale_color_gradient(low = "blue", high = "red", 
+                       name = " ", 
+                       labels = c("Bass Dominated", "Walleye Dominated"), 
+                       breaks = c(-0.8993171, 2.6700774))+
+  guides(color = guide_colorbar(label.theme = element_text(size = 15)))+
+  coord_fixed()+
+  theme_classic()+
+  theme(axis.title = element_text(size = 20),
+        axis.text = element_text(size = 15))
+#dev.off()
 
 # #plot the BGPCA - all lake-years, PC3 and PC4
 # ggplot(bgpca.scores, aes(x = PC3, y = PC4, color = fish3.WAE.LMB.Ind.scale))+
@@ -887,17 +920,199 @@ ggplot(bgpca.scores, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
       bgpca.means.scores.color <- rename(bgpca.means.scores.color, "WalleyeVCentrarchid" = "lake.walleye.indicator.mean.WAE.LMB.Ind.scale")
 
 #now plot on same axis scales as when you plotted all the data
+#tiff("BGPCA Means.tiff", width = 10, height = 7, units = "in", res = 300)
 ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid))+
   geom_point()+
   labs(title = "Fish and Zoop Community BGPCA LAKE MEANS", x = "PC1 (17.6%)", y = "PC2 (13.1%)") +
-  scale_x_continuous(limits = c(-6.3,7.6))+
-  scale_y_continuous(limits = c(-6.3,7.6))+
+  scale_x_continuous(limits = c(-7.5,7.6))+
+  scale_y_continuous(limits = c(-7.5,7.6))+
   scale_color_gradient(low = "blue", high = "red")+
   coord_fixed()+
   theme_classic()
-  
+#dev.off()  
 
+#biplot for all observations - have to do this by hand, ugh
+#need to get group names
+    #make a new data frame with the eigenvector loadings to modify
+    bgpca.means.eigvec.var <- bgpca.eigvec
+    #add in the variable names
+    bgpca.means.eigvec.var$variable <- colnames(FZ.data.scale)
+    #add in nice names as you want them plotted
+    bgpca.means.eigvec.var$variable.pretty <- c("Walleye", "Largemouth Bass", "Northern Pike", "White Sucker", "Bluegill", "Yellow Perch", 
+                                                "Shorthead Redhorse",  "Yellow Bullhead", "Bowfin", "Hybrid Sunfish", "Black Crappie", 
+                                                "Black Bullhead", "Rock Bass", "Brown Bullhead", "Pumpkinseed", "Common Carp", "Golden Shiner", 
+                                                "Redhorse", "Cisco", "Muskellunge", "Green Sunfish", "Smallmouth Bass", "Lake Whitefish", "Burbot", 
+                                                "Channel Catfish", "Silver Redhorse", "Rainbow Smelt", "Sauger", "Silver Lamprey", "Total Fish CPUE",
+                                                "Acroperus harpae", "Alona spp.", "Bosminidae", "Ceriodaphnia spp.", "Chydorus sphaericus", 
+                                                "Daphnia galeata mendotae", "Daphnia longiremis", "Daphnia parvula", "Daphnia pulicaria", 
+                                                "Daphnia retrocurva", "Diaphanosoma birgei", "Eubosmina coregoni", "Eurycercus lamellatus", 
+                                                "Holopedium gibberum", "Latona setifera", "Sida crystallina", "Calanoids", "Copepodites", 
+                                                "Cyclopoids", "Nauplii", "Total Zooplankton Biomass")
+    #now plot
+    #tiff("BGPCA_biplot.tiff", width = 10, height = 7, units = "in", res = 300)
+    ggplot(bgpca.scores, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
+      geom_point()+
+      labs(title = "Fish and Zoop Community BGPCA", x = "PC1 (17.6%)", y = "PC2 (13.1%)") +
+      scale_x_continuous(limits = c(-6.3,7.6))+
+      scale_y_continuous(limits = c(-6.3,7.6))+
+      scale_color_gradient(low = "blue", high = "red")+
+      geom_segment(data = bgpca.means.eigvec.var,
+                   aes(x = 0, y = 0, xend = X1 * 17, yend = X2 * 17),
+                   arrow = arrow(length = unit(0.2, "cm")),
+                   color = "red")+
+      geom_text(data = bgpca.means.eigvec.var,
+                aes(x = X1 * 17, y = X2 * 17, label = variable.pretty),
+                color = "red",
+                size = 3,
+                vjust = -0.05)+
+      coord_fixed()+
+      theme_classic()
+    #dev.off()
     
+    
+#MAKE A NICE BIPLOT FOR PUBLICATION    
+    #tiff("BGPCA_biplot_fancy.tiff", width = 10, height = 7, units = "in", res = 300)
+    ggplot(bgpca.scores, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
+      geom_point()+
+      labs(x = "PC1 (17.6%)", y = "PC2 (13.1%)") +
+      scale_x_continuous(limits = c(-6.3,7.6))+
+      scale_y_continuous(limits = c(-6.3,7.6))+
+      geom_segment(data = bgpca.means.eigvec.var,
+                   aes(x = 0, y = 0, xend = X1 * 17, yend = X2 * 17),
+                   arrow = arrow(length = unit(0.2, "cm")),
+                   color = "red",
+                   size = 0.3)+
+      geom_text(data = bgpca.means.eigvec.var,
+                aes(x = X1 * 17, y = X2 * 17, label = variable.pretty),
+                color = "red",
+                size = 3,
+                vjust = -0.05)+
+      scale_color_gradient(low = "blue", high = "red", 
+                           name = " ", 
+                           labels = c("Bass Dominated", "Walleye Dominated"), 
+                           breaks = c(-0.8993171, 2.6700774))+
+      guides(color = guide_colorbar(label.theme = element_text(size = 15)))+
+      coord_fixed()+
+      theme_classic()+
+      theme(axis.title = element_text(size = 20),
+            axis.text = element_text(size = 15))
+    #dev.off()
+    
+    #MAKE A NICE BIPLOT FOR PUBLICATION - ONLY WITH VARIABLES OF INTEREST
+    bgpca.means.eigvec.var$variable.pretty.select.fish <- c("Walleye", "Largemouth Bass", " ", " ", "Bluegill", " ", 
+                                                " ",  " ", " ", "Hybrid Sunfish", "Black Crappie", 
+                                                " ", "Rock Bass", " ", "Pumpkinseed", " ", " ", 
+                                                " ", " ", " ", "Green Sunfish", "Smallmouth Bass", " ", " ", 
+                                                " ", " ", " ", "Sauger", " ", "Total Fish CPUE",
+                                                " ", " ", " ", " ", " ", 
+                                                " ", " ", " ", " ", 
+                                                " ", " ", " ", " ", 
+                                                " ", " ", " ", " ", " ", 
+                                                " ", " ", " ")
+    bgpca.means.eigvec.var$variable.pretty.select.zoop <- c(" ", " ", " ", " ", " ", " ", 
+                                                            " ",  " ", " ", " ", " ", 
+                                                            " ", " ", " ", " ", " ", " ", 
+                                                            " ", " ", " ", " ", " ", " ", " ", 
+                                                            " ", " ", " ", " ", " ", " ",
+                                                            "Acroperus harpae", "Alona spp.", "Bosminidae", " ", "Chydorus sphaericus", 
+                                                            " ", " ", " ", " ", 
+                                                            " ", " ", "Eubosmina coregoni", "Eurycercus lamellatus", 
+                                                            " ", " ", " ", " ", " ", 
+                                                            " ", " ", "Total Zooplankton Biomass")
+    bgpca.means.eigvec.var$X1.select.fish <- ifelse(bgpca.means.eigvec.var$variable.pretty.select.fish == " ", 0, bgpca.means.eigvec.var$X1)
+    bgpca.means.eigvec.var$X2.select.fish <- ifelse(bgpca.means.eigvec.var$variable.pretty.select.fish == " ", 0, bgpca.means.eigvec.var$X2)
+    bgpca.means.eigvec.var$X1.select.zoop <- ifelse(bgpca.means.eigvec.var$variable.pretty.select.zoop == " ", 0, bgpca.means.eigvec.var$X1)
+    bgpca.means.eigvec.var$X2.select.zoop <- ifelse(bgpca.means.eigvec.var$variable.pretty.select.zoop == " ", 0, bgpca.means.eigvec.var$X2)
+    
+    #tiff("BGPCA_biplot_fancy_select.tiff", width = 10, height = 7, units = "in", res = 300)
+    ggplot(bgpca.scores, aes(x = PC1, y = PC2, color = fish3.WAE.LMB.Ind.scale))+
+      geom_point()+
+      labs(x = "PC1 (17.6%)", y = "PC2 (13.1%)") +
+      scale_x_continuous(limits = c(-6.3,7.6))+
+      scale_y_continuous(limits = c(-6.3,7.6))+
+      geom_segment(data = bgpca.means.eigvec.var,
+                   aes(x = 0, y = 0, xend = X1 * 17, yend = X2 * 17),
+                   arrow = arrow(length = unit(0.2, "cm")),
+                   color = "gray",
+                   size = 0.3)+
+      geom_segment(data = bgpca.means.eigvec.var,
+                   aes(x = 0, y = 0, xend = X1.select.fish * 17, yend = X2.select.fish * 17),
+                   arrow = arrow(length = unit(0.2, "cm")),
+                   color = "red",
+                   size = 0.3)+
+      geom_text(data = bgpca.means.eigvec.var,
+                aes(x = X1 * 17, y = X2 * 17, label = variable.pretty.select.fish),
+                color = "red",
+                size = 3,
+                vjust = -0.05)+
+      geom_segment(data = bgpca.means.eigvec.var,
+                   aes(x = 0, y = 0, xend = X1.select.zoop * 17, yend = X2.select.zoop * 17),
+                   arrow = arrow(length = unit(0.2, "cm")),
+                   color = "darkgoldenrod4",
+                   size = 0.3)+
+      geom_text(data = bgpca.means.eigvec.var,
+                aes(x = X1 * 17, y = X2 * 17, label = variable.pretty.select.zoop),
+                color = "darkgoldenrod4",
+                size = 3,
+                vjust = -0.05)+
+      scale_color_gradient(low = "blue", high = "red", 
+                           name = " ", 
+                           labels = c("Bass Dominated", "Walleye Dominated"), 
+                           breaks = c(-0.8993171, 2.6700774))+
+      guides(color = guide_colorbar(label.theme = element_text(size = 15)))+
+      coord_fixed()+
+      theme_classic()+
+      theme(axis.title = element_text(size = 20),
+            axis.text = element_text(size = 15))
+    #dev.off()
+    
+    
+    
+#PLOT LOADINGS FOR PC1 AND PC2
+    #add indicators for colors to eigenvector dataframe
+    bgpca.means.eigvec.var$color.cat <- c("Walleye", "Centrarchid", "Other", "Other", "Centrarchid", "Other", 
+                                          "Other",  "Other", "Other", "Centrarchid", "Centrarchid", 
+                                          "Other", "Centrarchid", "Other", "Centrarchid", "Other", "Other", 
+                                          "Other", "Other", "Other", "Centrarchid", "Centrarchid", "Other", "Other", 
+                                          "Other", "Other", "Other", "Other", "Other", "Total Abundance", 
+                                          "Well Preserved in Sediments", "Well Preserved in Sediments", "Well Preserved in Sediments", "Partially Preserved in Sediments", "Well Preserved in Sediments", 
+                                          "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", 
+                                          "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Well Preserved in Sediments", "Well Preserved in Sediments", 
+                                          "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Not Preserved in Sediments", "Not Preserved in Sediments", 
+                                          "Not Preserved in Sediments", "Not Preserved in Sediments", "Total Abundance")
+    #make a plot order variable to get things to plot in the order you want them
+    bgpca.means.eigvec.var$plot.order <- as.factor(c(1:51))
+    #plot loadings for PC1
+    #tiff("BGPCA_loadings_PC1.tiff", width = 15, height = 8, units = "in", res = 300)
+    ggplot(bgpca.means.eigvec.var, aes(x = plot.order, y = X1, fill = color.cat))+
+      geom_bar(stat = "identity")+
+      labs(x = "Variable", y = "Relative Contribution to PC1", fill = NULL) +
+      scale_x_discrete(labels = setNames(bgpca.means.eigvec.var$variable.pretty, bgpca.means.eigvec.var$plot.order))+
+      scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray", "Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray", "Total Abundance" = "darkgoldenrod4"))+
+      theme_classic()+
+      geom_hline(yintercept = 0)+
+      theme(axis.title = element_text(size = 20),
+            axis.text = element_text(angle = 45, hjust = 1, size = 15),
+            legend.text = element_text(size = 15),
+            legend.position = "bottom")
+    #dev.off()
+    #WHEN YOU USE THIS - TAKE THE LEGEND PIECES OUT WITH SNIPPING TOOL AND PUT THEM WHERE YOU WANT THEM
+    
+    
+    #plot loadings for PC2
+    #tiff("BGPCA_loadings_PC2.tiff", width = 15, height = 8, units = "in", res = 300)
+    ggplot(bgpca.means.eigvec.var, aes(x = plot.order, y = X2, fill = color.cat))+
+      geom_bar(stat = "identity")+
+      labs(x = "Variable", y = "Relative Contribution to PC2", fill = NULL) +
+      scale_x_discrete(labels = setNames(bgpca.means.eigvec.var$variable.pretty, bgpca.means.eigvec.var$plot.order))+
+      scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray", "Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray", "Total Abundance" = "darkgoldenrod4"))+
+      theme_classic()+
+      geom_hline(yintercept = 0)+
+      theme(axis.title = element_text(size = 20),
+            axis.text = element_text(angle = 45, hjust = 1, size = 15),
+            legend.text = element_text(size = 15),
+            legend.position = "bottom")
+    #dev.off()
 #--------------------------------------------------------------------------------------------------------------------------------------
 #LOOK AT HISTOGRAMS OF SCALED INPUTS
 
@@ -999,12 +1214,13 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
     arrows_df$yend <- arrows_df$Axis.2 * arrow_mult
     
     #plot it in ggplot2
-    ggplot(pcoa.scores, aes(x = PCo1, y = PCo2))+
+    #tiff("PCoA_Bray_Curtis_variables.tiff", width = 10, height = 7, units = "in", res = 300)
+    ggplot(pcoa.scores, aes(x = PCo1, y = PCo2, color = fish3.WAE.LMB.Ind.scale))+
       geom_point()+
       labs(title = "Fish Community PCoA based on Bray-Curtis Similarity", y = "PCo2 (17.3%)", x = "PCo1 (29.2%)") +
       scale_x_continuous(limits = c(-0.6,0.5))+
       scale_y_continuous(limits = c(-0.6,0.5))+
-      #scale_color_gradient(low = "blue", high = "red")+
+      scale_color_gradient(low = "blue", high = "red")+
       geom_segment(data = arrows_df, 
                    aes(x = 0, y = 0, xend = xend, yend = yend),
                    arrow = arrow(length = unit(0.2, "cm")),
@@ -1012,11 +1228,12 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
       geom_text(data = arrows_df,
                 aes(x = xend, y = yend, label = var),
                 color = "red",
+                size = 3,
                 vjust = -0.05)+
       coord_fixed()+
       theme_classic()
-    
-    #-------------------------------------------------------------------------------------------------------------------------------------
+  #dev.off()
+#-------------------------------------------------------------------------------------------------------------------------------------
 #LETS DO THE PARTIAL LEAST SQUARES
     
     
@@ -1410,6 +1627,185 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
             #dev.off() 
 
 
+#same as above, with total abundance/biomass, but SCALE DATA MATRIX FIRST
+            PLS.data.scale <- scale(PLS.data.Htrans2)
+            
+            #create a vector with a's for left block (fish) and b's for right block (zoops) to tell geomorph which variable is in which group
+            gp.scale <- c(rep("a",times=21),rep("b",times=30)) 
+            
+            #run the pls
+            #arguments: data frame, vector for which variables go in which block, if you want to see progress bar)
+            pls.scale <- integration.test(PLS.data.scale, partition.gp = gp.scale, print.progress = FALSE)
+            #for lots of good info on this function, run ?integration.test
+            #view summarized results
+            pls.scale
+            
+            #Extract the proportional eigenvalues, **two sets** of eigenvectors, and two sets of scores from this analysis as separate objects.
+            #The svd object contains the eigenvalues, but not as proportions, so we have to calculate that.
+            #first view the pls$svd info:
+            pls.scale$svd
+            #calculate the eigenvalues as proportions
+            #these eigenvalues are a shared set that describes how much covariation is explained by corresponding components in both blocks
+            eigval.pls.scale <- pls.scale$svd$d/sum(pls.scale$svd$d)
+            eigval.pls.scale
+            #the first PLS component explains 81.9% of the covariation and the second pls component explains 4.9% of the covariation
+            #now calculate two sets of separate eigenvectors as separate objects
+            # left eigenvector matrix (the zoops)
+            eigvec.zoop.pls.scale <- pls.scale$left.pls.vectors
+            eigvec.zoop.pls.scale
+            
+            # right eigenvector matrix (the fish)
+            eigvec.fish.pls.scale <- pls.scale$right.pls.vectors
+            eigvec.fish.pls.scale
+            #looks like walleye and LMB go in opposite directions for the first 4 pC axes (other species have strong effects too)
+            
+            
+            #now calculate the two separate scores
+            # Left block scores (the zoops)
+            scores.zoop.pls.scale <- pls.scale$XScores
+            rownames(scores.zoop.pls.scale) <- zoop3$parentdow.fish.year
+            head(scores.zoop.pls.scale)
+            
+            
+            # Right block scores (the fish)
+            scores.fish.pls.scale <- pls.scale$YScores
+            rownames(scores.fish.pls.scale) <- zoop3$parentdow.fish.year
+            head(scores.fish.pls.scale)
+            
+            #make a dataframe with all the scores and the color variable
+            pls.plot.data.scale <- data.frame(scores.zoop.pls.scale, scores.fish.pls.scale, fish3$WAE.LMB.Ind.scale, fish3$WAE.Cent.Ind.scale)
+            
+            #make zoop loading data frame
+            zoop.pls.loadings.scale <- data.frame(eigvec.zoop.pls.scale)
+            zoop.pls.loadings.scale$taxa <- c("Acroperus harpae", "Alona spp.", "Bosminidae", "Ceriodaphnia spp.", "Chydorus sphaericus", 
+                                         "Daphnia galeata mendotae", "Daphnia longiremis", "Daphnia parvula", "Daphnia pulicaria", 
+                                         "Daphnia retrocurva", "Diaphanosoma birgei", "Eubosmina coregoni", "Eurycercus lamellatus", 
+                                         "Holopedium gibberum", "Latona setifera", "Sida crystallina", "Calanoids", "Copepodites", 
+                                         "Cyclopoids", "Nauplii", "Total Biomass")
+            #make a column that will make sediment preservation level different colors
+            zoop.pls.loadings.scale$color.cat <- c("Well Preserved in Sediments", "Well Preserved in Sediments", "Well Preserved in Sediments", "Partially Preserved in Sediments", "Well Preserved in Sediments", 
+                                              "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", 
+                                              "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Well Preserved in Sediments", "Well Preserved in Sediments", 
+                                              "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Partially Preserved in Sediments", "Not Preserved in Sediments", "Not Preserved in Sediments", 
+                                              "Not Preserved in Sediments", "Not Preserved in Sediments", "Not Preserved in Sediments")
+            #make fish loading data frame
+            #need a vector of names for the categories
+            fish.pls.loadings.scale <- data.frame(eigvec.fish.pls.scale)
+            fish.pls.loadings.scale$species <- c("Walleye", "Largemouth Bass", "Northern Pike", "White Sucker", "Bluegill", "Yellow Perch", 
+                                            "Shorthead Redhorse",  "Yellow Bullhead", "Bowfin", "Hybrid Sunfish", "Black Crappie", 
+                                            "Black Bullhead", "Rock Bass", "Brown Bullhead", "Pumpkinseed", "Common Carp", "Golden Shiner", 
+                                            "Redhorse", "Cisco", "Muskellunge", "Green Sunfish", "Smallmouth Bass", "Lake Whitefish", "Burbot", 
+                                            "Channel Catfish", "Silver Redhorse", "Rainbow Smelt", "Sauger", "Silver Lamprey", "Total CPUE")
+            #make a column that will make walleye red and centrarchids blue
+            fish.pls.loadings.scale$color.cat <- c("Walleye", "Centrarchid", "Other", "Other", "Centrarchid", "Other", 
+                                              "Other",  "Other", "Other", "Centrarchid", "Centrarchid", 
+                                              "Other", "Centrarchid", "Other", "Centrarchid", "Other", "Other", 
+                                              "Other", "Other", "Other", "Centrarchid", "Centrarchid", "Other", "Other", 
+                                              "Other", "Other", "Other", "Other", "Other", "Other")
+            
+            #plot with ggplot to get the fun walleye/bass colors
+            #tiff("PLS1.scale.tiff", width = 10, height = 7, units = "in", res = 300)
+            ggplot(pls.plot.data.scale, aes(x = X1, y = X1.1, color = fish3.WAE.LMB.Ind.scale))+
+              geom_point()+
+              labs(title = "PLS First Components (Hellinger transformed and scaled) (23.0%)", x = "Zooplankton Community", y = "Fish community") +
+              scale_x_continuous(limits = c(-4,5))+
+              scale_y_continuous(limits = c(-4,5))+
+              scale_color_gradient(low = "blue", high = "red")+
+              coord_fixed()+
+              theme_classic()
+            #dev.off() 
+            
+                    #plot zoop loadings
+                    #tiff("PLS1.Zoop.Loadings.scale.tiff", width = 8, height = 5, units = "in", res = 300)
+                    ggplot(zoop.pls.loadings.scale, aes(x = taxa, y = X1, fill = color.cat))+
+                      geom_bar(stat = "identity")+
+                      labs(title = "PLS 1 Loadings by Zooplankton Taxa", x = "Taxon", y = "Relative Contribution to PLS 1", fill = NULL) +
+                      scale_fill_manual(values = c("Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray"))+
+                      theme_classic()+
+                      geom_hline(yintercept = 0)+
+                      theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+                    #dev.off()
+                    
+                    #plot fish loadings
+                    #tiff("PLS1.Fish.Loadings.scale.tiff", width = 10, height = 5, units = "in", res = 300)
+                    ggplot(fish.pls.loadings.scale, aes(x = species, y = X1, fill = color.cat))+
+                      geom_bar(stat = "identity")+
+                      labs(title = "PLS 1 Loadings by Fish Species", x = "Species", y = "Relative Contribution to PLS 1", fill = NULL) +
+                      scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray"))+
+                      theme_classic()+
+                      geom_hline(yintercept = 0)+
+                      theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+                    #dev.off()
+            
+            #plot the second PLS component
+            
+            #tiff("PLS2.scale.tiff", width = 10, height = 7, units = "in", res = 300)
+            ggplot(pls.plot.data.scale, aes(x = X2, y = X2.1, color = fish3.WAE.LMB.Ind.scale))+
+              geom_point()+
+              labs(title = "PLS Second Components (13.9%)", x = "Zooplankton Community", y = "Fish community") +
+              scale_x_continuous(limits = c(-5,4.5))+
+              scale_y_continuous(limits = c(-5,4.5))+
+              scale_color_gradient(low = "blue", high = "red")+
+              coord_fixed()+
+              theme_classic()
+            #dev.off()  
+            
+                    #plot zoop loadings
+                    #tiff("PLS2.Zoop.Loadings.scale.tiff", width = 8, height = 5, units = "in", res = 300)
+                    ggplot(zoop.pls.loadings.scale, aes(x = taxa, y = X2, fill = color.cat))+
+                      geom_bar(stat = "identity")+
+                      labs(title = "PLS 2 Loadings by Zooplankton Taxa", x = "Taxon", y = "Relative Contribution to PLS 2", fill = NULL) +
+                      scale_fill_manual(values = c("Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray"))+
+                      theme_classic()+
+                      geom_hline(yintercept = 0)+
+                      theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+                    #dev.off()
+                    
+                    #plot fish loadings
+                    #tiff("PLS2.Fish.Loadings.scale.tiff", width = 10, height = 5, units = "in", res = 300)
+                    ggplot(fish.pls.loadings.scale, aes(x = species, y = X2, fill = color.cat))+
+                      geom_bar(stat = "identity")+
+                      labs(title = "PLS 2 Loadings by Fish Species", x = "Species", y = "Relative Contribution to PLS 2", fill = NULL) +
+                      scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray"))+
+                      theme_classic()+
+                      geom_hline(yintercept = 0)+
+                      theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+                    #dev.off()
+            
+            #plot the third PLS component
+            #tiff("PLS3.scale.tiff", width = 10, height = 7, units = "in", res = 300)
+            ggplot(pls.plot.data.scale, aes(x = X3, y = X3.1, color = fish3.WAE.LMB.Ind.scale))+
+              geom_point()+
+              labs(title = "PLS Third Components (10.7%)", x = "Zooplankton Community", y = "Fish community") +
+              scale_x_continuous(limits = c(-2.5,11))+
+              scale_y_continuous(limits = c(-2.5,11))+
+              scale_color_gradient(low = "blue", high = "red")+
+              coord_fixed()+
+              theme_classic()
+            #dev.off()  
+            
+                    #plot zoop loadings
+                    #tiff("PLS3.Zoop.Loadings.scale.tiff", width = 8, height = 5, units = "in", res = 300)
+                    ggplot(zoop.pls.loadings.scale, aes(x = taxa, y = X3, fill = color.cat))+
+                      geom_bar(stat = "identity")+
+                      labs(title = "PLS 3 Loadings by Zooplankton Taxa", x = "Taxon", y = "Relative Contribution to PLS 3", fill = NULL) +
+                      scale_fill_manual(values = c("Well Preserved in Sediments" = "navyblue", "Partially Preserved in Sediments" = "steelblue", "Not Preserved in Sediments" = "gray"))+
+                      theme_classic()+
+                      geom_hline(yintercept = 0)+
+                      theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+                    #dev.off()
+                    
+                    #plot fish loadings
+                    #tiff("PLS3.Fish.Loadings.scale.tiff", width = 10, height = 5, units = "in", res = 300)
+                    ggplot(fish.pls.loadings.scale, aes(x = species, y = X3, fill = color.cat))+
+                      geom_bar(stat = "identity")+
+                      labs(title = "PLS 3 Loadings by Fish Species", x = "Species", y = "Relative Contribution to PLS 3", fill = NULL) +
+                      scale_fill_manual(values = c("Walleye" = "red", "Centrarchid" = "blue", "Other" = "gray"))+
+                      theme_classic()+
+                      geom_hline(yintercept = 0)+
+                      theme(plot.title = element_text(hjust = 0.5, size = 17), legend.text = element_text(size = 11), axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11), legend.position = "bottom")
+                    #dev.off()             
+            
             
 #----------------------------------------------------------------------------------------------------------------------------------------------
             
