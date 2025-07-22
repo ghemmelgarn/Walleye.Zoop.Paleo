@@ -217,3 +217,108 @@ sort(unique(zoop_months$species))
 #       #finish the export
 #       dev.off()
       
+#---------------------------------------------------------------------------------------------------------------------------------------
+#investigate bosmina without the outliers
+      
+bosmina <-zoop_summer %>% 
+        filter(species == "Bosmina sp.")
+      
+bosmina_plot <- ggplot(bosmina, aes(x = plot_date, color = year)) + 
+        geom_point(aes(y = density), shape = 21, size = 2)+
+        labs(title = "Bosmina Seasonal Trends", y = "Density (count/L)", x = "Date") +
+        scale_x_date(breaks = breaks, date_labels = "%b-%d")+ #only label 1st and 15th of each month in correct format
+        theme(
+          panel.background = element_blank(),  # Remove panel background
+          plot.background = element_blank(),    # Remove plot background
+          axis.line = element_line(color = "black"),  # Add axis lines
+          axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+          #legend.position = "none" #removes all legends
+        )
+print(bosmina_plot)
+
+
+bosmina_no_outliers <- bosmina %>% 
+  filter(density <= 1000)
+
+bosmina_plot_no_out <- ggplot(bosmina_no_outliers, aes(x = plot_date, color = year)) + 
+  geom_point(aes(y = density), shape = 21, size = 2)+
+  labs(title = "Bosmina Seasonal Trends", y = "Density (count/L)", x = "Date") +
+  scale_x_date(breaks = breaks, date_labels = "%b-%d")+ #only label 1st and 15th of each month in correct format
+  theme(
+    panel.background = element_blank(),  # Remove panel background
+    plot.background = element_blank(),    # Remove plot background
+    axis.line = element_line(color = "black"),  # Add axis lines
+    axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+    #legend.position = "none" #removes all legends
+  )
+print(bosmina_plot_no_out)
+
+bosmina_under_200 <- bosmina %>% 
+  filter(density <= 200)
+
+bosmina_plot_under_200 <- ggplot(bosmina_under_200, aes(x = plot_date, color = year)) + 
+  geom_point(aes(y = density), shape = 21, size = 2)+
+  labs(title = "Bosmina Seasonal Trends", y = "Density (count/L)", x = "Date") +
+  scale_x_date(breaks = breaks, date_labels = "%b-%d")+ #only label 1st and 15th of each month in correct format
+  theme(
+    panel.background = element_blank(),  # Remove panel background
+    plot.background = element_blank(),    # Remove plot background
+    axis.line = element_line(color = "black"),  # Add axis lines
+    axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+    #legend.position = "none" #removes all legends
+  )
+print(bosmina_plot_under_200)
+
+
+#no obvious trend emerges when I zoom in here. May vary by lake, but too many lakes to look at them all individually
+
+
+#try plotting a line for each lake-year to see if we have some lake-years that are generally high
+bosmina_lakeyears <- ggplot(bosmina, aes(x = plot_date, color = parentdow.zoop.year)) + 
+  geom_point(aes(y = density), shape = 21, size = 2)+
+  geom_line(aes(y = density))+
+  labs(title = "Bosmina Seasonal Trends", y = "Density (count/L)", x = "Date") +
+  scale_x_date(breaks = breaks, date_labels = "%b-%d")+ #only label 1st and 15th of each month in correct format
+  theme(
+    panel.background = element_blank(),  # Remove panel background
+    plot.background = element_blank(),    # Remove plot background
+    axis.line = element_line(color = "black"),  # Add axis lines
+    axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+    legend.position = "none" #removes all legends
+  )
+print(bosmina_lakeyears)
+
+
+bosmina_lakeyears_under200 <- ggplot(bosmina_under_200, aes(x = plot_date, color = parentdow.zoop.year)) + 
+  geom_point(aes(y = density), shape = 21, size = 2)+
+  geom_line(aes(y = density))+
+  labs(title = "Bosmina Seasonal Trends", y = "Density (count/L)", x = "Date") +
+  scale_x_date(breaks = breaks, date_labels = "%b-%d")+ #only label 1st and 15th of each month in correct format
+  theme(
+    panel.background = element_blank(),  # Remove panel background
+    plot.background = element_blank(),    # Remove plot background
+    axis.line = element_line(color = "black"),  # Add axis lines
+    axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+    legend.position = "none" #removes all legends
+  )
+print(bosmina_lakeyears_under200)
+
+
+bosmina_under_20 <- bosmina %>% 
+  filter(density <= 20)
+bosmina_lakeyears_under20 <- ggplot(bosmina_under_20, aes(x = plot_date, color = parentdow.zoop.year)) + 
+  geom_point(aes(y = density), shape = 21, size = 2)+
+  geom_line(aes(y = density))+
+  labs(title = "Bosmina Seasonal Trends", y = "Density (count/L)", x = "Date") +
+  scale_x_date(breaks = breaks, date_labels = "%b-%d")+ #only label 1st and 15th of each month in correct format
+  theme(
+    panel.background = element_blank(),  # Remove panel background
+    plot.background = element_blank(),    # Remove plot background
+    axis.line = element_line(color = "black"),  # Add axis lines
+    axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+    legend.position = "none" #removes all legends
+  )
+print(bosmina_lakeyears_under20)
+
+
+#what I am seeing here is that different lake-years have different peaks, but few of them are consistently high
