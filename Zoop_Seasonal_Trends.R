@@ -326,15 +326,19 @@ print(bosmina_lakeyears_under20)
 
 #----------------------------------------------------------------------------------------------------------------------
 #investigate bosmina and eubosmina in our lakes with both years and lakes
+
+
 bosmina_our_lakes <-our_lakes %>% 
   filter(species == "Bosmina sp.")
 
+#tiff("Bosmina_GreenPelicanElephant.tiff", width = 7, height = 7, units = "in", res = 300)
           our_bosmina_detail <- ggplot(bosmina_our_lakes, aes(x = plot_date, color = year, shape = lake_name)) + 
-            geom_point(aes(y = density, size = 2))+
+            geom_point(aes(y = density), fill = NA, stroke = 1)+
             labs(y = "Density (count/L)", x = "Date") +
             scale_x_date(breaks = breaks, date_labels = "%b-%d", limits = as.Date(c("2000-05-01", "2000-10-31")))+ #only label 1st and 15th of each month in correct format
             ylim(0, NA)+
             ggtitle("Bosmina sp.")+
+            scale_shape_manual(values = c(21, 24, 22))+
             theme(
               panel.background = element_blank(),  # Remove panel background
               plot.background = element_blank(),    # Remove plot background
@@ -342,16 +346,20 @@ bosmina_our_lakes <-our_lakes %>%
               axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
             )
           print(our_bosmina_detail)
-
+#dev.off()
+          
 eubosmina_our_lakes <-our_lakes %>% 
   filter(species == "Eubosmina coregoni")
 
+
+#tiff("Eubosmina_GreenPelicanElephant.tiff", width = 7, height = 7, units = "in", res = 300)
 our_eubosmina_detail <- ggplot(eubosmina_our_lakes, aes(x = plot_date, color = year, shape = lake_name)) + 
-  geom_point(aes(y = density, size = 2))+
+  geom_point(aes(y = density), fill = NA, stroke = 1)+
   labs(y = "Density (count/L)", x = "Date") +
   scale_x_date(breaks = breaks, date_labels = "%b-%d", limits = as.Date(c("2000-05-01", "2000-10-31")))+ #only label 1st and 15th of each month in correct format
   ylim(0, NA)+
   ggtitle("Euosmina sp.")+
+  scale_shape_manual(values = c(21, 24, 22))+
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
@@ -359,5 +367,26 @@ our_eubosmina_detail <- ggplot(eubosmina_our_lakes, aes(x = plot_date, color = y
     axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
   )
 print(our_eubosmina_detail)
+#dev.off()
 
-#have not exported these graphs anywhere - I was just curious to see them
+#Eubosmina and Bosmina on the same plot for our lakes
+eubosmina_bosmina_our_lakes <-our_lakes %>% 
+  filter(species == "Eubosmina coregoni" | species == "Bosmina sp.")
+
+#tiff("Eubosmina_Bosmina_GreenPelicanElephant.tiff", width = 7, height = 7, units = "in", res = 300)
+Bosmina.Eubosmina <- ggplot(eubosmina_bosmina_our_lakes, aes(x = plot_date, shape = lake_name, color = species)) + 
+  geom_point(aes(y = density), fill = NA, stroke = 1)+
+  labs(y = "Density (count/L)", x = "Date") +
+  scale_x_date(breaks = breaks, date_labels = "%b-%d", limits = as.Date(c("2000-05-01", "2000-10-31")))+ #only label 1st and 15th of each month in correct format
+  ylim(0, NA)+
+  scale_shape_manual(values = c(21, 24, 22))+
+  ggtitle("Bosmina sp. and Eubsomina sp.")+
+  theme(
+    panel.background = element_blank(),  # Remove panel background
+    plot.background = element_blank(),    # Remove plot background
+    axis.line = element_line(color = "black"),  # Add axis lines
+    axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+  )
+print(Bosmina.Eubosmina)
+#dev.off()
+
