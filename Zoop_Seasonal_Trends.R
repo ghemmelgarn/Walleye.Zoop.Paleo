@@ -322,3 +322,42 @@ print(bosmina_lakeyears_under20)
 
 
 #what I am seeing here is that different lake-years have different peaks, but few of them are consistently high
+
+
+#----------------------------------------------------------------------------------------------------------------------
+#investigate bosmina and eubosmina in our lakes with both years and lakes
+bosmina_our_lakes <-our_lakes %>% 
+  filter(species == "Bosmina sp.")
+
+          our_bosmina_detail <- ggplot(bosmina_our_lakes, aes(x = plot_date, color = year, shape = lake_name)) + 
+            geom_point(aes(y = density, size = 2))+
+            labs(y = "Density (count/L)", x = "Date") +
+            scale_x_date(breaks = breaks, date_labels = "%b-%d", limits = as.Date(c("2000-05-01", "2000-10-31")))+ #only label 1st and 15th of each month in correct format
+            ylim(0, NA)+
+            ggtitle("Bosmina sp.")+
+            theme(
+              panel.background = element_blank(),  # Remove panel background
+              plot.background = element_blank(),    # Remove plot background
+              axis.line = element_line(color = "black"),  # Add axis lines
+              axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+            )
+          print(our_bosmina_detail)
+
+eubosmina_our_lakes <-our_lakes %>% 
+  filter(species == "Eubosmina coregoni")
+
+our_eubosmina_detail <- ggplot(eubosmina_our_lakes, aes(x = plot_date, color = year, shape = lake_name)) + 
+  geom_point(aes(y = density, size = 2))+
+  labs(y = "Density (count/L)", x = "Date") +
+  scale_x_date(breaks = breaks, date_labels = "%b-%d", limits = as.Date(c("2000-05-01", "2000-10-31")))+ #only label 1st and 15th of each month in correct format
+  ylim(0, NA)+
+  ggtitle("Euosmina sp.")+
+  theme(
+    panel.background = element_blank(),  # Remove panel background
+    plot.background = element_blank(),    # Remove plot background
+    axis.line = element_line(color = "black"),  # Add axis lines
+    axis.text.x = element_text(angle = 45, hjust = 1), #rotate x axis labels
+  )
+print(our_eubosmina_detail)
+
+#have not exported these graphs anywhere - I was just curious to see them
