@@ -1,5 +1,8 @@
+#DO NOT USE THIS ANYMORE - USE "Create Contemporary Dataset" for most recent work.
+
+#-------------------------------------------------------------------------------
 #Code copied from "Create Preliminary Analysis Dataset" and modified
-#USE THIS FROM NOW ON TO UPDATE THE DATASET - new workflow order to solve zoop taxonomy issues
+#new workflow order to solve zoop taxonomy issues
 
 #Starts with inclusion table created in "1a Read in Fish Data" - includes lakes with exact match for fish/zoop sampling years AND all core lakes
 #Formats and joins mean summer secchi, water temp (degree days), and area data (with lake coordinates) which are downloaded and calculated in other R scripts
