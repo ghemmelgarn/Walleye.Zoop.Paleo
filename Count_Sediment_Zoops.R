@@ -51,9 +51,9 @@ Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus u
                                                                                                                                                                                ifelse(Sed_Data$Taxa == "Alona costata (use for anything exept carapace)", "Alona costata", Sed_Data$Taxa)))))))))))))))))))))))
 
 
-#Now remove remains that are not useful for counting: Unidentifiable, not zoops, yet to be checked for ID, or NA values
+#Now remove remains that are not useful for counting: Unidentifiable, not zoops, yet to be checked for ID, or NA values, also remove NA values for LakeName or Remain.Type
 Sed_Data_Clean_Uncorrected_for_pairs <- Sed_Data %>% 
-  filter(Taxa != "Unidentifiable" & Taxa != "Not a zoop (after check)" & Taxa != "Mystery Spike (probably plant)" & Taxa != "Unsure: CHECK" & !is.na(Taxa))
+  filter(Taxa != "Unidentifiable" & Taxa != "Not a zoop (after check)" & Taxa != "Mystery Spike (probably plant)" & Taxa != "Unsure: CHECK" & !is.na(Taxa) & !is.na(LakeName) & !is.na(Remain.Type))
 
 #remove spaces before and after lake names to make for loops work properly
 Sed_Data_Clean_Uncorrected_for_pairs $LakeName <- str_trim(Sed_Data_Clean_Uncorrected_for_pairs $LakeName, side = "both")
@@ -104,7 +104,7 @@ count(ID_Valid_Check, Taxa)
     #when we can identify to more detail with one structure than another, we will take the proportion of species from the detailed structure and apply that proportion to the more ambiguous structure
           #If we have multiple structures we can ID to same detailed taxonomic resolution and one that is more ambiguous: use most frequent remain types to get an individual count out of these detailed structures and use that for proportion
     #when we can't fully ID something due to to poor preservation or gunk on the slide - use proportion derived from OTHER SPECIMENS OF THAT SAME STRUCTURE that you can ID all the way
-    #we will only do this when we have a reasonable sample size of fully IDed remains (3+ to create proportions with)
+
 
 #get a list of lakes / samples to use in for loops:
 lakes <- unique(Sed_Data_Clean$LakeName)
@@ -144,6 +144,9 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               #turn NA values into 0
               bosminid_head_prop[is.na(bosminid_head_prop)] <- 0
               
+              #make this matrix a data frame
+              bosminid_head_prop <- as.data.frame(bosminid_head_prop)
+              
           
           #Carapaces: sometimes not clear if mucro present (carapace broken or obscured) for subgenus: use proportion of carapaces that you can ID 
               bosminid_carap_prop <- matrix(NA, nrow = length(lakes), ncol = 5, dimnames = list(NULL, c("LakeName", "b.longi.n", "b.longi.prop", "e.coreg.n", "e.coreg.prop")))
@@ -175,6 +178,9 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               }
               #turn NA values into 0
               bosminid_carap_prop[is.na(bosminid_carap_prop)] <- 0
+              
+              #make this matrix a data frame
+              bosminid_carap_prop <- as.data.frame(bosminid_carap_prop)
           
       #Daphnia postabdominal claws
         #can tell complex with most claws, but sometimes obscured or broken and can't tell
@@ -209,6 +215,9 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               }
               #turn NA values into 0
               daphnia_prop[is.na(daphnia_prop)] <- 0
+              
+              #make this matrix a data frame
+              daphnia_prop <- as.data.frame(daphnia_prop)
               
       #Camptocercus and Acroperus headshields
         #can tell them apart with carapaces and postabdominal claws but not with headshields
@@ -277,6 +286,9 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               #turn NA values into 0
               campto_acro_prop[is.na(campto_acro_prop)] <- 0
               
+              #make this matrix a data frame
+              campto_acro_prop <- as.data.frame(campto_acro_prop)
+              
                           
               
       #Holopedium and Sida crystallina
@@ -344,6 +356,9 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               }
               #turn NA values into 0
               holo_sida_prop[is.na(holo_sida_prop)] <- 0 
+              
+              #make this matrix a data frame
+              holo_sida_prop <- as.data.frame(holo_sida_prop)
               
                 
       #Aloninae - THIS ONE IS LAYERED
@@ -482,6 +497,9 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         }
                         #turn NA values into 0
                         alona_spp_prop[is.na(alona_spp_prop)] <- 0 
+                        
+                        #make this matrix a data frame
+                        alona_spp_prop <- as.data.frame(alona_spp_prop)
 
       
               #4: ratio of all aloninae species to infer when we can only get to "Aloninae" due to remain preservation
@@ -678,6 +696,9 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         #turn NA values into 0
                         aloninae_prop[is.na(aloninae_prop)] <- 0 
                         
+                        #make this matrix a data frame
+                        aloninae_prop <- as.data.frame(aloninae_prop)
+                        
                         
            #CHYDORINAE: ratio of all chydorinae species to infer when we can only get to "chydorinae" due to remain preservation
                         #make empty matrix to store results
@@ -821,34 +842,205 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         #turn NA values into 0
                         chydorinae_prop[is.na(chydorinae_prop)] <- 0 
                         
+                        #make this matrix a data frame
+                        chydorinae_prop <- as.data.frame(chydorinae_prop)
+                        
 
 
+#DEAL WITH SPECIMENS THAT NEED TO BE ASSGINED AN ID BASED ON PROPORTIONS OF OTHER BETTER IDed STRUCTURES IN THAT SAMPLE/LAKE
+  #I will do this by taking random samples from a distribution with probabilities assigned by those calculated above
+        
+        #first make a new data frame to start reassigning things
+            Sed_Data_Reassigned <- Sed_Data_Clean
+        #set seed to keep random results consistent
+            set.seed(1234567)
+
+                                        
+        #Bosminid headshields that can't be IDed due to unclear/obscured headpores
+
+              #reassign based on proportions in each lake            
+              for(i in unique(Sed_Data_Reassigned$LakeName)){
+                #assign the calculated proportions for each lake
+                Proportions <- c("Bosmina longirostris" = bosminid_head_prop[bosminid_head_prop$LakeName == i, "b.longi.prop"],
+                                 "Eubosmina coregoni" = bosminid_head_prop[bosminid_head_prop$LakeName == i, "e.coreg.prop"]
+                                 )
+                #make proportions numeric
+                Proportions.num <- as.numeric(Proportions)
+                #Check that there are no NA values in Proportions
+                if(anyNA(Proportions.num)){
+                  stop(paste("Error: Proportions contain NA in sample:", i))
+                }
+                #Check that proportions add to one (with tolerance for rounding)
+                if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                  stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+                }   
+                #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+                reassign <- (Sed_Data_Reassigned$Remain.Type == "Headshield") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
+                  
+                #sample from distribution and reassign the taxa only in the rows you selected above
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  )
+                }
+
+   
+        #Bosminid postabs and claws that need to be assigned based on headshield proportions
+            
+            #reassign based on proportions in each lake            
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Bosmina longirostris" = bosminid_head_prop[bosminid_head_prop$LakeName == i, "b.longi.prop"],
+                               "Eubosmina coregoni" = bosminid_head_prop[bosminid_head_prop$LakeName == i, "e.coreg.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Postabdominal Claw") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above
+              Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                names(Proportions), #you are drawing the species names associated with the Proportions vector
+                size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                prob = Proportions #the probabilities are the values specified in the Proportions vector
+              )
+            }
+            
+            
+        #Bosminid antennule segments that need to be assigned based on headshield proportions
+            
+            #reassign based on proportions in each lake            
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Bosmina longirostris" = bosminid_head_prop[bosminid_head_prop$LakeName == i, "b.longi.prop"],
+                               "Eubosmina coregoni" = bosminid_head_prop[bosminid_head_prop$LakeName == i, "e.coreg.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Antennal Segment") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above
+              Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                names(Proportions), #you are drawing the species names associated with the Proportions vector
+                size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                prob = Proportions #the probabilities are the values specified in the Proportions vector
+              )
+            }
+        
+            
+      #Bosminid ephippia that need to be assigned based on headshield proportions
+           
+            #reassign based on proportions in each lake            
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Bosmina longirostris" = bosminid_head_prop[bosminid_head_prop$LakeName == i, "b.longi.prop"],
+                               "Eubosmina coregoni" = bosminid_head_prop[bosminid_head_prop$LakeName == i, "e.coreg.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Ephippium") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above
+              Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                names(Proportions), #you are drawing the species names associated with the Proportions vector
+                size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                prob = Proportions #the probabilities are the values specified in the Proportions vector
+              )
+            }
+        
+        #Bosminid carapaces that can't be IDed due to broken off / obscured mucros
+        
+        
+        
+        #Daphnica postab claws that can't be IDed because they are broken or obscured
+        
+        
+        
+        #Camptocercus / Acroperus headshields that need to be assigned based on carapaces and postab claws
+        
+        
+        
+        #Holopedium / Sida postabdomens that need to be assigned based on claws
+        
+        
+        
+        #Alona sp. carapaces that need to be assigned based on other structures
+        
+        
+        
+        #"Aloninae" that can't be IDed further and need to be assigned by proportion of species
+        
+        
+        
+        #"Chydorinae" that can't be IDed further and need to be assigned by proportion of species
+        
+        
+                        
+                        
+                        
+                        
+
+                        
+                        
+                                                
+                        
+#ONE CLADOCERA = 1 Headshield + 2 Shell Valves ( = 1 Carapace) + 1 Postabdomen + 2 Postabdominal claws
+                        
+                        
 #Get counts by taxa AND remain type for each sample
 #make a frequency table that gets saved as a data frame
 Specimen_Count <- as.data.frame(table(Sed_Data_Clean$LakeName, Sed_Data_Clean$Taxa, Sed_Data_Clean$Remain.Type))
-#rename columns
+#rename columns, remove zero counts, divide paired structures by 2
 Specimen_Count <- Specimen_Count %>% 
   rename(LakeName = Var1) %>% 
   rename(Taxa = Var2) %>% 
-  rename(Remain.Type = Var3) 
-#remove counts of 0
-Specimen_Count <- Specimen_Count %>% 
-  filter(Freq != 0)
-
-#ONE CLADOCERA = 1 Headshield + 2 Shell Valves ( = 1 Carapace) + 1 Postabdomen + 2 Postabdominal claws
-#PROBLEM: We have not been keeping track if carapaces have both sides or only one side present, or if postab claws are paired or separate
-    #Evelyn says all the daphnia claws she finds are paired... but not necessarily for other taxa
-#FOR NOW: assume the claws are not paired and all the carapaces have both sides, also throwing out bosminid antennules segments as a way to count individuals - I only want these for the measurements
-#this means divide the claw count by 2 (for all taxa except Daphnia) and leave carapace counts as they are - round up on things divided by 2 because 2.5 individuals means you had at least 3 individuals
-Specimen_Count_Modified <- Specimen_Count %>% 
-  mutate(Freq = ifelse(Taxa != "Daphnia longispina complex" & Taxa != "Daphnia sp." & Taxa != "Daphnia pulex complex" & Remain.Type == "Postabdominal Claw", ceiling(Freq/2), Freq))
-
+  rename(Remain.Type = Var3) %>% 
+  mutate(Freq = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw and carapace counts by 2 and then round up (accounts for the fact that there are 2 claws and 2 carapace sides on each zoop)
+  filter(Freq != 0) #remove counts of zero
+  
 
 #Now take the most frequent remain type for each taxa and use it as the individual count
-Individual_Count <- Specimen_Count_Modified %>% 
+Individual_Count_by_Taxa <- Specimen_Count %>% 
   group_by(LakeName, Taxa) %>% 
   summarise(Count = max(Freq))
 
+#And count the total number of individuals counted on each slide, add to data frame that has number of slides counted
+Individual_Count_Total <- Individual_Count_by_Taxa %>% 
+  group_by(LakeName) %>% 
+  summarise(Individual.Count = sum(Count))
 
+Sample_summary <- Slide_Count %>% 
+  right_join(Individual_Count_Total, by = "LakeName")
 
   
