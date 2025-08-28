@@ -52,23 +52,52 @@ Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus u
 
 
 #Now remove remains that are not useful for counting: Unidentifiable, not zoops, yet to be checked for ID, or NA values
-Sed_Data_Clean <- Sed_Data %>% 
+Sed_Data_Clean_Uncorrected_for_pairs <- Sed_Data %>% 
   filter(Taxa != "Unidentifiable" & Taxa != "Not a zoop (after check)" & Taxa != "Mystery Spike (probably plant)" & Taxa != "Unsure: CHECK" & !is.na(Taxa))
 
 #remove spaces before and after lake names to make for loops work properly
-Sed_Data_Clean$LakeName <- str_trim(Sed_Data_Clean$LakeName, side = "both")
+Sed_Data_Clean_Uncorrected_for_pairs $LakeName <- str_trim(Sed_Data_Clean_Uncorrected_for_pairs $LakeName, side = "both")
 
 #Count number of slides counted for each sample
-Slide_Count <- Sed_Data_Clean %>% 
+Slide_Count <- Sed_Data_Clean_Uncorrected_for_pairs  %>% 
   group_by(LakeName) %>% 
   summarise(Slide.Count = n_distinct(Slide.Number))
 Slide_Count
 
 #check that nothing is marked as Not Indentifiable and then given a taxa name
-ID_Valid_Check <- Sed_Data_Clean %>% 
+ID_Valid_Check <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
   filter(Remain.Condition == "Not identifiable")
 count(ID_Valid_Check, Taxa)
 #it's ok if larger taxonomic groups are here - it just means we couldn't get all the way to species with the structure
+
+#DEAL WITH PAIRED STRUCTURES: postabdominal claws and carapaces
+#IF a structure is paired, duplicate that row in the data, so when it gets divided by two later, the individual count is still accurate
+#IF a structure is listed as not paired, leave the row alone - represents half of an individual when it gets divided by two later
+#IF a structure has NA for paired, it was identified before we started keeping track of this:
+      #FOR NOW: 
+            #postabdominal claws: A + E say that bosminid and daphnid claws are almost always paired. Assume this and multiply them by 2. Assume all other postabdominal claws are unpaired (single claws) to avoid overcounting
+            #carapaces: A + E say that about half are paired. Assume all are unpaired to undercount for sample size requirement and will fix this later with post-hoc estimation
+      #WHEN WE FINISH ID:
+            #Find proportion of carapaces and claws that are paired for each taxa and use that to post-hoc estimate number of individuals for the slides where we did not keep track
+
+                        #make a dataframe of the rows you want to duplicate
+                        rows_to_duplicate <- Sed_Data_Clean_Uncorrected_for_pairs %>%
+                          filter(
+                            #if a postabdominal claw or carapace is labeled as paired
+                            ((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace") & Paired. == "Yes - both present") |
+                            #if bosminid and daphnid postab claws are labeled NA for paired (not kept track of) - assuming all paired for now, but assuming unpaired for other spp.
+                            (is.na(Paired.) & Remain.Type == "Postabdominal Claw" & 
+                               (Taxa == "Bosminid" | Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris" | 
+                                  Taxa == "Daphnia sp." | Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex" | 
+                                  Taxa == "Ceriodaphnia sp.")
+                             )
+                            #if a carapace is labeled NA for paired, leave it alone for now (assuming unpaired)
+                          )
+                          
+                        #now bind these duplicated rows onto original data and sort by remain number
+                        Sed_Data_Clean <- Sed_Data_Clean_Uncorrected_for_pairs %>%
+                          bind_rows(rows_to_duplicate) %>% 
+                          arrange(Remain.Number)
 
 
 #We have to deal with things that are IDed to different levels by different structures
@@ -114,6 +143,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               }
               #turn NA values into 0
               bosminid_head_prop[is.na(bosminid_head_prop)] <- 0
+              
           
           #Carapaces: sometimes not clear if mucro present (carapace broken or obscured) for subgenus: use proportion of carapaces that you can ID 
               bosminid_carap_prop <- matrix(NA, nrow = length(lakes), ncol = 5, dimnames = list(NULL, c("LakeName", "b.longi.n", "b.longi.prop", "e.coreg.n", "e.coreg.prop")))
@@ -125,6 +155,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                 temp_data <- Sed_Data_Clean %>% 
                   filter(LakeName == i & Remain.Type == "Carapace" & (Taxa == "Bosmina longirostris" | Taxa == "Eubosmina coregoni")) %>% 
                   count(Taxa) %>% 
+                  mutate(n = ceiling(n/2)) %>%  #divide carapace count by 2 and then round up (accounts for the fact that there are 2 carapace sides on each zoop)
                   mutate(prop = n / sum(n))
                 #save the values from this calculation in the matrix
                 #save lakename
@@ -159,6 +190,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                 temp_data <- Sed_Data_Clean %>% 
                   filter(LakeName == i & Remain.Type == "Postabdominal Claw" & (Taxa == "Daphnia longispina complex" | Taxa == "Daphnia pulex complex")) %>% 
                   count(Taxa) %>% 
+                  mutate(n = ceiling(n/2)) %>%  #divide postab claw count by 2 and then round up (accounts for the fact that there are 2 claws on each zoop)
                   mutate(prop = n / sum(n))
                 #save the values from this calculation in the matrix
                 #save lakename
@@ -208,7 +240,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                     rename(Taxa = Var1) %>% #rename column
                     rename(Remain.Type = Var2) %>% #rename column
                     filter(Freq != 0) %>% #remove counts of zero
-                    mutate(Freq = ifelse(Remain.Type == "Postabdominal Claw", ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw count by 2 and then round up (accounts for the fact that there are 2 claws on each zoop)
+                    mutate(Freq = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw and carapace counts by 2 and then round up (accounts for the fact that there are 2 claws and 2 carapace sides on each zoop)
                     group_by(Taxa) %>% #group by taxa
                     summarise(n = max(Freq)) %>% #keep only the count of the most frequent remain type for each taxa
                     mutate(prop = n / sum(n)) #calculate proportions
@@ -499,7 +531,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                               rename(Taxa = Var1) %>% #rename column
                               rename(Remain.Type = Var2) %>% #rename column
                               filter(Freq != 0) %>% #remove counts of zero
-                              mutate(Freq = ifelse(Remain.Type == "Postabdominal Claw", ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw count by 2 and then round up (accounts for the fact that there are 2 claws on each zoop)
+                              mutate(Freq = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw and carapace counts by 2 and then round up (accounts for the fact that there are 2 claws and 2 carapace sides on each zoop)
                               group_by(Taxa) %>% #group by taxa
                               summarise(n = max(Freq)) %>% #keep only the count of the most frequent remain type for each taxa
                               mutate(prop = n / sum(n))
@@ -686,7 +718,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                               rename(Taxa = Var1) %>% #rename column
                               rename(Remain.Type = Var2) %>% #rename column
                               filter(Freq != 0) %>% #remove counts of zero
-                              mutate(Freq = ifelse(Remain.Type == "Postabdominal Claw", ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw count by 2 and then round up (accounts for the fact that there are 2 claws on each zoop)
+                              mutate(Freq = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw and carapace counts by 2 and then round up (accounts for the fact that there are 2 claws and 2 carapace sides on each zoop)
                               group_by(Taxa) %>% #group by taxa
                               summarise(n = max(Freq)) %>% #keep only the count of the most frequent remain type for each taxa
                               mutate(prop = n / sum(n))
@@ -789,19 +821,6 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         #turn NA values into 0
                         chydorinae_prop[is.na(chydorinae_prop)] <- 0 
                         
-                        
-                        
-                        
-                        
-                        
-                        
-                        
-#FOR NOW: Group them all into higher taxonomic levels and sum the counts - all I am doing here is making sure we have counted enough individuals. If I am off, this will underestimate the number of individuals counted, which is not a problem.
-    #Will deal with this for species ID later (with proportions of better IDed structures)
-Specimen_Count_Modified$Taxa <- ifelse(Specimen_Count_Modified$Taxa == "Eubosmina coregoni" | Specimen_Count_Modified$Taxa == "Bosmina longirostris", "Bosminid", 
-                                       ifelse(Specimen_Count_Modified$Taxa == )
-                                                
-#NEED TO FINISH THIS GROUPING FOR THE PRELIMINARY COUNTS
 
 
 #Get counts by taxa AND remain type for each sample
