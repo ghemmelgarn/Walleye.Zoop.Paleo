@@ -11,7 +11,7 @@ library(stringr)
 
 #read in data and make N/A, NA, or an empty cell all read in as NA
 #update file with new data as needed
-Sed_Data <- read.csv("Data/Input/Sediment_Zoop_ID_20250826.csv", na.strings = c("N/A", "NA", ""))
+Sed_Data <- read.csv("Data/Input/Sediment_Zoop_ID_20250829.csv", na.strings = c("N/A", "NA", ""))
 
 #Fix spelling errors and rename columns
 Sed_Data <- Sed_Data %>% 
@@ -53,10 +53,10 @@ Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus u
 
 #Now remove remains that are not useful for counting: Unidentifiable, not zoops, yet to be checked for ID, or NA values, also remove NA values for LakeName or Remain.Type
 Sed_Data_Clean_Uncorrected_for_pairs <- Sed_Data %>% 
-  filter(Taxa != "Unidentifiable" & Taxa != "Not a zoop (after check)" & Taxa != "Mystery Spike (probably plant)" & Taxa != "Unsure: CHECK" & !is.na(Taxa) & !is.na(LakeName) & !is.na(Remain.Type))
+  filter(Taxa != "Unidentifiable" & Taxa != "Not a zoop (after check)" & Taxa != "Mystery Spike (probably plant)" & Taxa != "Unsure: CHECK" & !is.na(Taxa))
 
 #remove spaces before and after lake names to make for loops work properly
-Sed_Data_Clean_Uncorrected_for_pairs $LakeName <- str_trim(Sed_Data_Clean_Uncorrected_for_pairs $LakeName, side = "both")
+Sed_Data_Clean_Uncorrected_for_pairs$LakeName <- str_trim(Sed_Data_Clean_Uncorrected_for_pairs $LakeName, side = "both")
 
 #Count number of slides counted for each sample
 Slide_Count <- Sed_Data_Clean_Uncorrected_for_pairs  %>% 
@@ -69,6 +69,49 @@ ID_Valid_Check <- Sed_Data_Clean_Uncorrected_for_pairs %>%
   filter(Remain.Condition == "Not identifiable")
 count(ID_Valid_Check, Taxa)
 #it's ok if larger taxonomic groups are here - it just means we couldn't get all the way to species with the structure
+    #If you find a concern here, ask the person who did the ID
+
+
+#QAQC CHECK: this code pulls out rows that are impossible: eg. you can't ID this precisely with this structure. Check that there is nothing here.
+#Will also pull out rows with problematic NA values - spot check these and correct as needed
+ID_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
+  filter(
+    ((Remain.Type != "Headshield" & Remain.Type != "Carapace") & (Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris")) |
+    ((Remain.Type != "Postabdominal Claw" & Remain.Type != "Ephippium") & (Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex")) |
+    (Remain.Type == "Headshield" & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")) |
+    (Remain.Type == "Postabdomen (no claw)" & (Taxa == "Sida crystallina americana" | Taxa == "Holopedium sp.")) |
+    (Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) |
+     is.na(LakeName) | is.na(Remain.Type)
+  )
+
+#To fix these ID problems identified above, run this code:
+Sed_Data_Clean_Uncorrected_for_pairs_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
+  mutate(Taxa = ifelse(((Remain.Type != "Headshield" & Remain.Type != "Carapace") & (Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris")), "Bosminid", 
+                 ifelse(((Remain.Type != "Postabdominal Claw" & Remain.Type != "Ephippium") & (Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex")), "Daphnia sp.",
+                        ifelse((Remain.Type == "Headshield" & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")), "Camptocercus sp. or Acroperus sp.",
+                               ifelse((Remain.Type == "Postabdomen (no claw)" & (Taxa == "Sida crystallina americana" | Taxa == "Holopedium sp.")), "Holopedium sp. or Sida crystallina americana",
+                                     ifelse((Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")), "Alona sp.", Taxa 
+                  )))))
+          )
+                 
+#Add code here to fix specific problematic NA values if needed
+Sed_Data_Clean_Uncorrected_for_pairs_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  filter(!is.na(LakeName))
+
+
+#Check that it fixed the issue appropriately
+ID_QAQC2 <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  filter(
+    ((Remain.Type != "Headshield" & Remain.Type != "Carapace") & (Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris")) |
+      ((Remain.Type != "Postabdominal Claw" & Remain.Type != "Ephippium") & (Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex")) |
+      (Remain.Type == "Headshield" & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")) |
+      (Remain.Type == "Postabdomen (no claw)" & (Taxa == "Sida crystallina americana" | Taxa == "Holopedium sp.")) |
+      (Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) |
+      is.na(LakeName) | is.na(Remain.Type)
+  )
+
+
+
 
 #DEAL WITH PAIRED STRUCTURES: postabdominal claws and carapaces
 #IF a structure is paired, duplicate that row in the data, so when it gets divided by two later, the individual count is still accurate
@@ -81,7 +124,7 @@ count(ID_Valid_Check, Taxa)
             #Find proportion of carapaces and claws that are paired for each taxa and use that to post-hoc estimate number of individuals for the slides where we did not keep track
 
                         #make a dataframe of the rows you want to duplicate
-                        rows_to_duplicate <- Sed_Data_Clean_Uncorrected_for_pairs %>%
+                        rows_to_duplicate <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
                           filter(
                             #if a postabdominal claw or carapace is labeled as paired
                             ((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace") & Paired. == "Yes - both present") |
@@ -95,7 +138,7 @@ count(ID_Valid_Check, Taxa)
                           )
                           
                         #now bind these duplicated rows onto original data and sort by remain number
-                        Sed_Data_Clean <- Sed_Data_Clean_Uncorrected_for_pairs %>%
+                        Sed_Data_Clean <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
                           bind_rows(rows_to_duplicate) %>% 
                           arrange(Remain.Number)
 
@@ -501,44 +544,43 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         #make this matrix a data frame
                         alona_spp_prop <- as.data.frame(alona_spp_prop)
 
-      
-              #4: ratio of all aloninae species to infer when we can only get to "Aloninae" due to remain preservation
-                        #make empty matrix to store results
-                        aloninae_prop <- matrix(NA, nrow = length(lakes), ncol = 25, dimnames = list(NULL, c("LakeName", "a.affinis.n", "a.affinis.prop", "a.quad.n", "a.quad.prop", "a.inter.n", "a.inter.prop", "a.barb.n", "a.barb.prop", "a.cost.n", "a.cost.prop", "a.rust.n", "a.rust.prop", "a.circ.gutt.setu.n", "a.circ.gutt.setu.prop", "a.harp.n", "a.harp.prop", "campto.n", "campto.prop", "a.amer.n", "a.amer.prop", "g.test.n", "g.test.prop", "l.leyd.n", "l.leyd.prop")))
+                        
+              #4: ratio of all aloninae species to infer when we can only get to "Aloninae" due to remain preservation 
+                       
+                  #CARAPACES: Includes all aloninae carapaces that are similar (VERY distinct or unpreserved carapaces are not included = Leydigia leydigi and Graptoleberis testudinaria)      
+                        
+                         #make empty matrix to store results
+                        aloninae_carap_prop <- matrix(NA, nrow = length(lakes), ncol = 21, dimnames = list(NULL, c("LakeName", "a.affinis.n", "a.affinis.prop", "a.quad.n", "a.quad.prop", "a.inter.n", "a.inter.prop", "a.barb.n", "a.barb.prop", "a.cost.n", "a.cost.prop", "a.rust.n", "a.rust.prop", "a.circ.gutt.setu.n", "a.circ.gutt.setu.prop", "a.harp.n", "a.harp.prop", "campto.n", "campto.prop", "a.amer.n", "a.amer.prop")))
                         #row index tracker - need to do this because looping over categorical data and lakenames can't be rows later on
                         row_idx <- 1
                         #calculate and store proportions for each lake
                         for(i in unique(Sed_Data_Clean$LakeName)){
                           #isolates data you want - this only includes the structures that can be reliably used for certain species
                           temp_data1 <- Sed_Data_Clean %>% 
-                            filter(LakeName == i & (((Remain.Type == "Postabdomen (no claw)" | Remain.Type == "Headshield") & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) | ((Remain.Type == "Postabdomen (no claw)" | Remain.Type == "Carapace" | Remain.Type == "Postabdominal Claw") & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")) | Taxa == "Alonopsis americana" | Taxa == "Graptoleberis testudinaria" | Taxa == "Leydigia leydigi"))
+                            filter(LakeName == i & (((Remain.Type == "Postabdomen (no claw)" | Remain.Type == "Headshield") & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) | ((Remain.Type == "Postabdomen (no claw)" | Remain.Type == "Carapace" | Remain.Type == "Postabdominal Claw") & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")) | Taxa == "Alonopsis americana"))
                           #IF there are none of these taxa in this sample at all, this will make all values 0 without causing code to stop executing
                           if (nrow(temp_data1) < 1) {
-                            aloninae_prop[row_idx,1] <- i
-                            aloninae_prop[row_idx,2] <- 0
-                            aloninae_prop[row_idx,3] <- 0
-                            aloninae_prop[row_idx,4] <- 0
-                            aloninae_prop[row_idx,5] <- 0
-                            aloninae_prop[row_idx,6] <- 0
-                            aloninae_prop[row_idx,7] <- 0
-                            aloninae_prop[row_idx,8] <- 0
-                            aloninae_prop[row_idx,9] <- 0
-                            aloninae_prop[row_idx,10] <- 0
-                            aloninae_prop[row_idx,11] <- 0
-                            aloninae_prop[row_idx,12] <- 0
-                            aloninae_prop[row_idx,13] <- 0
-                            aloninae_prop[row_idx,14] <- 0
-                            aloninae_prop[row_idx,15] <- 0
-                            aloninae_prop[row_idx,16] <- 0
-                            aloninae_prop[row_idx,17] <- 0
-                            aloninae_prop[row_idx,18] <- 0
-                            aloninae_prop[row_idx,19] <- 0
-                            aloninae_prop[row_idx,20] <- 0
-                            aloninae_prop[row_idx,21] <- 0
-                            aloninae_prop[row_idx,22] <- 0
-                            aloninae_prop[row_idx,23] <- 0
-                            aloninae_prop[row_idx,24] <- 0
-                            aloninae_prop[row_idx,25] <- 0
+                            aloninae_carap_prop[row_idx,1] <- i
+                            aloninae_carap_prop[row_idx,2] <- 0
+                            aloninae_carap_prop[row_idx,3] <- 0
+                            aloninae_carap_prop[row_idx,4] <- 0
+                            aloninae_carap_prop[row_idx,5] <- 0
+                            aloninae_carap_prop[row_idx,6] <- 0
+                            aloninae_carap_prop[row_idx,7] <- 0
+                            aloninae_carap_prop[row_idx,8] <- 0
+                            aloninae_carap_prop[row_idx,9] <- 0
+                            aloninae_carap_prop[row_idx,10] <- 0
+                            aloninae_carap_prop[row_idx,11] <- 0
+                            aloninae_carap_prop[row_idx,12] <- 0
+                            aloninae_carap_prop[row_idx,13] <- 0
+                            aloninae_carap_prop[row_idx,14] <- 0
+                            aloninae_carap_prop[row_idx,15] <- 0
+                            aloninae_carap_prop[row_idx,16] <- 0
+                            aloninae_carap_prop[row_idx,17] <- 0
+                            aloninae_carap_prop[row_idx,18] <- 0
+                            aloninae_carap_prop[row_idx,19] <- 0
+                            aloninae_carap_prop[row_idx,20] <- 0
+                            aloninae_carap_prop[row_idx,21] <- 0
                           }
                           #the rest is the normal code for samples with these taxa present
                           else {
@@ -555,136 +597,280 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                               mutate(prop = n / sum(n))
                             #save the values from this calculation in the matrix
                             #save lakename
-                            aloninae_prop[row_idx,1] <- i
+                            aloninae_carap_prop[row_idx,1] <- i
                             #save n and proportion for each taxa present in data - this version extracts the values out of 1x1 tibbles
                             if("Alona affinis" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,2] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,2] <- temp_data2 %>% 
                                 filter(Taxa == "Alona affinis") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,3] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,3] <- temp_data2 %>% 
                                 filter(Taxa == "Alona affinis") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Alona quadrangularis" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,4] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,4] <- temp_data2 %>% 
                                 filter(Taxa == "Alona quadrangularis") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,5] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,5] <- temp_data2 %>% 
                                 filter(Taxa == "Alona quadrangularis") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Alona intermedia" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,6] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,6] <- temp_data2 %>% 
                                 filter(Taxa == "Alona intermedia") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,7] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,7] <- temp_data2 %>% 
                                 filter(Taxa == "Alona intermedia") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Alona barbulata" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,8] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,8] <- temp_data2 %>% 
                                 filter(Taxa == "Alona barbulata") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,9] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,9] <- temp_data2 %>% 
                                 filter(Taxa == "Alona barbulata") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Alona costata" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,10] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,10] <- temp_data2 %>% 
                                 filter(Taxa == "Alona costata") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,11] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,11] <- temp_data2 %>% 
                                 filter(Taxa == "Alona costata") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Alona rustica" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,12] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,12] <- temp_data2 %>% 
                                 filter(Taxa == "Alona rustica") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,13] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,13] <- temp_data2 %>% 
                                 filter(Taxa == "Alona rustica") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Alona circumfimbriata, guttata, or setulosa" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,14] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,14] <- temp_data2 %>% 
                                 filter(Taxa == "Alona circumfimbriata, guttata, or setulosa") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,15] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,15] <- temp_data2 %>% 
                                 filter(Taxa == "Alona circumfimbriata, guttata, or setulosa") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Acroperus harpae" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,16] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,16] <- temp_data2 %>% 
                                 filter(Taxa == "Acroperus harpae") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,17] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,17] <- temp_data2 %>% 
                                 filter(Taxa == "Acroperus harpae") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Camptocercus sp." %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,18] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,18] <- temp_data2 %>% 
                                 filter(Taxa == "Camptocercus sp.") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,19] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,19] <- temp_data2 %>% 
                                 filter(Taxa == "Camptocercus sp.") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Alonopsis americana" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,20] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,20] <- temp_data2 %>% 
                                 filter(Taxa == "Alonopsis americana") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,21] <- temp_data2 %>% 
+                              aloninae_carap_prop[row_idx,21] <- temp_data2 %>% 
                                 filter(Taxa == "Alonopsis americana") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
-                            if("Graptoleberis testudinaria" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,22] <- temp_data2 %>% 
-                                filter(Taxa == "Graptoleberis testudinaria") %>% 
+                            
+                          }
+                          
+                          #increase the row_idx value for the next row
+                          row_idx <- row_idx + 1
+                        }
+                        #turn NA values into 0
+                        aloninae_carap_prop[is.na(aloninae_carap_prop)] <- 0 
+                        
+                        #make this matrix a data frame
+                        aloninae_carap_prop <- as.data.frame(aloninae_carap_prop)
+                        
+                        
+              #POSTABDOMENS: Includes all aloninae postabdomens that are similar (VERY distinct postabdomens are not included = Alonopsis americana, Camptocercus sp., Acroperus harpae, Leydigia leydigi and Graptoleberis testudinaria)      
+                        
+                        #This actually just leaves you with the exact same proportions as the Alona sp. proportions we already calculated for carapaces, so use that
+                        
+              #HEADSHIELDS: Includes all aloninae headshields that are similar (VERY distinct headshields are not included = Acroperus harpae, Camptocercuss sp., and Graptoleberis testudinaria)      
+                        
+                        #make empty matrix to store results
+                        aloninae_head_prop <- matrix(NA, nrow = length(lakes), ncol = 19, dimnames = list(NULL, c("LakeName", "a.affinis.n", "a.affinis.prop", "a.quad.n", "a.quad.prop", "a.inter.n", "a.inter.prop", "a.barb.n", "a.barb.prop", "a.cost.n", "a.cost.prop", "a.rust.n", "a.rust.prop", "a.circ.gutt.setu.n", "a.circ.gutt.setu.prop", "a.amer.n", "a.amer.prop", "l.leyd.n", "l.leyd.prop")))
+                        #row index tracker - need to do this because looping over categorical data and lakenames can't be rows later on
+                        row_idx <- 1
+                        #calculate and store proportions for each lake
+                        for(i in unique(Sed_Data_Clean$LakeName)){
+                          #isolates data you want - this only includes the structures that can be reliably used for certain species
+                          temp_data1 <- Sed_Data_Clean %>% 
+                            filter(LakeName == i & (((Remain.Type == "Postabdomen (no claw)" | Remain.Type == "Headshield") & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) | Taxa == "Alonopsis americana" | Taxa == "Leydigia leydigi"))
+                          #IF there are none of these taxa in this sample at all, this will make all values 0 without causing code to stop executing
+                          if (nrow(temp_data1) < 1) {
+                            aloninae_head_prop[row_idx,1] <- i
+                            aloninae_head_prop[row_idx,2] <- 0
+                            aloninae_head_prop[row_idx,3] <- 0
+                            aloninae_head_prop[row_idx,4] <- 0
+                            aloninae_head_prop[row_idx,5] <- 0
+                            aloninae_head_prop[row_idx,6] <- 0
+                            aloninae_head_prop[row_idx,7] <- 0
+                            aloninae_head_prop[row_idx,8] <- 0
+                            aloninae_head_prop[row_idx,9] <- 0
+                            aloninae_head_prop[row_idx,10] <- 0
+                            aloninae_head_prop[row_idx,11] <- 0
+                            aloninae_head_prop[row_idx,12] <- 0
+                            aloninae_head_prop[row_idx,13] <- 0
+                            aloninae_head_prop[row_idx,14] <- 0
+                            aloninae_head_prop[row_idx,15] <- 0
+                            aloninae_head_prop[row_idx,16] <- 0
+                            aloninae_head_prop[row_idx,17] <- 0
+                            aloninae_head_prop[row_idx,18] <- 0
+                            aloninae_head_prop[row_idx,19] <- 0
+                          }
+                          #the rest is the normal code for samples with these taxa present
+                          else {
+                            #get counts by both taxa and proportion
+                            temp_data2 <- as.data.frame(table(temp_data1$Taxa, temp_data1$Remain.Type))
+                            #rename columns, remove counts of zero, retain only the most frequent remain type for each taxa, then use that to calculate proportion
+                            temp_data2 <- temp_data2 %>% 
+                              rename(Taxa = Var1) %>% #rename column
+                              rename(Remain.Type = Var2) %>% #rename column
+                              filter(Freq != 0) %>% #remove counts of zero
+                              mutate(Freq = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw and carapace counts by 2 and then round up (accounts for the fact that there are 2 claws and 2 carapace sides on each zoop)
+                              group_by(Taxa) %>% #group by taxa
+                              summarise(n = max(Freq)) %>% #keep only the count of the most frequent remain type for each taxa
+                              mutate(prop = n / sum(n))
+                            #save the values from this calculation in the matrix
+                            #save lakename
+                            aloninae_head_prop[row_idx,1] <- i
+                            #save n and proportion for each taxa present in data - this version extracts the values out of 1x1 tibbles
+                            if("Alona affinis" %in% temp_data2$Taxa){
+                              aloninae_head_prop[row_idx,2] <- temp_data2 %>% 
+                                filter(Taxa == "Alona affinis") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,23] <- temp_data2 %>% 
-                                filter(Taxa == "Graptoleberis testudinaria") %>% 
+                              aloninae_head_prop[row_idx,3] <- temp_data2 %>% 
+                                filter(Taxa == "Alona affinis") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alona quadrangularis" %in% temp_data2$Taxa){
+                              aloninae_head_prop[row_idx,4] <- temp_data2 %>% 
+                                filter(Taxa == "Alona quadrangularis") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              aloninae_head_prop[row_idx,5] <- temp_data2 %>% 
+                                filter(Taxa == "Alona quadrangularis") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alona intermedia" %in% temp_data2$Taxa){
+                              aloninae_head_prop[row_idx,6] <- temp_data2 %>% 
+                                filter(Taxa == "Alona intermedia") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              aloninae_head_prop[row_idx,7] <- temp_data2 %>% 
+                                filter(Taxa == "Alona intermedia") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alona barbulata" %in% temp_data2$Taxa){
+                              aloninae_head_prop[row_idx,8] <- temp_data2 %>% 
+                                filter(Taxa == "Alona barbulata") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              aloninae_head_prop[row_idx,9] <- temp_data2 %>% 
+                                filter(Taxa == "Alona barbulata") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alona costata" %in% temp_data2$Taxa){
+                              aloninae_head_prop[row_idx,10] <- temp_data2 %>% 
+                                filter(Taxa == "Alona costata") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              aloninae_head_prop[row_idx,11] <- temp_data2 %>% 
+                                filter(Taxa == "Alona costata") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alona rustica" %in% temp_data2$Taxa){
+                              aloninae_head_prop[row_idx,12] <- temp_data2 %>% 
+                                filter(Taxa == "Alona rustica") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              aloninae_head_prop[row_idx,13] <- temp_data2 %>% 
+                                filter(Taxa == "Alona rustica") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alona circumfimbriata, guttata, or setulosa" %in% temp_data2$Taxa){
+                              aloninae_head_prop[row_idx,14] <- temp_data2 %>% 
+                                filter(Taxa == "Alona circumfimbriata, guttata, or setulosa") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              aloninae_head_prop[row_idx,15] <- temp_data2 %>% 
+                                filter(Taxa == "Alona circumfimbriata, guttata, or setulosa") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alonopsis americana" %in% temp_data2$Taxa){
+                              aloninae_head_prop[row_idx,16] <- temp_data2 %>% 
+                                filter(Taxa == "Alonopsis americana") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              aloninae_head_prop[row_idx,17] <- temp_data2 %>% 
+                                filter(Taxa == "Alonopsis americana") %>% 
                                 pull(prop) %>% 
                                 .[1]
                             }
                             if("Leydigia leydigi" %in% temp_data2$Taxa){
-                              aloninae_prop[row_idx,24] <- temp_data2 %>% 
+                              aloninae_head_prop[row_idx,18] <- temp_data2 %>% 
                                 filter(Taxa == "Leydigia leydigi") %>% 
                                 pull(n) %>% 
                                 .[1]
                               
-                              aloninae_prop[row_idx,25] <- temp_data2 %>% 
+                              aloninae_head_prop[row_idx,19] <- temp_data2 %>% 
                                 filter(Taxa == "Leydigia leydigi") %>% 
                                 pull(prop) %>% 
                                 .[1]
@@ -694,13 +880,16 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                           row_idx <- row_idx + 1
                         }
                         #turn NA values into 0
-                        aloninae_prop[is.na(aloninae_prop)] <- 0 
+                        aloninae_head_prop[is.na(aloninae_head_prop)] <- 0 
                         
                         #make this matrix a data frame
-                        aloninae_prop <- as.data.frame(aloninae_prop)
+                        aloninae_head_prop <- as.data.frame(aloninae_head_prop)
                         
                         
            #CHYDORINAE: ratio of all chydorinae species to infer when we can only get to "chydorinae" due to remain preservation
+                        
+                #POSTABDOMENS: includes all chydorinae because all quite similar
+                        
                         #make empty matrix to store results
                         chydorinae_prop <- matrix(NA, nrow = length(lakes), ncol = 17, dimnames = list(NULL, c("LakeName", "a.excisa.n", "a.excisa.prop", "a.nana.n", "a.nana.prop", "a.pulch.n", "a.pulch.prop", "c.brevil.n", "c.brevil.prop", "c.biov.n", "c.biov.prop", "p.proc.n", "p.proc.prop", "p.stram.n", "p.stram.prop", "p.trig.n", "p.trig.prop")))
                         #row index tracker - need to do this because looping over categorical data and lakenames can't be rows later on
@@ -845,6 +1034,222 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         #make this matrix a data frame
                         chydorinae_prop <- as.data.frame(chydorinae_prop)
                         
+                        
+              #HEADSHIELDS: excludes Alonella nana and Pleuroxus trigonellus because those two are very different (left the other Pleuroxus species because their posterior headshield regions are not distinct)
+                        
+                        #make empty matrix to store results
+                        chydorinae_head_prop <- matrix(NA, nrow = length(lakes), ncol = 13, dimnames = list(NULL, c("LakeName", "a.excisa.n", "a.excisa.prop", "a.pulch.n", "a.pulch.prop", "c.brevil.n", "c.brevil.prop", "c.biov.n", "c.biov.prop", "p.proc.n", "p.proc.prop", "p.stram.n", "p.stram.prop")))
+                        #row index tracker - need to do this because looping over categorical data and lakenames can't be rows later on
+                        row_idx <- 1
+                        #calculate and store proportions for each lake
+                        for(i in unique(Sed_Data_Clean$LakeName)){
+                          #isolates data you want - no restrictions on which structures can be used for ID with this subfamily
+                          temp_data1 <- Sed_Data_Clean %>% 
+                            filter(LakeName == i & (Taxa == "Alonella excisa" | Taxa == "Alonella pulchella" | Taxa == "Chydorus brevilabris" | Taxa == "Chydorus biovatus" | Taxa == "Pleuroxus procurvus" | Taxa == "Pleuroxus straminius"))
+                          #IF there are none of these taxa in this sample at all, this will make all values 0 without causing code to stop executing
+                          if (nrow(temp_data1) < 1) {
+                            chydorinae_prop[row_idx,1] <- i
+                            chydorinae_prop[row_idx,2] <- 0
+                            chydorinae_prop[row_idx,3] <- 0
+                            chydorinae_prop[row_idx,4] <- 0
+                            chydorinae_prop[row_idx,5] <- 0
+                            chydorinae_prop[row_idx,6] <- 0
+                            chydorinae_prop[row_idx,7] <- 0
+                            chydorinae_prop[row_idx,8] <- 0
+                            chydorinae_prop[row_idx,9] <- 0
+                            chydorinae_prop[row_idx,10] <- 0
+                            chydorinae_prop[row_idx,11] <- 0
+                            chydorinae_prop[row_idx,12] <- 0
+                            chydorinae_prop[row_idx,13] <- 0
+                          }
+                          #the rest is the normal code for samples with these taxa present
+                          else {
+                            #get counts by both taxa and proportion
+                            temp_data2 <- as.data.frame(table(temp_data1$Taxa, temp_data1$Remain.Type))
+                            #rename columns, remove counts of zero, retain only the most frequent remain type for each taxa, then use that to calculate proportion
+                            temp_data2 <- temp_data2 %>% 
+                              rename(Taxa = Var1) %>% #rename column
+                              rename(Remain.Type = Var2) %>% #rename column
+                              filter(Freq != 0) %>% #remove counts of zero
+                              mutate(Freq = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw and carapace counts by 2 and then round up (accounts for the fact that there are 2 claws and 2 carapace sides on each zoop)
+                              group_by(Taxa) %>% #group by taxa
+                              summarise(n = max(Freq)) %>% #keep only the count of the most frequent remain type for each taxa
+                              mutate(prop = n / sum(n))
+                            #save the values from this calculation in the matrix
+                            #save lakename
+                            chydorinae_head_prop[row_idx,1] <- i
+                            #save n and proportion for each taxa present in data - this version extracts the values out of 1x1 tibbles
+                            if("Alonella excisa" %in% temp_data2$Taxa){
+                              chydorinae_head_prop[row_idx,2] <- temp_data2 %>% 
+                                filter(Taxa == "Alonella excisa") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_head_prop[row_idx,3] <- temp_data2 %>% 
+                                filter(Taxa == "Alonella excisa") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alonella pulchella" %in% temp_data2$Taxa){
+                              chydorinae_head_prop[row_idx,4] <- temp_data2 %>% 
+                                filter(Taxa == "Alonella pulchella") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_head_prop[row_idx,5] <- temp_data2 %>% 
+                                filter(Taxa == "Alonella pulchella") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Chydorus brevilabris" %in% temp_data2$Taxa){
+                              chydorinae_head_prop[row_idx,6] <- temp_data2 %>% 
+                                filter(Taxa == "Chydorus brevilabris") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_head_prop[row_idx,7] <- temp_data2 %>% 
+                                filter(Taxa == "Chydorus brevilabris") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Chydorus biovatus" %in% temp_data2$Taxa){
+                              chydorinae_head_prop[row_idx,8] <- temp_data2 %>% 
+                                filter(Taxa == "Chydorus biovatus") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_head_prop[row_idx,9] <- temp_data2 %>% 
+                                filter(Taxa == "Chydorus biovatus") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Pleuroxus procurvus" %in% temp_data2$Taxa){
+                              chydorinae_head_prop[row_idx,10] <- temp_data2 %>% 
+                                filter(Taxa == "Pleuroxus procurvus") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_head_prop[row_idx,11] <- temp_data2 %>% 
+                                filter(Taxa == "Pleuroxus procurvus") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Pleuroxus straminius" %in% temp_data2$Taxa){
+                              chydorinae_head_prop[row_idx,12] <- temp_data2 %>% 
+                                filter(Taxa == "Pleuroxus straminius") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_head_prop[row_idx,13] <- temp_data2 %>% 
+                                filter(Taxa == "Pleuroxus straminius") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                          }
+                          #increase the row_idx value for the next row
+                          row_idx <- row_idx + 1
+                        }
+                        #turn NA values into 0
+                        chydorinae_head_prop[is.na(chydorinae_head_prop)] <- 0 
+                        
+                        #make this matrix a data frame
+                        chydorinae_head_prop <- as.data.frame(chydorinae_head_prop)
+                        
+                        
+                  #CARAPACES: excludes Alonella nana and all Plueroxus spp. because they are quite distinct
+                        
+                        #make empty matrix to store results
+                        chydorinae_carap_prop <- matrix(NA, nrow = length(lakes), ncol = 9, dimnames = list(NULL, c("LakeName", "a.excisa.n", "a.excisa.prop", "a.pulch.n", "a.pulch.prop", "c.brevil.n", "c.brevil.prop", "c.biov.n", "c.biov.prop")))
+                        #row index tracker - need to do this because looping over categorical data and lakenames can't be rows later on
+                        row_idx <- 1
+                        #calculate and store proportions for each lake
+                        for(i in unique(Sed_Data_Clean$LakeName)){
+                          #isolates data you want - no restrictions on which structures can be used for ID with this subfamily
+                          temp_data1 <- Sed_Data_Clean %>% 
+                            filter(LakeName == i & (Taxa == "Alonella excisa"| Taxa == "Alonella pulchella" | Taxa == "Chydorus brevilabris" | Taxa == "Chydorus biovatus"))
+                          #IF there are none of these taxa in this sample at all, this will make all values 0 without causing code to stop executing
+                          if (nrow(temp_data1) < 1) {
+                            chydorinae_carap_prop[row_idx,1] <- i
+                            chydorinae_carap_prop[row_idx,2] <- 0
+                            chydorinae_carap_prop[row_idx,3] <- 0
+                            chydorinae_carap_prop[row_idx,4] <- 0
+                            chydorinae_carap_prop[row_idx,5] <- 0
+                            chydorinae_carap_prop[row_idx,6] <- 0
+                            chydorinae_carap_prop[row_idx,7] <- 0
+                            chydorinae_carap_prop[row_idx,8] <- 0
+                            chydorinae_carap_prop[row_idx,9] <- 0
+                          }
+                          #the rest is the normal code for samples with these taxa present
+                          else {
+                            #get counts by both taxa and proportion
+                            temp_data2 <- as.data.frame(table(temp_data1$Taxa, temp_data1$Remain.Type))
+                            #rename columns, remove counts of zero, retain only the most frequent remain type for each taxa, then use that to calculate proportion
+                            temp_data2 <- temp_data2 %>% 
+                              rename(Taxa = Var1) %>% #rename column
+                              rename(Remain.Type = Var2) %>% #rename column
+                              filter(Freq != 0) %>% #remove counts of zero
+                              mutate(Freq = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw and carapace counts by 2 and then round up (accounts for the fact that there are 2 claws and 2 carapace sides on each zoop)
+                              group_by(Taxa) %>% #group by taxa
+                              summarise(n = max(Freq)) %>% #keep only the count of the most frequent remain type for each taxa
+                              mutate(prop = n / sum(n))
+                            #save the values from this calculation in the matrix
+                            #save lakename
+                            chydorinae_carap_prop[row_idx,1] <- i
+                            #save n and proportion for each taxa present in data - this version extracts the values out of 1x1 tibbles
+                            if("Alonella excisa" %in% temp_data2$Taxa){
+                              chydorinae_carap_prop[row_idx,2] <- temp_data2 %>% 
+                                filter(Taxa == "Alonella excisa") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_carap_prop[row_idx,3] <- temp_data2 %>% 
+                                filter(Taxa == "Alonella excisa") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Alonella pulchella" %in% temp_data2$Taxa){
+                              chydorinae_carap_prop[row_idx,4] <- temp_data2 %>% 
+                                filter(Taxa == "Alonella pulchella") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_carap_prop[row_idx,5] <- temp_data2 %>% 
+                                filter(Taxa == "Alonella pulchella") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Chydorus brevilabris" %in% temp_data2$Taxa){
+                              chydorinae_carap_prop[row_idx,6] <- temp_data2 %>% 
+                                filter(Taxa == "Chydorus brevilabris") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_carap_prop[row_idx,7] <- temp_data2 %>% 
+                                filter(Taxa == "Chydorus brevilabris") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                            if("Chydorus biovatus" %in% temp_data2$Taxa){
+                              chydorinae_carap_prop[row_idx,8] <- temp_data2 %>% 
+                                filter(Taxa == "Chydorus biovatus") %>% 
+                                pull(n) %>% 
+                                .[1]
+                              
+                              chydorinae_carap_prop[row_idx,9] <- temp_data2 %>% 
+                                filter(Taxa == "Chydorus biovatus") %>% 
+                                pull(prop) %>% 
+                                .[1]
+                            }
+                          }
+                          #increase the row_idx value for the next row
+                          row_idx <- row_idx + 1
+                        }
+                        #turn NA values into 0
+                        chydorinae_carap_prop[is.na(chydorinae_carap_prop)] <- 0 
+                        
+                        #make this matrix a data frame
+                        chydorinae_carap_prop <- as.data.frame(chydorinae_carap_prop)
+                        
 
 
 #DEAL WITH SPECIMENS THAT NEED TO BE ASSGINED AN ID BASED ON PROPORTIONS OF OTHER BETTER IDed STRUCTURES IN THAT SAMPLE/LAKE
@@ -877,17 +1282,20 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                 #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
                 reassign <- (Sed_Data_Reassigned$Remain.Type == "Headshield") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
                   
-                #sample from distribution and reassign the taxa only in the rows you selected above
-                Sed_Data_Reassigned$Taxa[reassign] <- sample(
-                  names(Proportions), #you are drawing the species names associated with the Proportions vector
-                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
-                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+                #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+                if(sum(Proportions.num) > 0) {
+                  Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                    names(Proportions), #you are drawing the species names associated with the Proportions vector
+                    size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                    replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                    prob = Proportions #the probabilities are the values specified in the Proportions vector
                   )
                 }
+              }
 
    
-        #Bosminid postabs and claws that need to be assigned based on headshield proportions
+        #Bosminid postabdominal claws that need to be assigned based on headshield proportions
             
             #reassign based on proportions in each lake            
             for(i in unique(Sed_Data_Reassigned$LakeName)){
@@ -908,13 +1316,16 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
               reassign <- (Sed_Data_Reassigned$Remain.Type == "Postabdominal Claw") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
               
-              #sample from distribution and reassign the taxa only in the rows you selected above
-              Sed_Data_Reassigned$Taxa[reassign] <- sample(
-                names(Proportions), #you are drawing the species names associated with the Proportions vector
-                size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
-                replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                prob = Proportions #the probabilities are the values specified in the Proportions vector
-              )
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
             }
             
             
@@ -939,17 +1350,20 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
               reassign <- (Sed_Data_Reassigned$Remain.Type == "Antennal Segment") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
               
-              #sample from distribution and reassign the taxa only in the rows you selected above
-              Sed_Data_Reassigned$Taxa[reassign] <- sample(
-                names(Proportions), #you are drawing the species names associated with the Proportions vector
-                size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
-                replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                prob = Proportions #the probabilities are the values specified in the Proportions vector
-              )
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
             }
         
             
-      #Bosminid ephippia that need to be assigned based on headshield proportions
+          #Bosminid ephippia that need to be assigned based on headshield proportions
            
             #reassign based on proportions in each lake            
             for(i in unique(Sed_Data_Reassigned$LakeName)){
@@ -970,57 +1384,451 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
               reassign <- (Sed_Data_Reassigned$Remain.Type == "Ephippium") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
               
-              #sample from distribution and reassign the taxa only in the rows you selected above
-              Sed_Data_Reassigned$Taxa[reassign] <- sample(
-                names(Proportions), #you are drawing the species names associated with the Proportions vector
-                size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
-                replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                prob = Proportions #the probabilities are the values specified in the Proportions vector
-              )
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
             }
         
-        #Bosminid carapaces that can't be IDed due to broken off / obscured mucros
+          #Bosminid carapaces that can't be IDed due to broken off / obscured mucros - assigned based on identifiable carapace proportions
+           
+             #reassign based on proportions in each lake            
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Bosmina longirostris" = bosminid_carap_prop[bosminid_carap_prop$LakeName == i, "b.longi.prop"],
+                               "Eubosmina coregoni" = bosminid_carap_prop[bosminid_carap_prop$LakeName == i, "e.coreg.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Carapace") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }
         
         
         
-        #Daphnica postab claws that can't be IDed because they are broken or obscured
+        #Daphnia postab claws that can't be IDed because they are broken or obscured - assign based on identifiable claw proportions
         
-        
+            #reassign based on proportions in each lake            
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Daphnia longispina complex" = daphnia_prop[daphnia_prop$LakeName == i, "d.longi.prop"],
+                               "Daphnia pulex complex" = daphnia_prop[daphnia_prop$LakeName == i, "d.pulex.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Postabdominal Claw" | Sed_Data_Reassigned$Remain.Type == "Postabdomen (no claw)") & (Sed_Data_Reassigned$Taxa == "Daphnia sp.") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  )
+              }
+            }
         
         #Camptocercus / Acroperus headshields that need to be assigned based on carapaces and postab claws
-        
+            
+            #reassign based on proportions in each lake            
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Acroperus harpae" = campto_acro_prop[campto_acro_prop$LakeName == i, "a.harp.prop"],
+                               "Camptocercus sp." = campto_acro_prop[campto_acro_prop$LakeName == i, "campto.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Headshield") & (Sed_Data_Reassigned$Taxa == "Camptocercus sp. or Acroperus sp.") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }
         
         
         #Holopedium / Sida postabdomens that need to be assigned based on claws
+            
+            #reassign based on proportions in each lake            
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Holopedium sp." = holo_sida_prop[holo_sida_prop$LakeName == i, "holo.prop"],
+                               "Sida crystallina americana" = holo_sida_prop[holo_sida_prop$LakeName == i, "sida.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Postabdomen (no claw)") & (Sed_Data_Reassigned$Taxa == "Holopedium sp. or Sida crystallina americana") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }
+                    #HERE WE HAVE A CASE WHERE THERE IS NO INFO IN THE CARLOS SAMPLE TO INFER WHAT THE POSTABDOMEN MIGHT BE
+                    #IT STAYS UNASSIGNED, AND I WILL JUST HAVE TO DEAL WITH THAT LATER
+        
+        #Alona sp. carapaces (and any other structure that coulsn't be assinged for some reason) that need to be assigned based on other structures
+            
+            #reassign based on proportions in each lake
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Alona affinis" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.affinis.prop"],
+                               "Alona quadrangularis" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.quad.prop"],
+                               "Alona intermedia" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.inter.prop"],
+                               "Alona barbulata" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.barb.prop"],
+                               "Alona costata" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.cost.prop"],
+                               "Alona rustica" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.rust.prop"],
+                               "Alona circumfimbriata, guttata, or setulosa" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.circ.gutt.setu.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              #not specifying structure... I think that's fine because each one is sampled independently based on that sample's proportions
+              reassign <- (Sed_Data_Reassigned$Taxa == "Alona sp.") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }
         
         
+        #"Aloninae" CARAPACES that can't be IDed further and need to be assigned by proportion of species
         
-        #Alona sp. carapaces that need to be assigned based on other structures
+            #reassign based on proportions in each lake
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Alona affinis" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.affinis.prop"],
+                               "Alona quadrangularis" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.quad.prop"],
+                               "Alona intermedia" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.inter.prop"],
+                               "Alona barbulata" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.barb.prop"],
+                               "Alona costata" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.cost.prop"],
+                               "Alona rustica" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.rust.prop"],
+                               "Alona circumfimbriata, guttata, or setulosa" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.circ.gutt.setu.prop"],
+                               "Acroperus harpae" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.harp.prop"],
+                               "Camptocercus sp." = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "campto.prop"],
+                               "Alonopsis americana" = aloninae_carap_prop[aloninae_carap_prop$LakeName == i, "a.amer.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Carapace") & (Sed_Data_Reassigned$Taxa == "Aloninae") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }
         
         
+      #"Aloninae" POSTABDOMENS that can't be IDed further and need to be assigned by proportion of species (note that the only species this is reasonably confusing for is the Alona genus, so using Alona sp. proportions)
+            #NOTE: When I wrote this code I did not have any data to try it out on, but it should work because its the same as the Alona sp. carapace code just with different data to reassign
+            
+            #reassign based on proportions in each lake
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Alona affinis" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.affinis.prop"],
+                               "Alona quadrangularis" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.quad.prop"],
+                               "Alona intermedia" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.inter.prop"],
+                               "Alona barbulata" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.barb.prop"],
+                               "Alona costata" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.cost.prop"],
+                               "Alona rustica" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.rust.prop"],
+                               "Alona circumfimbriata, guttata, or setulosa" = alona_spp_prop[alona_spp_prop$LakeName == i, "a.circ.gutt.setu.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              #not specifying structure... I think that's fine because each one is sampled independently based on that sample's proportions
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Postabdomen (no claw)") & (Sed_Data_Reassigned$Taxa == "Aloninae") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }
+            
+            
+      #"Aloninae" HEADSHIELDS that can't be IDed further and need to be assigned by proportion of species
+            
+            #reassign based on proportions in each lake
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Alona affinis" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "a.affinis.prop"],
+                               "Alona quadrangularis" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "a.quad.prop"],
+                               "Alona intermedia" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "a.inter.prop"],
+                               "Alona barbulata" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "a.barb.prop"],
+                               "Alona costata" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "a.cost.prop"],
+                               "Alona rustica" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "a.rust.prop"],
+                               "Alona circumfimbriata, guttata, or setulosa" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "a.circ.gutt.setu.prop"],
+                               "Alonopsis americana" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "a.amer.prop"],
+                               "Leydigia leydigi" = aloninae_head_prop[aloninae_head_prop$LakeName == i, "l.leyd.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              #not specifying structure... I think that's fine because each one is sampled independently based on that sample's proportions
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Headshield") & (Sed_Data_Reassigned$Taxa == "Aloninae") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }
+            
+      #"Chydorinae" CARAPACES that can't be IDed further and need to be assigned by proportion of species: excludes Alonella nana and all Plueroxus spp. because they are quite distinct
+            
+            
+            #reassign based on proportions in each lake
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Alonella excisa" = chydorinae_carap_prop[chydorinae_carap_prop$LakeName == i, "a.excisa.prop"],
+                               "Alonella pulchella" = chydorinae_carap_prop[chydorinae_carap_prop$LakeName == i, "a.pulch.prop"],
+                               "Chydorus brevilabris" = chydorinae_carap_prop[chydorinae_carap_prop$LakeName == i, "c.brevil.prop"],
+                               "Chydorus biovatus" = chydorinae_carap_prop[chydorinae_carap_prop$LakeName == i, "c.biov.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              #not specifying structure... I think that's fine because each one is sampled independently based on that sample's proportions
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Carapace") & (Sed_Data_Reassigned$Taxa == "Chydorinae") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }     
+            
+            
+            
+      #"Chydorinae" POSTABDOMENS that can't be IDed further and need to be assigned by proportion of species: includes all chydorinae because all quite similar
+            
+            
+            #reassign based on proportions in each lake
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Alonella excisa" = chydorinae_prop[chydorinae_prop$LakeName == i, "a.excisa.prop"],
+                               "Alonella nana" = chydorinae_prop[chydorinae_prop$LakeName == i, "a.nana.prop"],
+                               "Alonella pulchella" = chydorinae_prop[chydorinae_prop$LakeName == i, "a.pulch.prop"],
+                               "Chydorus brevilabris" = chydorinae_prop[chydorinae_prop$LakeName == i, "c.brevil.prop"],
+                               "Chydorus biovatus" = chydorinae_prop[chydorinae_prop$LakeName == i, "c.biov.prop"],
+                               "Pleuroxus procurvus" = chydorinae_prop[chydorinae_prop$LakeName == i, "p.proc.prop"],
+                               "Pleuroxus straminius" = chydorinae_prop[chydorinae_prop$LakeName == i, "p.stram.prop"],
+                               "Pleuroxus trigonellus" = chydorinae_prop[chydorinae_prop$LakeName == i, "p.trig.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              #not specifying structure... I think that's fine because each one is sampled independently based on that sample's proportions
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Postabdomen (no claw)" | Sed_Data_Reassigned$Remain.Type == "Postabdominal Claw") & (Sed_Data_Reassigned$Taxa == "Chydorinae") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }
+            
+            
+            
+      #"Chydorinae" HEADSHIELDS that can't be IDed further and need to be assigned by proportion of species
+            #excludes Alonella nana and Pleuroxus trigonellus because those two are very different (left the other Pleuroxus species because their posterior headshield regions are not distinct)
         
-        #"Aloninae" that can't be IDed further and need to be assigned by proportion of species
         
-        
-        
-        #"Chydorinae" that can't be IDed further and need to be assigned by proportion of species
-        
-        
+            #reassign based on proportions in each lake
+            for(i in unique(Sed_Data_Reassigned$LakeName)){
+              #assign the calculated proportions for each lake
+              Proportions <- c("Alonella excisa" = chydorinae_head_prop[chydorinae_head_prop$LakeName == i, "a.excisa.prop"],
+                               "Alonella pulchella" = chydorinae_head_prop[chydorinae_head_prop$LakeName == i, "a.pulch.prop"],
+                               "Chydorus brevilabris" = chydorinae_head_prop[chydorinae_head_prop$LakeName == i, "c.brevil.prop"],
+                               "Chydorus biovatus" = chydorinae_head_prop[chydorinae_head_prop$LakeName == i, "c.biov.prop"],
+                               "Pleuroxus procurvus" = chydorinae_head_prop[chydorinae_head_prop$LakeName == i, "p.proc.prop"],
+                               "Pleuroxus straminius" = chydorinae_head_prop[chydorinae_head_prop$LakeName == i, "p.stram.prop"]
+              )
+              #make proportions numeric
+              Proportions.num <- as.numeric(Proportions)
+              #Check that there are no NA values in Proportions
+              if(anyNA(Proportions.num)){
+                stop(paste("Error: Proportions contain NA in sample:", i))
+              }
+              #Check that proportions add to one (with tolerance for rounding)
+              if((abs(sum(Proportions.num)) - 1) > 0.000000001){
+                stop(paste("Error: Proportions do not sum to 1 in sample:", i))
+              }   
+              #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
+              #not specifying structure... I think that's fine because each one is sampled independently based on that sample's proportions
+              reassign <- (Sed_Data_Reassigned$Remain.Type == "Headshield") & (Sed_Data_Reassigned$Taxa == "Chydorinae") & (Sed_Data_Reassigned$LakeName == i)
+              
+              #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
+              #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
+              if(sum(Proportions.num) > 0) {
+                Sed_Data_Reassigned$Taxa[reassign] <- sample(
+                  names(Proportions), #you are drawing the species names associated with the Proportions vector
+                  size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
+                  replace = TRUE, #sample with replacement so the same species can be drawn multiple times
+                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                )
+              }
+            }     
                         
-                        
-                        
-                        
-
-                        
-                        
-                                                
+                 
+#Check that everything is reassigned and no ambiguous remains left (except those without data to inform a reassignment)
+unique(Sed_Data_Reassigned$Taxa)
                         
 #ONE CLADOCERA = 1 Headshield + 2 Shell Valves ( = 1 Carapace) + 1 Postabdomen + 2 Postabdominal claws
                         
                         
 #Get counts by taxa AND remain type for each sample
 #make a frequency table that gets saved as a data frame
-Specimen_Count <- as.data.frame(table(Sed_Data_Clean$LakeName, Sed_Data_Clean$Taxa, Sed_Data_Clean$Remain.Type))
+Specimen_Count <- as.data.frame(table(Sed_Data_Reassigned$LakeName, Sed_Data_Reassigned$Taxa, Sed_Data_Reassigned$Remain.Type))
 #rename columns, remove zero counts, divide paired structures by 2
 Specimen_Count <- Specimen_Count %>% 
   rename(LakeName = Var1) %>% 
@@ -1043,4 +1851,13 @@ Individual_Count_Total <- Individual_Count_by_Taxa %>%
 Sample_summary <- Slide_Count %>% 
   right_join(Individual_Count_Total, by = "LakeName")
 
+#save .csv files:
+    #First convert individual count by taxa into wide format
+        Individual_Count_by_Taxa_Wide <- Individual_Count_by_Taxa %>%
+          pivot_wider(names_from = Taxa, values_from = Count)
+          #turn NA values into 0
+          Individual_Count_by_Taxa_Wide[is.na(Individual_Count_by_Taxa_Wide)] <- 0 
+
+#write.csv(Individual_Count_by_Taxa_Wide, file = paste0("Data/Output/Sediment_Zoop_Taxa_Count", Sys.Date(), ".csv"))
+#write.csv(Sample_summary, file = paste0("Data/Output/Sediment_Zoop_Sample_Summary", Sys.Date(), ".csv"))
   
