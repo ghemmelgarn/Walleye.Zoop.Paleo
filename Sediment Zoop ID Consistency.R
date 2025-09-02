@@ -200,7 +200,112 @@ Carapace_Length
 #lengths look okay
 #mucro segments need work
 
+#--------------------------------------------------------------------------------------------------------------------------------
+#Calculate summary stats
 
-                   
+    #make empty matrix to fill
+    summary_stats <- matrix(NA, nrow = 3, ncol = 18, dimnames = list(NULL, c("IDed.by", "Total.Remains", "Total.Individuals", 
+                                                                              "Mean.Antennule.Length", "Max.Antennule.Length", "Min.Antennule.Length", 
+                                                                              "Mean.Antennule.Segments", "Max.Antennule.Segments", "Min.Antennule.Segments", 
+                                                                              "Mean.Mucro.Length", "Max.Mucro.Length", "Min.Mucro.Length", 
+                                                                              "Mean.Mucro.Segments", "Max.Mucro.Segments", "Min.Mucro.Segments",
+                                                                              "Mean.Carapace.Length", "Max.Carapace.Length", "Min.Carapace.Length")))
+    row_idx <- 1
+    for(i in unique(Data$IDed.by)){
+      #Name of lab worker
+      summary_stats[row_idx,1] <- i
+      #Number of  remains counted (excluding unidentifiable)
+      summary_stats[row_idx,2] <- sum(Data$Taxa != "Unidentifiable" & Data$IDed.by == i)
+      #Antennule length
+      summary_stats[row_idx,4] <- mean(Data$Attenule.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,5] <- max(Data$Attenule.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,6] <- min(Data$Attenule.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      #Antennule segments
+      summary_stats[row_idx,7] <- mean(Data$Antennule.Segments[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,8] <- max(Data$Antennule.Segments[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,9] <- min(Data$Antennule.Segments[Data$IDed.by == i], na.rm = TRUE)
+      #Mucro length
+      summary_stats[row_idx,10] <- mean(Data$Mucro.linear.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,11] <- max(Data$Mucro.linear.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,12] <- min(Data$Mucro.linear.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      #Mucro segments
+      summary_stats[row_idx,13] <- mean(Data$Mucro.Sutures[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,14] <- max(Data$Mucro.Sutures[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,15] <- min(Data$Mucro.Sutures[Data$IDed.by == i], na.rm = TRUE)
+      #Carapace length
+      summary_stats[row_idx,16] <- mean(Data$Carapace.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,17] <- max(Data$Carapace.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      summary_stats[row_idx,18] <- min(Data$Carapace.Length..µm.[Data$IDed.by == i], na.rm = TRUE)
+      #increase the row_idx value for the next row
+      row_idx <- row_idx + 1
+    }
+    #make this matrix a data frame
+    summary_stats <- as.data.frame(summary_stats)
+    
+
+    
+    #Total number of individuals and total number of individuals by species
+          #Use the other script to count this up and then upload the data here
+    
+          # #Add a column named "Paired." for the Green Lake exercise ONLY:
+          # 
+          # Data$Paired. <- NA
+          
+          #RUN THIS CODE FOR EACH LAB WORKER AND THEN RUN THE DATA THROUGH THE COUNTING SCRIPT
+    Sed_Data <- Data %>% 
+      filter(IDed.by == "Grace")
+    #Now run Sed_Data through counting script before running next line of code
+    #add total indiviudal count to summary stats
+    summary_stats[summary_stats$IDed.by == "Grace", 3] <- Sample_summary[1,3]
+    #Save count by taxa for this lab worker
+    Grace_Species <- Individual_Count_by_Taxa_Wide
+    #Add IDed.by column
+    Grace_Species$IDed.by <- "Grace"
+    #remove LakeName column
+    Grace_Species <- Grace_Species[, -1]
+    
+    
+    Sed_Data <- Data %>% 
+      filter(IDed.by == "Evelyn")
+    #add total indiviudal count to summary stats
+    #Now run Sed_Data through counting script before running next line of code
+    summary_stats[summary_stats$IDed.by == "Evelyn", 3] <- Sample_summary[1,3]
+    #Save count by taxa for this lab worker
+    Evelyn_Species <- Individual_Count_by_Taxa_Wide
+    #Add IDed.by column
+    Evelyn_Species$IDed.by <- "Evelyn"
+    #remove LakeName column
+    Evelyn_Species <-  Evelyn_Species[, -1]
+    
+    
+    
+    Sed_Data <- Data %>% 
+      filter(IDed.by == "Adele")
+    #add total indiviudal count to summary stats
+    #Now run Sed_Data through counting script before running next line of code
+    summary_stats[summary_stats$IDed.by == "Adele", 3] <- Sample_summary[1,3]
+    #Save count by taxa for this lab worker
+    Adele_Species <- Individual_Count_by_Taxa_Wide
+    #Add IDed.by column
+    Adele_Species$IDed.by <- "Adele"
+    #remove LakeName column
+    Adele_Species <- Adele_Species[, -1]
+    
+    
+    #Combine individual counts by taxa
+    Combined_Species <- bind_rows(Evelyn_Species, Adele_Species, Grace_Species)
+    #put taxa columns in alphabetical order
+    fixed_col <- "IDed.by"
+    other_cols <- setdiff(names(Combined_Species), fixed_col)
+    sorted_cols <- (sort(other_cols))
+    Combined_Species <- Combined_Species[ ,c(fixed_col, sorted_cols)]
+    #turn NA values into 0
+    Combined_Species[is.na(Combined_Species)] <- 0 
+    
+    
+    # #export these two files
+    # write.csv(summary_stats, file = paste0(LakeName, "_Summary_Stats.csv"))
+    # write.csv(Combined_Species, file = paste0(LakeName, "_Individual_Count_by_Taxa.csv"))
+
 
 
