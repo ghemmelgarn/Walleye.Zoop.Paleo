@@ -1860,4 +1860,73 @@ Sample_summary <- Slide_Count %>%
 
 #write.csv(Individual_Count_by_Taxa_Wide, file = paste0("Data/Output/Sediment_Zoop_Taxa_Count", Sys.Date(), ".csv"))
 #write.csv(Sample_summary, file = paste0("Data/Output/Sediment_Zoop_Sample_Summary", Sys.Date(), ".csv"))
+          
+
+          
+#-------------------------------------------------------------------------------------------------------------
+#Count the number of measured structures by lake, remain type, and taxa
+    #Do this based on true specimen ID, do not use inferred ID based on proportions
+    #UNPAIRED BUT MATCHING REMAINS COULD BE DOUBLE COUNTED/MEASURED - but there is no way to know for sure so that's just going to be a source of error... 
+            #I think counting these up uncorrected for pairing will give us the most accurate data
+          
+          
+measured.carapace <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
+  filter(!is.na(Carapace.Length.µm))
+          
+measured.carapace.lake.summary <- measured.carapace %>% 
+  group_by(LakeName, Taxa) %>% 
+  summarise(Carapace.Count = n())
+            
+          
+          
+measured.mucro.length <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
+  filter(!is.na(Mucro.Length.µm))
+
+measured.mucro.length.lake.summary <- measured.mucro.length %>% 
+  group_by(LakeName, Taxa) %>% 
+  summarise(Mucro.Length.Count = n())
+
+
   
+measured.mucro.segments <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  filter(!is.na(Mucro.Segments))
+
+measured.mucro.segments.lake.summary <- measured.mucro.segments %>% 
+  group_by(LakeName, Taxa) %>% 
+  summarise(Mucro.Segments.Count = n())
+
+
+  
+  
+measured.antennule.length <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  filter(!is.na(Antennule.Length.µm))
+
+measured.antennule.length.lake.summary <- measured.antennule.length %>% 
+  group_by(LakeName, Taxa) %>% 
+  summarise(Antennule.Length.Count = n())
+
+
+  
+measured.antennule.segments <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  filter(!is.na(Antennule.Segments))
+
+measured.antennule.segments.lake.summary <- measured.antennule.segments %>% 
+  group_by(LakeName, Taxa) %>% 
+  summarise(Antennule.Segments.Count = n())
+
+#join them all togther
+
+df.to.join <- (list(measured.carapace.lake.summary, 
+                    measured.mucro.length.lake.summary,
+                    measured.mucro.segments.lake.summary,
+                    measured.antennule.length.lake.summary,
+                    measured.antennule.segments.lake.summary
+                    ))
+
+measured.remain.count <- reduce(df.to.join, full_join, by = c("LakeName", "Taxa"))
+
+#turn NA values into 0
+measured.remain.count[is.na(measured.remain.count)] <- 0
+
+#save as a csv file
+#write.csv(measured.remain.count, file = paste0("Data/Output/Sediment_Zoop_Measured_Remain_Count", Sys.Date(), ".csv"))
