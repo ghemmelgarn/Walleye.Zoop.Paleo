@@ -10,14 +10,14 @@ library(tidyr)
 
 
 #read in data and make N/A, NA, or an empty cell all read in as NA
-Data <- read.csv("Data/Input/QAQC_Exercise_Sediment_Zoop_ID.csv", na.strings = c("N/A", "NA", ""))
+Data <- read.csv("Data/Input/Medicine_Zoop_Consistency.csv", na.strings = c("N/A", "NA", ""))
 
 #Set lake name for file names:
-LakeName <- "Green"
+LakeName <- "Medicine"
 
 #histograms of remain type, remain condition, and taxa by lab worker
 
-#tiff(paste0(LakeName, "_Test_Remain_Type.tiff"), width = 8, height = 6, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Remain_Type.tiff"), width = 8, height = 6, units = "in", res = 300)
 Remain_Type <- ggplot(Data, aes(x = Remain.Type, fill = IDed.by)) +
   geom_bar(position = "dodge") +
   labs(title = "Remain Type", y = "Count", x = "Remain Type") +
@@ -27,13 +27,13 @@ Remain_Type <- ggplot(Data, aes(x = Remain.Type, fill = IDed.by)) +
     axis.line = element_line(color = "black"), # Add axis lines
     axis.text.x = element_text(angle = 60, hjust = 1) #Rotate x axis labels
     ) +
-  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 0.9), vjust = -0.5)+ # label bars with counts
-  scale_y_continuous(limits = c(0, 35))
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 0.9), vjust = -0.5) # label bars with counts
+  #scale_y_continuous(limits = c(0, 35))
 Remain_Type  
-#dev.off()
+dev.off()
 
 
-#tiff(paste0(LakeName, "_Test_Remain_Condition.tiff"), width = 8, height = 5.5, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Remain_Condition.tiff"), width = 8, height = 5.5, units = "in", res = 300)
 Remain_Condition <- ggplot(Data, aes(x = Remain.Condition, fill = IDed.by)) +
   geom_bar(position = "dodge") +
   labs(title = "Remain Condition", y = "Count", x = "Remain Condition") +
@@ -43,12 +43,12 @@ Remain_Condition <- ggplot(Data, aes(x = Remain.Condition, fill = IDed.by)) +
     axis.line = element_line(color = "black"), # Add axis lines
     axis.text.x = element_text(angle = 60, hjust = 1) #Rotate x axis labels
   ) +
-  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 0.9), vjust = -0.5)+ # label bars with counts
-  scale_y_continuous(limits = c(0, 40))
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 0.9), vjust = -0.5) # label bars with counts
+  #scale_y_continuous(limits = c(0, 40))
 Remain_Condition 
-#dev.off()
+dev.off()
 
-#tiff(paste0(LakeName, "_Test_Taxa.tiff"), width = 11, height = 7, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Taxa.tiff"), width = 11, height = 7, units = "in", res = 300)
 Taxa <- ggplot(Data, aes(x = Taxa, fill = IDed.by)) +
   geom_bar(position = "dodge") +
   labs(title = "Taxa", y = "Count", x = "Taxa") +
@@ -58,15 +58,15 @@ Taxa <- ggplot(Data, aes(x = Taxa, fill = IDed.by)) +
     axis.line = element_line(color = "black"), # Add axis lines
     axis.text.x = element_text(angle = 80, hjust = 1) #Rotate x axis labels
   ) +
-  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 0.9), vjust = -0.5)+ # label bars with counts
-  scale_y_continuous(limits = c(0, 20))
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 0.9), vjust = -0.5) # label bars with counts
+  #scale_y_continuous(limits = c(0, 20))
 Taxa
-#dev.off()
+dev.off()
 
 
 
 Data$Specimen = paste(Data$Taxa, Data$Remain.Type)
-#tiff(paste0(LakeName, "_Test_Taxa_and_Remain_Type.tiff"), width = 14, height = 10, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Taxa_and_Remain_Type.tiff"), width = 14, height = 10, units = "in", res = 300)
 Taxa_and_Remain_Type <- ggplot(Data, aes(x = Specimen, fill = IDed.by)) +
   geom_bar(position = "dodge") +
   labs(title = "Taxa and Remain Type", y = "Count", x = "Taxa and Remain Type") +
@@ -76,10 +76,10 @@ Taxa_and_Remain_Type <- ggplot(Data, aes(x = Specimen, fill = IDed.by)) +
     axis.line = element_line(color = "black"), # Add axis lines
     axis.text.x = element_text(angle = 80, hjust = 1) #Rotate x axis labels
   ) +
-  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 0.9), vjust = -0.5)+
-  scale_y_continuous(limits = c(0, 20))
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 0.9), vjust = -0.5)
+  #scale_y_continuous(limits = c(0, 20))
 Taxa_and_Remain_Type
-#dev.off()
+dev.off()
 
 #-------------------------------------------------------------------------------------------------------
 #PLOT OUR LENGTHS OF THE THINGS WE MEASURED TO COMPARE THOSE
@@ -105,7 +105,7 @@ Carapaces <- Data %>%
 
 
 #now plot them
-#tiff(paste0(LakeName, "_Test_Antennule_Length.tiff"), width = 10, height = 4.5, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Antennule_Length.tiff"), width = 10, height = 4.5, units = "in", res = 300)
 Antennule_Length <- ggplot(Bosminid_Headshields, aes(x = Attenule.Length..µm. , fill = IDed.by)) +
   geom_histogram(position = "dodge", binwidth = 10) +
   labs(title = "Antennule Length", y = "Count", x = "Antennule Length (µm)") +
@@ -117,12 +117,12 @@ Antennule_Length <- ggplot(Bosminid_Headshields, aes(x = Attenule.Length..µm. ,
     axis.text.x = element_text(angle = 60, hjust = 1), #Rotate x axis labels
     panel.border = element_rect(color = "black", fill = NA) #gives panels an outline
   ) +
-  geom_text(stat = "bin", binwidth = 10, aes(label = ifelse(..count.. > 0, round((..xmax.. + ..xmin..) / 2, 0), ""), y = ..count..), position = position_dodge(width = 0.5), vjust = -0, angle = 60)+ #label bars with x values (bin midpoint)
-  scale_y_continuous(limits = c(0, 2.1))
+  geom_text(stat = "bin", binwidth = 10, aes(label = ifelse(..count.. > 0, round((..xmax.. + ..xmin..) / 2, 0), ""), y = ..count..), position = position_dodge(width = 0.5), vjust = -0, angle = 60) #label bars with x values (bin midpoint)
+  #scale_y_continuous(limits = c(0, 2.1))
 Antennule_Length
-#dev.off()
+dev.off()
 
-#tiff(paste0(LakeName, "_Test_Antennule_Segments.tiff"), width = 10, height = 4.5, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Antennule_Segments.tiff"), width = 10, height = 4.5, units = "in", res = 300)
 Antennule_Segments <- ggplot(Bosminid_Headshields, aes(x = Antennule.Segments , fill = IDed.by)) +
   geom_histogram(position = "dodge", binwidth = 1) +
   labs(title = "Antennule Segments", y = "Count", x = "Antennule Segments (count)") +
@@ -134,12 +134,12 @@ Antennule_Segments <- ggplot(Bosminid_Headshields, aes(x = Antennule.Segments , 
     axis.text.x = element_text(angle = 60, hjust = 1), #Rotate x axis labels
     panel.border = element_rect(color = "black", fill = NA) #gives panels an outline
   ) +
-  geom_text(stat = "bin", binwidth = 1, aes(label = ifelse(..count.. > 0, round((..xmax.. + ..xmin..) / 2, 0), ""), y = ..count..), position = position_dodge(width = 0.9), vjust = -0.5)+ #label bars with x values (bin midpoint)
-  scale_y_continuous(limits = c(0, 2.1))
+  geom_text(stat = "bin", binwidth = 1, aes(label = ifelse(..count.. > 0, round((..xmax.. + ..xmin..) / 2, 0), ""), y = ..count..), position = position_dodge(width = 0.9), vjust = -0.5) #label bars with x values (bin midpoint)
+  #scale_y_continuous(limits = c(0, 2.1))
 Antennule_Segments
-#dev.off()
+dev.off()
 
-#tiff(paste0(LakeName, "_Test_Mucro_Length.tiff"), width = 10, height = 4.5, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Mucro_Length.tiff"), width = 10, height = 4.5, units = "in", res = 300)
 Mucro_Length <- ggplot(Mucros, aes(x = Mucro.linear.Length..µm. , fill = IDed.by)) +
   geom_histogram(position = "dodge", binwidth = 5) +
   labs(title = "Mucro Length", y = "Count", x = "Mucro Length (µm)") +
@@ -151,12 +151,12 @@ Mucro_Length <- ggplot(Mucros, aes(x = Mucro.linear.Length..µm. , fill = IDed.b
     axis.text.x = element_text(angle = 60, hjust = 1), #Rotate x axis labels
     panel.border = element_rect(color = "black", fill = NA) #gives panels an outline
   ) +
-  geom_text(stat = "bin", binwidth = 5, aes(label = ifelse(..count.. > 0, round((..xmax.. + ..xmin..) / 2, 0), ""), y = ..count..), position = position_dodge(width = 0.9), vjust = -0.5)+ #label bars with x values (bin midpoint)
-  scale_y_continuous(limits = c(0, 4.1))
+  geom_text(stat = "bin", binwidth = 5, aes(label = ifelse(..count.. > 0, round((..xmax.. + ..xmin..) / 2, 0), ""), y = ..count..), position = position_dodge(width = 0.9), vjust = -0.5) #label bars with x values (bin midpoint)
+  #scale_y_continuous(limits = c(0, 4.1))
 Mucro_Length
-#dev.off()
+dev.off()
 
-#tiff(paste0(LakeName, "_Test_Mucro_Segments.tiff"), width = 10, height = 4.5, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Mucro_Segments.tiff"), width = 10, height = 4.5, units = "in", res = 300)
 Mucro_Segments <- ggplot(Mucros, aes(x = Mucro.Sutures , fill = IDed.by)) +
   geom_histogram(position = "dodge", binwidth = 1) +
   labs(title = "Mucro Segments", y = "Count", x = "Mucro Segments (count)") +
@@ -171,9 +171,9 @@ Mucro_Segments <- ggplot(Mucros, aes(x = Mucro.Sutures , fill = IDed.by)) +
   geom_text(stat = "bin", binwidth = 1, aes(label = ifelse(..count.. > 0, round((..xmax.. + ..xmin..) / 2, 0), ""), y = ..count..), position = position_dodge(width = 0.9), vjust = -0.5) #label bars with x values (bin midpoint)
   #scale_y_continuous(limits = c(0, 4.1))
 Mucro_Segments
-#dev.off()
+dev.off()
 
-#tiff(paste0(LakeName, "_Test_Carapace_Length.tiff"), width = 13, height = 6, units = "in", res = 300)
+tiff(paste0(LakeName, "_Test_Carapace_Length.tiff"), width = 13, height = 6, units = "in", res = 300)
 Carapace_Length <- ggplot(Carapaces, aes(x = Carapace.Length..µm. , fill = IDed.by)) +
   geom_histogram(position = "dodge", binwidth = 10) +
   labs(title = "Carapace Length", y = "Count", x = "Carapace Length (µm)") +
@@ -188,7 +188,7 @@ Carapace_Length <- ggplot(Carapaces, aes(x = Carapace.Length..µm. , fill = IDed
   geom_text(stat = "bin", binwidth = 10, aes(label = ifelse(..count.. > 0, round((..xmax.. + ..xmin..) / 2, 0), ""), y = ..count..), position = position_dodge(width = 0.5), vjust = -0, angle = 60) #label bars with x values (bin midpoint)
   #scale_y_continuous(limits = c(0, 2.1))
 Carapace_Length
-#dev.off()
+dev.off()
 
 
 #thoughts: I am unlikely to record anything at all if it is an unidentified fragment, while Evelyn records those often. Adele also less likely to record. No harm to data here. 
@@ -304,8 +304,8 @@ Carapace_Length
     
     
     # #export these two files
-    # write.csv(summary_stats, file = paste0(LakeName, "_Summary_Stats.csv"))
-    # write.csv(Combined_Species, file = paste0(LakeName, "_Individual_Count_by_Taxa.csv"))
+    write.csv(summary_stats, file = paste0(LakeName, "_Summary_Stats.csv"))
+    write.csv(Combined_Species, file = paste0(LakeName, "_Individual_Count_by_Taxa.csv"))
 
 
 
