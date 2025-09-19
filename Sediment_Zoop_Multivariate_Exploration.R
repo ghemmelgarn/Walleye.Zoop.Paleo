@@ -1,4 +1,4 @@
-#This file takes counts of zooplankton individuals by taxa and makes a bray-curtis dissimilarity matrix
+#This file takes counts of zooplankton individuals by taxa and makes a Hellinger-transformed NMDS dissimilarity matrix
 
 #packages
 library(tidyverse)
