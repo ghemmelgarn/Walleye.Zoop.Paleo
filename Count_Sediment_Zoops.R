@@ -37,8 +37,8 @@ Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus u
                                                                          ifelse(Sed_Data$Taxa == "Chydorinae (sp. unsure)", "Chydorinae",
                                                                                 ifelse(Sed_Data$Taxa == "Camptocercus sp. (use for carapace)", "Camptocercus sp.",
                                                                                        ifelse(Sed_Data$Taxa == "Alona sp. (use for carapace)", "Alona sp.",
-                                                                                              ifelse(Sed_Data$Taxa == "Alona quadrangularis (use for anything except carapace)", "Alona quadrangularis",
-                                                                                                     ifelse(Sed_Data$Taxa == "Alona circumfimbriata, guttata, or setulosa  (use for anything exept carapace)", "Alona circumfimbriata, guttata, or setulosa",
+                                                                                              ifelse((Sed_Data$Taxa == "Alona quadrangularis (use for anything except carapace)"|Sed_Data$Taxa == "Alona quadrangularis (use for anythine except carapace))"), "Alona quadrangularis",
+                                                                                                     ifelse((Sed_Data$Taxa == "Alona circumfimbriata, guttata, or setulosa  (use for anything exept carapace)"|Sed_Data$Taxa == "Alona circumfimbriata, guttata, or setulosa (headshield)"), "Alona circumfimbriata, guttata, or setulosa",
                                                                                                             ifelse(Sed_Data$Taxa == "Camptocercus or Acroperus (use for headshield)", "Camptocercus sp. or Acroperus sp.",
                                                                                                                    ifelse(Sed_Data$Taxa == "Aloninae (sp. unsure)", "Aloninae",
                                                                                                                           ifelse(Sed_Data$Taxa == "Holopedium sp. or Sida crystallina americana (postabdomen)", "Holopedium sp. or Sida crystallina americana",
@@ -48,7 +48,7 @@ Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus u
                                                                                                                                                           ifelse(Sed_Data$Taxa == "Holopedium sp. (use for postabdominal CLAW)", "Holopedium sp.",
                                                                                                                                                                  ifelse(Sed_Data$Taxa == "Alona rustica (use for anything exept carapace)", "Alona rustica",
                                                                                                                                                                         ifelse(Sed_Data$Taxa == "Alona intermedia (use for anything exept carapace)", "Alona intermedia",
-                                                                                                                                                                               ifelse(Sed_Data$Taxa == "Alona costata (use for anything exept carapace)", "Alona costata", Sed_Data$Taxa)))))))))))))))))))))))
+                                                                                                                                                                               ifelse((Sed_Data$Taxa == "Alona costata (use for anything exept carapace)"|Sed_Data$Taxa == "Alona costata (headshield)"), "Alona costata", Sed_Data$Taxa)))))))))))))))))))))))
 
 
 #Now remove remains that are not useful for counting: Unidentifiable, not zoops, yet to be checked for ID, or NA values, also remove NA values for LakeName or Remain.Type
