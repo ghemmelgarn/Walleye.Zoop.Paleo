@@ -1314,7 +1314,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                 stop(paste("Error: Proportions do not sum to 1 in sample:", i))
               }   
               #create a logical vector of the rows you want to reassign, need to specifically say that LakeName = i so it only selects for the correct lake
-              reassign <- (Sed_Data_Reassigned$Remain.Type == "Postabdominal Claw") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i)
+              reassign <- ((Sed_Data_Reassigned$Remain.Type == "Postabdominal Claw" | Sed_Data_Reassigned$Remain.Type == "Postabdomen (no claw)") & (Sed_Data_Reassigned$Taxa == "Bosminid") & (Sed_Data_Reassigned$LakeName == i))
               
               #sample from distribution and reassign the taxa only in the rows you selected above, when this taxa is present and proportions could be made
               #if there are none of the specified taxa in that sample, the proportions will all be 0 and you will get an error, so adding an if statement solves that
