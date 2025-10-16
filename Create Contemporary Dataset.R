@@ -5,8 +5,7 @@
 #___________________________________________________________________________________
 
 #Starts with inclusion table created in "1a Read in Fish Data" - includes lakes with exact match for fish/zoop sampling years AND all core lakes
-#Formats and joins mean summer secchi, water temp (degree days), and area data (with lake coordinates) which are downloaded and calculated in other R scripts
-
+#Formats and joins all covariates as detailed in the outline of thesis methods document
 
 #Adds fish data for all species
 #Downloads and joins invasive species information (zebra mussels and Bythotrephes only) from DNR infested waters list
@@ -29,6 +28,8 @@ library(readr)
 library(dplyr)
 library(vegan)
 library(tidyr)
+library(sf) #to read in .gpkg files
+library(stringr)
 
 #Starting inclusion table known issues:
 #Inclusive to all potential data that may or may not be used due to various issues
@@ -157,7 +158,7 @@ rm(temp_parentdow,
 
 
 
-#PRODUCTIVITY DATA ------------------------------------------------------------------------------------------------------
+#SECCHI DATA FROM MPCA ------------------------------------------------------------------------------------------------------
 
 #import all water quality data pulled from WQP in December 2024 plus the .csv file the DNR gave Denver (idk when exactly)
 secchi.data <- read.csv("Data/Input/All_Secchi_Data_WQP_DNR.csv")
@@ -219,6 +220,122 @@ rm(secchi.data,
 
 
 
+
+#READ IN ALL REMOTE SENSED DATA FROM LAKEBROWSER--------------------------------------------------------------------------------------------
+
+#read in data
+RS <- st_read("Data/Input/Minnesota Lake Water Quality 2017-2024.gpkg")
+#I checked that there is only one layer so don't need to specify
+
+#remove geometry aspects of this file
+RS.nogeom <- st_drop_geometry(RS)
+#now it is a regular dataframe
+
+#remove unnecessary identifiers and lake information, rename DOW and LakeName columns, and remove summarized data we don't want to deal with (the other time frames)
+#also get rid of any lakes without a DOW number - these won't have matchable fish surveys anyways
+RS.clean <- RS.nogeom %>% 
+  select(-MN_LK_NUM, -unmlknum, -umnlknum_o, -PWI_CLASS, -AREA_BASIN, -WETTYPE, -X_UTM, -Y_UTM, -PolyAcres, -US_L3CODE, -US_L3NAME, -Unnamed..73) %>% 
+  rename(DOW = dowlknum_1,
+        LakeName = RNAME_1
+        ) %>% 
+  select(-ends_with("0720_0920"), -ends_with("0726_0824")) %>% 
+  #also fix a naming issue for all metrics in june, july, august of 2022
+  rename(
+    SD_202206 = SD_202SD_206,
+    SD_202207 = SD_202SD_207,
+    SD_202208 = SD_202SD_208,
+    CL_202206 = CL_202CL_206,
+    CL_202207 = CL_202CL_207,
+    CL_202208 = CL_202CL_208,
+    a440_202206 = a440_202a440_206,
+    a440_202207 = a440_202a440_207,
+    a440_202208 = a440_202a440_208
+  ) %>% 
+  filter(!is.na(DOW))
+
+
+
+#I need to get this into rows for each lake-year
+#step 1 = pivot longer
+RS.long <- RS.clean %>% 
+  pivot_longer(
+    cols = c(-DOW, -LakeName),
+    names_to = "Data",
+    values_to = "Value"
+  )
+
+
+#Create separate columns for datatype, year, and month,
+RS.long <- RS.long %>% 
+  #separate data type
+  separate(
+    Data,
+    into = c("DataType", "Date"),
+    sep = "_", #split on underscore
+    extra = "merge" #gets everything to the right of first underscore, including other underscores
+  ) %>% 
+  #separate year and month
+  separate(
+    Date,
+    into = c("Year", "Month"),
+    sep = "(?<=^.{4})",   # split after the first 4 characters
+    fill = "right" #puts everything else into the other column
+  )
+  
+
+#now pivot it back wider so we have a row for each lake-year-datatype
+RS.year <- RS.long %>% 
+  pivot_wider(
+    names_from = Month,
+    values_from = Value,
+    values_fn = mean #when there are multiple observations for a single dow/lakename combo, this takes the mean of them (they were just sampled at a sub-basin scale)
+  )
+
+# #see if I can calculate an equivalent mean 
+# RS.year$JunSeptTest <- (RS.year$`06`+ RS.year$`07`+ RS.year$`08`+ RS.year$`09`)/4
+# #THESE ARE NOT THE SAME - BECAUSE IM SURE SAMPLE SIZE WITHIN EACH MONTH IS NOT CONSISTENT
+# #ALSO THERE ARE MANY MONTHS THAT ARE MISSING DATA - AND THEY REPORT THE SUMMER MEAN ANYWAYS EVEN IF ONLY ONE MONTH OF DATA
+# #I need to look into how much data is enough to predict the total summer average
+# #START HERE DOING CORRELATION TO TEST THIS OUT FOR LAKE-YEARS WITH ALL THE DATA
+# 
+# #I WILL USE THE SUMMER AVERAGE THEY REPORT, BUT I WILL RESTRICT TO LAKE-YEARS WITH WHAT I DETERMINE TO BE SUFFICIENT DATA
+
+#filter out only lake-years with all data in all 4 summer months and remove May and October data
+RS.test.data <- RS.year %>% 
+  filter(!is.na(`06`) & !is.na(`07`) & !is.na(`08`) & !is.na(`09`)) %>% 
+  select(-`05`, -`10`)
+
+#create separate data frames for SD, CL, and CDOM
+SD.test.data <- RS.test.data %>% 
+  filter(DataType == "SD")
+
+CL.test.data <- RS.test.data %>% 
+  filter(DataType == "CL")
+
+CDOM.test.data <- RS.test.data %>% 
+  filter(DataType == "a440")
+
+#do correlations of the individual months vs. summer mean for secchi data:
+
+
+
+#do correlations of the individual months vs. summer mean for chl-a data:
+
+
+
+#do correlations of the individual months vs. summer mean for CDOM data:
+
+
+
+  
+
+#KEEPING THIS CODE IN CASE I NEED IT LATER:
+#mash datatype and month back together
+mutate(DataMonth = paste(DataType, Month, sep = "_"))
+
+
+
+#REMOTE SENSED CHLOROPYLL-A DATA ------------------------------------------------------------------------------------------
 
 
 
