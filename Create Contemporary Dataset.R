@@ -30,6 +30,7 @@ library(vegan)
 library(tidyr)
 library(sf) #to read in .gpkg files
 library(stringr)
+library(gridExtra) #to export multiple plots together as .tiff files
 
 #Starting inclusion table known issues:
 #Inclusive to all potential data that may or may not be used due to various issues
@@ -316,164 +317,213 @@ CDOM.test.data <- RS.test.data %>%
   filter(DataType == "a440")
 
 #do correlations of the individual months vs. summer mean for secchi data:
+SD_June_cor <- cor(SD.test.data$`06`, SD.test.data$`0601_0930`)
+
 SD_June <- ggplot(data = SD.test.data, aes(x = `06`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 2, y = 7.5, label = paste("r^2 = ",round(SD_June_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "Secchi June vs. Summer Summary", y = "Summer Summary", x = "June") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-SD_June
 
-SD_June_cor <- cor(SD.test.data$`06`, SD.test.data$`0601_0930`)
 
+SD_July_cor <- cor(SD.test.data$`07`, SD.test.data$`0601_0930`)
 
 SD_July <- ggplot(data = SD.test.data, aes(x = `07`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 2, y = 7.5, label = paste("r^2 = ",round(SD_July_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "Secchi July vs. Summer Summary", y = "Summer Summary", x = "July") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-SD_July
 
-SD_July_cor <- cor(SD.test.data$`07`, SD.test.data$`0601_0930`)
 
+SD_Aug_cor <- cor(SD.test.data$`08`, SD.test.data$`0601_0930`)
 
 SD_Aug <- ggplot(data = SD.test.data, aes(x = `08`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 2, y = 7.5, label = paste("r^2 = ",round(SD_Aug_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "Secchi August vs. Summer Summary", y = "Summer Summary", x = "August") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-SD_Aug
 
-SD_Aug_cor <- cor(SD.test.data$`08`, SD.test.data$`0601_0930`)
 
+SD_Sept_cor <- cor(SD.test.data$`09`, SD.test.data$`0601_0930`)
 
 SD_Sept <- ggplot(data = SD.test.data, aes(x = `09`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 2, y = 7.5, label = paste("r^2 = ",round(SD_Sept_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "Secchi September vs. Summer Summary", y = "Summer Summary", x = "September") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-SD_Sept
 
-SD_Sept_cor <- cor(SD.test.data$`09`, SD.test.data$`0601_0930`)
 
 
 #do correlations of the individual months vs. summer mean for chl-a data:
 
+CL_June_cor <- cor(CL.test.data$`06`, CL.test.data$`0601_0930`)
+
 CL_June <- ggplot(data = CL.test.data, aes(x = `06`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 50, y = 450, label = paste("r^2 = ",round(CL_June_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "Chlorophyll-a June vs. Summer Summary", y = "Summer Summary", x = "June") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-CL_June
 
-CL_June_cor <- cor(CL.test.data$`06`, CL.test.data$`0601_0930`)
 
+
+CL_July_cor <- cor(CL.test.data$`07`, CL.test.data$`0601_0930`)
 
 CL_July <- ggplot(data = CL.test.data, aes(x = `07`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 50, y = 450, label = paste("r^2 = ",round(CL_July_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "Chlorophyll-a July vs. Summer Summary", y = "Summer Summary", x = "July") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-CL_July
 
-CL_July_cor <- cor(CL.test.data$`07`, CL.test.data$`0601_0930`)
 
+
+CL_Aug_cor <- cor(CL.test.data$`08`, CL.test.data$`0601_0930`)
 
 CL_Aug <- ggplot(data = CL.test.data, aes(x = `08`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 100, y = 450, label = paste("r^2 = ",round(CL_Aug_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "Chlorophyll-a August vs. Summer Summary", y = "Summer Summary", x = "August") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-CL_Aug
 
-CL_Aug_cor <- cor(CL.test.data$`08`, CL.test.data$`0601_0930`)
 
+
+CL_Sept_cor <- cor(CL.test.data$`09`, CL.test.data$`0601_0930`)
 
 CL_Sept <- ggplot(data = CL.test.data, aes(x = `09`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 100, y = 450, label = paste("r^2 = ",round(CL_Sept_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "Chlorophyll-a September vs. Summer Summary", y = "Summer Summary", x = "September") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-CL_Sept
 
-CL_Sept_cor <- cor(CL.test.data$`09`, CL.test.data$`0601_0930`)
+
 
 #do correlations of the individual months vs. summer mean for CDOM data:
 
+CDOM_June_cor <- cor(CDOM.test.data$`06`, CDOM.test.data$`0601_0930`)
+
 CDOM_June <- ggplot(data = CDOM.test.data, aes(x = `06`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 5, y = 27, label = paste("r^2 = ",round(CDOM_June_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "CDOM June vs. Summer Summary", y = "Summer Summary", x = "June") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-CDOM_June
 
-CDOM_June_cor <- cor(CDOM.test.data$`06`, CDOM.test.data$`0601_0930`)
 
+
+CDOM_July_cor <- cor(CDOM.test.data$`07`, CDOM.test.data$`0601_0930`)
 
 CDOM_July <- ggplot(data = CDOM.test.data, aes(x = `07`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 5, y = 27, label = paste("r^2 = ",round(CDOM_July_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "CDOM July vs. Summer Summary", y = "Summer Summary", x = "July") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-CDOM_July
 
-CDOM_July_cor <- cor(CDOM.test.data$`07`, CDOM.test.data$`0601_0930`)
 
+CDOM_Aug_cor <- cor(CDOM.test.data$`08`, CDOM.test.data$`0601_0930`)
 
 CDOM_Aug <- ggplot(data = CDOM.test.data, aes(x = `08`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 5, y = 27, label = paste("r^2 = ",round(CDOM_Aug_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "CDOM August vs. Summer Summary", y = "Summer Summary", x = "August") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-CDOM_Aug
 
-CDOM_Aug_cor <- cor(CDOM.test.data$`08`, CDOM.test.data$`0601_0930`)
 
+CDOM_Sept_cor <- cor(CDOM.test.data$`09`, CDOM.test.data$`0601_0930`)
 
 CDOM_Sept <- ggplot(data = CDOM.test.data, aes(x = `09`, y = `0601_0930`)) +
   geom_point()+
+  annotate("text", x = 5, y = 27, label = paste("r^2 = ",round(CDOM_Sept_cor,3)), size = 5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 1) +
   labs(title = "CDOM September vs. Summer Summary", y = "Summer Summary", x = "September") +
   theme(
     panel.background = element_blank(),  # Remove panel background
     plot.background = element_blank(),    # Remove plot background
     axis.line = element_line(color = "black"), # Add axis lines
   ) 
-CDOM_Sept
 
-CDOM_Sept_cor <- cor(CDOM.test.data$`09`, CDOM.test.data$`0601_0930`)
 
+
+#let's make a summary figure for each variable that I can export and easily view:
+
+#tiff("Remote_Sensed_Clarity_Month_vs_Avg.tiff", width = 10, height = 10, units = "in", res = 300)
+grid.arrange(SD_June,
+             SD_July,
+             SD_Aug,
+             SD_Sept,
+             ncol=2, nrow=2
+)
+#dev.off()
+
+#tiff("Remote_Sensed_Chla_Month_vs_Avg.tiff", width = 10, height = 10, units = "in", res = 300)
+grid.arrange(CL_June,
+             CL_July,
+             CL_Aug,
+             CL_Sept,
+             ncol=2, nrow=2
+)
+#dev.off()
+
+#tiff("Remote_Sensed_CDOM_Month_vs_Avg.tiff", width = 10, height = 10, units = "in", res = 300)
+grid.arrange(CDOM_June,
+             CDOM_July,
+             CDOM_Aug,
+             CDOM_Sept,
+             ncol=2, nrow=2
+)
+#dev.off()
   
 
 #KEEPING THIS CODE IN CASE I NEED IT LATER:
