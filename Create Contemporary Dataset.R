@@ -225,6 +225,7 @@ rm(secchi.data,
 
 #REMOTE SENSED DATA FROM LAKEBROWSER (Clarity, Chl-a, CDOM) --------------------------------------------------------------------------------------------
 
+
 #read in data (2017-2024)
 RS <- st_read("Data/Input/Minnesota Lake Water Quality 2017-2024.gpkg")
 #I checked that there is only one layer so don't need to specify
@@ -389,41 +390,146 @@ rm(RS, RS.clean, RS.long, RS.nogeom, RS.summer, RS.year, CL.CDOM.avg, CL.CDOM.ye
 
 
 
+#------------------------------------------------------------------------------------------------------------------
+#LAGOS LOCUS DATA: Lake surface area, centroid coordinates, elevation, shoreline development factor, drainage connectivity ------------------------------------------------
+#these data summarized to lake level, but not lake-year because they should be consistent over the years of my study
 
 
-#LAKE AREA DATA - also brings coordinates  ----------------------------------------------------------
+#read in both .csv files
+Locus.info <- read.csv("Data/Input/lake_information.csv")
+Locus.char <- read.csv("Data/Input/lake_characteristics.csv")
+#good they are the same length
 
-#first need to import lake area data because they took it out of the fish database :(
-lake.area <- read.csv("Data/Input/Copy of Copy of mn_lake_list.csv")
+#filter the info file to only lakes that are at least partically in Minnesota to make it smaller, then delete the behemoth file
+Locus.info.MN <- Locus.info %>% 
+  filter(str_detect(lake_states, "MN"))
 
-#isolate and rename columns from area data
-lake.area.select <- lake.area %>% 
-  select(LAKE_NAME, DOW_NBR_PRIMARY, LAKE_AREA_GIS_ACRES, LAKE_CENTER_LAT_DD5, LAKE_CENTER_LONG_DD5) %>% 
-  rename(parentdow = DOW_NBR_PRIMARY, lake.area.acres = LAKE_AREA_GIS_ACRES, lake.center.lat.dds = LAKE_CENTER_LAT_DD5, lake.center.long.dds = LAKE_CENTER_LONG_DD5)
+rm(Locus.info)
 
+#select only the columns you want from both dataframes
+#also keeping a bunch of flags (for lakes that cross an international border or have a shape that shows they may be riverine)
+Locus.info.select <- Locus.info.MN %>% 
+  select(lagoslakeid,
+         lake_nhdid,
+         lake_namelagos,
+         lake_onlandborder,
+         lake_shapeflag,
+         lake_lat_decdeg,
+         lake_lon_decdeg,
+         lake_elevation_m
+         )
+                  
+Locus.char.select <- Locus.char %>% 
+  select(lagoslakeid,
+         lake_waterarea_ha,
+         lake_shorelinedevfactor, #This is "calculated as lake_perimeter_m divided by the product of 2 times the square root of pi times lake_waterarea_ha"
+         lake_connectivity_class #This includes both perennial and intermittent-ephemeral flow
+         )
 
-#join to the rest of the preliminary data
-Data_c <- left_join(Data_b, lake.area.select, by = "parentdow")
-
-#remove some duplicates created with the parentdows
-Data_c <- Data_c %>% 
-  filter(LAKE_NAME != "Piepenburg Park Pond" & LAKE_NAME != "Lake of the Woods(4 Mi B)")
-
-#remove redundant lake name column
-Data_c <- Data_c %>% 
-  select(-LAKE_NAME)
-
-
+#Join the characteristics data to the info data so it only preserves lakes in the info dataset, which means it will only have Minnesota lakes
+Locus.all <- left_join(Locus.info.select, Locus.char.select, by = "lagoslakeid")
+                  
+                  
 #remove unneeded intermediate data frames to keep environment clean
-rm(lake.area,
-   lake.area.select
-)
+rm(Locus.char,
+   Locus.char.select,
+   Locus.info.MN,
+   Locus.info.select
+   )
 
 
 
 
+#LAGOS DEPTH DATA: Max depth and Mean depth----------------------------------------------------------------------------------------------
+#mean depth not available for all, but worth seeing how many lakes have it
+
+#read in data
+Depth <- read.csv("Data/Input/lake_depth.csv")
+
+#filter to just MN lakes
+Depth.MN <- Depth %>% 
+  filter(str_detect(lake_states, "MN"))
+
+#select just the columns you want
+Depth.select <- Depth.MN %>% 
+  select(lagoslakeid,
+         lake_maxdepth_m,
+         lake_meandepth_m)
+
+#join to Locus data
+Locus.Depth <- full_join(Locus.all, Depth.select, by = "lagoslakeid")
+
+#remove intermediary dataframes
+rm(Depth.MN, Depth.select, Depth)
 
 
+#LAGOS LIMNO DATA: Conductivity--------------------------------------------------------------------------------
+
+#read in data
+Limno <- read.csv("Data/Input/chemistry_limno.csv")
+
+#filter to just conductivity data
+Cond <- Limno %>% 
+  filter(parameter_name == "spcond_uscm")
+
+#filter to just MN lakes
+Cond.MN <- Cond %>% 
+  filter(str_detect(sample_id, "MN"))
+
+#where is this data coming from?
+table(Cond.MN$source_id)
+#mostly MPCA, Red Lake, and USGS
+
+#CHECK FOR VARIOUS FLAGS:
+
+          # #0 values
+          # zero.test <- Cond.MN %>% 
+          #   filter(parameter_value == 0)
+          # 
+          # LE6.test <- Cond.MN %>% 
+          #   filter(censorcode == "LE6")
+          # #so all these 0 values have the same censor code of LE6 which means "parameter_value equals 0; detection limit value missing and neither qualifier nor comments provided"
+          # #let's remove these values
+          # 
+          # 
+          # #negative values
+          # neg.test <- Cond.MN %>% 
+          #   filter(parameter_value < 0)
+          # #no negative values present
+          # 
+          # 
+          # #censor code flags related to analytical detection limit
+          # table(Cond.MN$censorcode)
+          # #already dealt with LE6
+          # #LE5 = "parameter_value is missing; detection limit present" - REMOVE THIS ONE OBSERVATION
+          # #NC2 = "parameter_value greater than the parameter_detectionlimit_value, detection limit value provided; neither qualifier or comments provided"
+          #     #this is because detection limits are almost never specified and when they are specified they are ridiculously low
+          #     #IGNORE THIS FLAG
+          # #NC4 = "parameter_detectionlimit_value is missing; neither qualifier or comments provided"
+          #     #this is the majority of my observations
+          #     #IGNORE THIS FLAG
+          # 
+          # 
+          # #not worried about depth flags because depth isn't super important for conductivity - everything is specified anyways
+
+#filter out the data you decided you can't include
+Cond.clean <- Cond.MN %>% 
+  filter(censorcode != "LE6" & censorcode != "LE5")
+
+#first need to isolate year
+Cond.clean$year <- substr(Cond.clean$sample_date, 1, 4)
+
+#take a mean conductivity for each year
+Cond.mean <- Cond.clean %>%
+  group_by(lagoslakeid, year) %>%
+  summarize(cond_uscm = mean(parameter_value), .groups = 'drop')
+
+#remvoe intermediate dataframes
+rm(Cond, Cond.clean, Cond.MN)
+
+
+#this is now formatted as lake-year
+#Need to match lagoslakeid to parent DOW, but other than that it should be ready to join
 
 
 #FISH CPUE JOIN - ALL THE FISH and nhdhr-id :))))) ----------------------------------------------------------------
