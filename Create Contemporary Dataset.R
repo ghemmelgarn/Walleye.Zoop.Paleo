@@ -456,11 +456,17 @@ Depth.select <- Depth.MN %>%
          lake_maxdepth_m,
          lake_meandepth_m)
 
+#rename to specify I got these depths from lagos
+Depth.select.named <- Depth.select %>% 
+  rename(lagos_lake_maxdepth_m = lake_maxdepth_m,
+         lagos_lake_meandepth_m = lake_meandepth_m)
+  
+
 #join to Locus data
-Locus.Depth <- full_join(Locus.all, Depth.select, by = "lagoslakeid")
+Locus.Depth <- full_join(Locus.all, Depth.select.named, by = "lagoslakeid")
 
 #remove intermediary dataframes
-rm(Depth.MN, Depth.select, Depth)
+rm(Depth.MN, Depth.select, Depth, Depth.select.named)
 
 
 #LAGOS LIMNO DATA: Conductivity--------------------------------------------------------------------------------
