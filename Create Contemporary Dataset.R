@@ -652,6 +652,8 @@ zoop_summer_month_combo <- left_join(zoop_summer,  zoop_summer_month_all, by = "
 zoop_good_effort <- zoop_summer_month_combo %>% 
   filter(Zoop.Month.Count >= 5)
 
+#example 
+
 #clean up zooplankton taxonomy
 #check species present
 unique(zoop_good_effort$species)
