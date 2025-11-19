@@ -1,6 +1,6 @@
 #this script downloads fish data and creates a "raw" fish data csv file called FishData.csv
 #determines which surveys have gear and sufficient effort to use the fish data
-#this also pulls out the nhdid, coordinates, and area for all the exact match lakes - at end of script - NOT USING ANYMORE
+#this also pulls out the nhdid for the exact match lakes - at end of script
 
 
 library(lubridate)
@@ -8,23 +8,14 @@ library(arrow)
 library(data.table)
 library(tidyverse)
 
-#this finds the minnesota arrow file that contains all the Minnesota fish data - update when it's time for the real analysis
-all_data <- open_dataset("G:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Fish Survey Data/Parquet files/hive_update", partitioning = c("state"))
-#partitioning tells arrow that the parquet are separated by state
+#this finds the minnesota arrow file that contains all the Minnesota fish data - this is what Denver updated in Nov 2025, only has MN data
+mn_data <- open_dataset("E:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Fish Survey Data/Parquet files/mn_update/part-0.parquet")
 
 #the elf returns with info on the data similar to a str function
-glimpse(all_data)
-
-#filter out just Minnesota data
-mn_data <- all_data %>%
-  filter(state == "Minnesota")
 glimpse(mn_data)
 
 #compute function within arrow tells you how big the subset is and what it would be returning - good idea to use first to see if it will crash compu
 #collect function actually brings the data into R 
-
-#remove all_data file to keep environment clean
-rm(all_data)
 
 #filtering join takes a filter table and tells R to filter out the records that match the table
 #I want to only include the lake/years that I have matching fish/zoop data for - my filter table will contain these years
@@ -50,7 +41,7 @@ rm(all_data)
 # Minnesota ---------------------------------------------------------------
 
 #within each sampling method, this will a return a count of the number of fish caught
-#includes the sampling methods at the three differnt levels of detail
+#includes the sampling methods at the three different levels of detail
 #collect brings the information from the count into R
 #arranges puts it in order by a certain group
 #print here tells it to give me all the rows instead of just the first 10
@@ -66,48 +57,100 @@ mn_data %>%
 
 #looking at all MN survey types
 mn_data %>% 
-  distinct(survey_type, survey_type_2) %>%
+  distinct(survey_type) %>%
   collect() %>% arrange(survey_type) %>% print(n=nrow(.))
 
-#read initial fish inclusion table and remove unnecessary columns
-incl.table <- read.csv("Data/Input/Fish Inclusion Table.csv")%>%
-  select(-ZoopYear)%>%
-  select(-ZoopTows)%>%
-  select(-ZoopMonths)%>%
-  select(-FishGear)%>%
-  #select(-Chosen.for.analysis.)%>%
-  select(-Notes)%>%
-  select(-parentdow.zoop.year)
 
-#filter only rows with exact fish/zoop year match
-incl.table <-incl.table %>% 
-  filter(Match == "Exact")
-
-#Add rows for each gravity core lake/year - based on FISH data year, not zoop year
-#want these in the inclusion table, will eventually get data filled in
-#read in .csv file I created manually in excel with the info on the core lakes (full and gravity)
-core.incl.table <- read.csv("Data/Input/Core.lake.inclusion.table.csv")
-#calculate parentdow.fish.year column
-core.incl.table$parentdow.fish.year = paste(core.incl.table$parentdow, core.incl.table$year)
-
-#combine the core lake rows to the original inclusion table
-#first check column names are same
-names(core.incl.table) <- names(incl.table)
-incl.table <- rbind(incl.table, core.incl.table)
+#first find the surveys that are good, will make inclusion table with zoop info, then I will go back for the fish later
+#filter out just the gear I want: standard, shallow, and deep gillnets
+#included one special assessment for White Iron lake - I vetted this and ok to use, was a standard assessment combined with other things too I am just using standard assessment part
+#targeted surveys are acceptable for the specific lakes I specify below that I individually investigated
+#other specific lake things to clean up:
+    #47004600 had a targeted survey in 2020 that I want, a standard survey in 2019 that I want, and a targeted survey in 2019 that I don't want, so I specified the year I want targeted surveys from this lake
+#takes the distinct columns from the mn_data
+#glimpse at end shows me if it did what I wanted
 
 
-#rename dow and year columns to match fish database
-#leading zeros not in either data frame so that should be okay
-incl.table <- incl.table %>%   
-  rename(lake_id = DOW)%>%
-  rename(year = FishYear)
-  
-incl.table <- incl.table %>% 
-  mutate(lake_id = as.character(lake_id))%>% 
-  mutate(year = as.double(year))
+good.fish.surveys <- mn_data %>%
+  filter((sampling_method == "gill_net_standard" |
+            sampling_method == "gill_net_stratified_deep" |
+            sampling_method =="gill_net_stratified_shallow" ) &
+           (survey_type == "Standard Survey" |
+              survey_type == "HISTORICAL"|
+              survey_type == "Population Assessment"|
+              survey_type == "Re-Survey"|
+              survey_type == "Large Lake Survey"|
+              survey_type == "Initial Survey" |
+              survey_type == "Special Assessment" | #will individually investigate if I can use these special assessments IF they match to zoop data
+              survey_type == "Targeted Survey")) %>% #will individually investigate if I can use these targeted surveys IF they match to zoop data
+  distinct(lake_id,
+           lake_name,
+           year,
+           total_effort_ident,
+           total_effort_1,
+           sampling_method_simple,
+           sampling_method,
+           survey_type,
+           nhdhr_id,
+           flag) %>%
+  collect()
+#collect actually brings data into R
 
-#remove row 336 (it's blank with an NA)
-incl.table <- incl.table[-336,]
+
+#SAVING THIS CODE - these are the special surveys I decided were okay way back when, but may need to investigate more now:
+# (survey_type == "Special Assessment" & lake_id == 69000400) |
+#   (survey_type == "Special Assessment" & lake_id == 69025400) |
+#   (survey_type == "Targeted Survey" & lake_id == 3057600) |
+#   (survey_type == "Targeted Survey" & lake_id == 11041500) |
+#   (survey_type == "Targeted Survey" & lake_id == 13002700)|
+#   (survey_type == "Targeted Survey" & lake_id == 18030800) |
+#   (survey_type == "Targeted Survey" & lake_id == 38039300) |
+#   (survey_type == "Targeted Survey" & lake_id == 47004600 & year == 2020) |
+#   (survey_type == "Targeted Survey" & lake_id == 47006800) |
+#   (survey_type == "Targeted Survey" & lake_id == 69025400))) 
+
+
+
+#NOT DOING THIS ANYMORE - GOING TO COLLECT A LIST OF ALL GOOD FISH SURVEYS, MATCH THAT TO ZOOP SURVEYS, AND GET AN INCLUSION TABLE FROM THERE
+# #read initial fish inclusion table and remove unnecessary columns
+# incl.table <- read.csv("Data/Input/Fish Inclusion Table.csv")%>%
+#   select(-ZoopYear)%>%
+#   select(-ZoopTows)%>%
+#   select(-ZoopMonths)%>%
+#   select(-FishGear)%>%
+#   #select(-Chosen.for.analysis.)%>%
+#   select(-Notes)%>%
+#   select(-parentdow.zoop.year)
+# 
+# #filter only rows with exact fish/zoop year match
+# incl.table <-incl.table %>% 
+#   filter(Match == "Exact")
+# 
+# #Add rows for each gravity core lake/year - based on FISH data year, not zoop year
+# #want these in the inclusion table, will eventually get data filled in
+# #read in .csv file I created manually in excel with the info on the core lakes (full and gravity)
+# core.incl.table <- read.csv("Data/Input/Core.lake.inclusion.table.csv")
+# #calculate parentdow.fish.year column
+# core.incl.table$parentdow.fish.year = paste(core.incl.table$parentdow, core.incl.table$year)
+# 
+# #combine the core lake rows to the original inclusion table
+# #first check column names are same
+# names(core.incl.table) <- names(incl.table)
+# incl.table <- rbind(incl.table, core.incl.table)
+# 
+# 
+# #rename dow and year columns to match fish database
+# #leading zeros not in either data frame so that should be okay
+# incl.table <- incl.table %>%   
+#   rename(lake_id = DOW)%>%
+#   rename(year = FishYear)
+#   
+# incl.table <- incl.table %>% 
+#   mutate(lake_id = as.character(lake_id))%>% 
+#   mutate(year = as.double(year))
+# 
+# #remove row 336 (it's blank with an NA)
+# incl.table <- incl.table[-336,]
 
 # #save this inclusion table for use with water quality data
 # #this title means it is cleaned in R and contains only exact fish/zoop matches
@@ -127,56 +170,6 @@ incl.table$lake_id <- replace(incl.table$lake_id, incl.table$lake_id == 4003500,
 
 #filter out just the data that matches my selected lake/years, represented by the inclusion table
 
-#first choose the surveys that I want, We will go back for the fish later
-#filter out just the gear I want: standard, shallow, and deep gillnets
-#included one special assessment for White Iron lake - I vetted this and ok to use, was a standard assessment combined with other things too I am just using standard assessment part
-#targeted surveys are acceptable for the specific lakes I specify below that I individually investigated
-#other specific lake things to clean up:
-  #47004600 had a targeted survey in 2020 that I want, a standard survey in 2019 that I want, and a targeted survey in 2019 that I don't want, so I specified the year I want targeted surveys from this lake
-#right join - will preserve everything in inclusion table but only matching rows from the mn_data
-#joining by lake Id and year - ALL ROWS THAT ARE IN BOTH TABLES NEED TO BE LISTED HERE OR YOU WILL GET .x and .y columns
-#takes the distinct columns from the mn_data
-#glimpse at end shows me if it did what I wanted
-
-
-# good.surveys <- mn_data %>% 
-#   filter((sampling_method == "gill_net_standard" | 
-#             sampling_method == "gill_net_stratified_deep" | 
-#             sampling_method =="gill_net_stratified_shallow" ) & 
-#            (survey_type == "Standard Survey" | 
-#               survey_type == "HISTORICAL"| 
-#               survey_type == "Population Assessment"| 
-#               survey_type == "Re-Survey"| 
-#               survey_type == "Large Lake Survey"| 
-#               survey_type == "Initial Survey" | 
-#               (survey_type == "Special Assessment" & lake_id == 69000400) | 
-#               (survey_type == "Special Assessment" & lake_id == 69025400) | 
-#               (survey_type == "Targeted Survey" & lake_id == 3057600) | 
-#               (survey_type == "Targeted Survey" & lake_id == 11041500) | 
-#               (survey_type == "Targeted Survey" & lake_id == 13002700)| 
-#               (survey_type == "Targeted Survey" & lake_id == 18030800) | 
-#               (survey_type == "Targeted Survey" & lake_id == 38039300) | 
-#               (survey_type == "Targeted Survey" & lake_id == 47004600 & year == 2020) | 
-#               (survey_type == "Targeted Survey" & lake_id == 47006800) | 
-#               (survey_type == "Targeted Survey" & lake_id == 69025400)))  %>% 
-#   right_join(incl.table, by = c("lake_id", "year")) %>% 
-#   distinct(lake_id, 
-#            year, 
-#            total_effort_ident, 
-#            total_effort_1,  
-#            sampling_method_simple, 
-#            sampling_method, 
-#            survey_type, 
-#            lakesize, 
-#            lakesize_units, 
-#            nhdhr_id, 
-#            latitude_lake_centroid, 
-#            longitude_lake_centroid) %>%
-#   collect()
-# #collect actually brings data into R
-# #end up with more rows than the inclusion table because different gillnet types are separated
-# #not collecting flag anymore because it confuses things with the join to fish data later
-# #note that this DOES NOT INCLUDE 2023 DATA OR LATER
 
 
 #the above collect function is giving me an error message, going to try collecting all the MN data and then filtering it, even though its a big file
