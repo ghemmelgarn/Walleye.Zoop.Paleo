@@ -16,7 +16,7 @@ library(here)
 #SETP 1: Get a list of fish surveys from the fish database:------------------------------------------------------------------------------
 
 #this finds the minnesota arrow file that contains all the Minnesota fish data - this is what Denver updated in Nov 2025, only has MN data
-mn_data <- open_dataset("G:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Fish Survey Data/Parquet files/mn_update/part-0.parquet")
+mn_data <- open_dataset("E:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Fish Survey Data/Parquet files/mn_update/part-0.parquet")
 
 #the elf returns with info on the data similar to a str function
 glimpse(mn_data)
@@ -554,17 +554,58 @@ identical(zoop.lakeyears, fish.lakeyears)
 #Get a list of unique lakes
 unique(fish.survey.inclusion.table$lake_name)
 
-#Make and informative lake-year inclusion table
+#Make an informative lake-year inclusion table
 lakeyears <- fish.survey.inclusion.table %>%
   group_by(parentdow.year, lake_name) %>%
   summarize(.groups = 'drop')
 
 
-# #Save the three inclusion tables
+# #Save the fish and zoop survey inclusion tables
 # #Let's be sneaky and save it in the input folder hehehe
 # write_csv(fish.survey.inclusion.table, "Data/Input/Fish_Survey_Pelagic_Inclusion_Table.csv")
 # write_csv(zoop.survey.inclusion.table, "Data/Input/Zoop_Survey_Pelagic_Inclusion_Table.csv")
-# write_csv(lakeyears, "Data/Input/LakeYear_Pelagic_Inclusion_Table.csv")
+
+
+
+
+#We want to separately get covariate data for:
+    #Hill north and south
+    #East and West Vermilion
+    #Upper and Lower Red
+
+#So update the lake-year inclusion table to have rows for each of these (use whole DOWS instead of parentdows for these lakes):
+#Updating the inclusion table to include these
+Incl.Table.Basin <- lakeyears %>% 
+  mutate(parentdow.year = ifelse(str_detect(parentdow.year, "^40035"), str_replace(parentdow.year, pattern = "^.....", replacement = "4003501"),     #add 01 to the upper red dows (lower red is 02)
+                                 ifelse(str_detect(parentdow.year, "^690378"), str_replace(parentdow.year, pattern = "^......", replacement = "69037801"),   #add 01 to East Vermilion (west is 02)
+                                        ifelse(str_detect(parentdow.year, "^10142"), str_replace(parentdow.year, pattern = "^.....", replacement = "1014201"),parentdow.year))))      #add 01 to Hill north (south is 02)
+#Now need to "duplicate" these rows to add the other sub-basins
+Red.temp <- Incl.Table.Basin %>% 
+  filter(str_detect(parentdow.year, "^40035")) %>% #pull out the red lake rows
+  mutate(parentdow.year = str_replace(parentdow.year, pattern = "^4003501", replacement = "4003502")) %>% #change these to the 02 prefix
+  mutate(lake_name = "Red (Lower Red)") #Update lake name for lower red
+
+Verm.temp <- Incl.Table.Basin %>% 
+  filter(str_detect(parentdow.year, "^690378")) %>% #pull out the lake Vermilion rows
+  mutate(parentdow.year = str_replace(parentdow.year, pattern = "^69037801", replacement = "69037802")) %>% #change these to the 02 prefix
+  mutate(lake_name = "West Vermilion") #Update lake name for west vermilion
+
+
+Hill.temp <- Incl.Table.Basin %>% 
+  filter(str_detect(parentdow.year, "^10142")) %>% #pull out the hill lake rows
+  mutate(parentdow.year = str_replace(parentdow.year, pattern = "^1014201", replacement = "1014202")) %>% #change these to the 02 prefix
+  mutate(lake_name = "Hill south") #Update lake name for Hill south
+
+#add these new rows back in  
+Incl.Table.All <- bind_rows(Incl.Table.Basin, Red.temp, Verm.temp, Hill.temp)
+
+#rename the East Vermilion and Hill north lake names
+Incl.Table.Final <- Incl.Table.All %>% 
+  mutate(lake_name = ifelse(lake_name == "Vermilion", "East Vermilion", 
+                            ifelse(lake_name == "Hill", "Hill north", lake_name)))
+
+#Save this as the final inclusion table
+#write_csv(Incl.Table.Final, "Data/Input/LakeYear_Pelagic_Inclusion_Table.csv")
 
 #keep environment clean
 rm(zoop.lakeyears,
@@ -578,5 +619,10 @@ rm(zoop.lakeyears,
    zoop_clean,
    zoop_inclusion,
    zoop_summer_month_count2,
-   zoop.good.lakeyears
+   zoop.good.lakeyears,
+   lakeyears,
+   Incl.Table.Basin,
+   Red.temp,
+   Hill.temp,
+   Verm.temp
    )
