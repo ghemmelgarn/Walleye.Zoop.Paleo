@@ -8,35 +8,35 @@ library(tidyverse)
 #parameters to get: secchi, water temp C (NWIS parm code 00010), air temp C (NWIS parm code 00020)
 #https://www.waterqualitydata.us/public_srsnames/ - this is the link to the list of NWIS parameters
 
-# #check data available for one station in one of my lakes
-# Long <- readWQPdata(statecode = "MN", siteid = "MNPCA-03-0383-00-202")
-# unique(Long$CharacteristicName)
-# #looks like temp for MPCA reported as "Temperature, water"
+#check data available for one station in one of my lakes
+Long <- readWQPdata(statecode = "MN", siteid = "MNPCA-03-0383-00-202")
+unique(Long$CharacteristicName)
+#looks like temp for MPCA reported as "Temperature, water"
 
 
-# #ONLY RUN THIS TO UPDATE MPCA DATA AND IF YOU HAVE 2-3 HOURS TO WAIT FOR IT
-# #the many things secchi data may be called plus two temp thingies
-# parameter.names <- c("Depth, Secchi disk depth",
-#                   "Depth, Secchi disk depth (choice list)",
-#                   "Secchi Reading Condition (choice list)",
-#                   "Water transparency, Secchi disc",
-#                   "Temperature, water",
-#                   "Temperature, air")
-# #you want all of the parameters with the above names for the state of Minnesota
-# args <- list(statecode = "MN",
-#              characteristicName = parameter.names)
-# #Pulls those data from the WQ database
-# WQparms <- readWQPdata(args)
-# #save the output as csv so I don't have to wait 8 million hours to pull it from the portal except when I want to update the data
-# write_csv(WQparms, "Data/Output/WQ_Secchi_Temp_12-6-24.csv")
-# #see how many observations of each type I have
-# count(WQparms$CharacteristicName)
-# #it's mostly temp data...
-# #this file is too big and my computer is struggling
-# #I can't get degree days from this temperature data anyway, so filtering out only the rows with secchi data
-# WQsecchi <- filter(WQparms, CharacteristicName == "Depth, Secchi disk depth" | CharacteristicName ==  "Depth, Secchi disk depth (choice list)" | CharacteristicName == "Secchi Reading Condition (choice list)" | CharacteristicName ==  "Water transparency, Secchi disc")
-# #save secchi data as a .csv
-# write_csv(WQsecchi, "Data/Output/WQ_Secchi_12-6-24.csv")
+#ONLY RUN THIS TO UPDATE MPCA DATA AND IF YOU HAVE 2-3 HOURS TO WAIT FOR IT
+#the many things secchi data may be called plus two temp thingies
+parameter.names <- c("Depth, Secchi disk depth",
+                  "Depth, Secchi disk depth (choice list)",
+                  "Secchi Reading Condition (choice list)",
+                  "Water transparency, Secchi disc",
+                  "Temperature, water",
+                  "Temperature, air")
+#you want all of the parameters with the above names for the state of Minnesota
+args <- list(statecode = "MN",
+             characteristicName = parameter.names)
+#Pulls those data from the WQ database
+WQparms <- readWQPdata(args)
+#save the output as csv so I don't have to wait 8 million hours to pull it from the portal except when I want to update the data
+write_csv(WQparms, "Data/Output/WQ_Secchi_Temp_20251124.csv")
+#see how many observations of each type I have
+count(WQparms$CharacteristicName)
+#it's mostly temp data...
+#this file is too big and my computer is struggling
+#I can't get degree days from this temperature data anyway, so filtering out only the rows with secchi data
+WQsecchi <- filter(WQparms, CharacteristicName == "Depth, Secchi disk depth" | CharacteristicName ==  "Depth, Secchi disk depth (choice list)" | CharacteristicName == "Secchi Reading Condition (choice list)" | CharacteristicName ==  "Water transparency, Secchi disc")
+#save secchi data as a .csv
+write.csv(WQsecchi, file = paste0("Data/Output/MPCA_WQ_Secchi_",  format(Sys.Date(), "%Y%m%d"), ".csv"))
 
 #import WQsecchi file from saved .csv
 WQsecchi <- read.csv("Data/Input/WQ_Secchi_12-6-24.csv")
@@ -53,7 +53,7 @@ WQP.secchi <- WQsecchi %>%
   mutate(parentdow = substr(MonitoringLocationIdentifier, 7, 13)) %>%
   mutate(parentdow = gsub("-", "", parentdow))
 
-#set secchi as numberic, sometimes reported as a text description, these just become NA, then filter out these NA values
+#set secchi as numeric, sometimes reported as a text description, these just become NA, then filter out these NA values
 WQP.secchi <- WQP.secchi %>%
   mutate(ResultMeasureValue = as.numeric(ResultMeasureValue)) %>%
   filter(!is.na(ResultMeasureValue))
@@ -92,23 +92,6 @@ WQP.secchi.simple <- WQP.secchi.simple %>%
 WQP.secchi.simple <- WQP.secchi.simple %>%
   mutate(parentdow = as.numeric(parentdow), year = as.numeric(year)) %>%
   filter(!is.na(parentdow))
-
-
-# #SEE HOW MUCH USEFUL DATA THIS ACTUALLY GAVE ME
-#import inclusion table created/cleaned in fish download R script
-incl.table.WQ <- read.csv("Data/Input/Inclusion.Table.Clean.Exact.csv")
-# 
-# #do a right join to pull out all the water quality portal data that matches our lakes and years
-# wqp.join <- WQP.secchi.simple %>%
-#   right_join(incl.table.WQ, by = c("parentdow", "year"))
-# 
-# #find the NA values - these are the lakes that don't have secchi data from the portal
-# wqp.na <- filter(wqp.join, is.na(secchi_meters))
-# #there are 67 of them, so I will need to include DNR data that Denver has
-# 
-# #remove these temporary joins so they don't confuse me later
-# rm(wqp.join)
-# rm(wqp.na)
 
 
 #remove more columns I don't need anymore to join to DNR data
@@ -168,49 +151,59 @@ dnr.secchi.join.filter <- dnr.secchi.join.filter %>%
 all.secchi <- bind_rows(WQP.secchi.join, dnr.secchi.join.filter)
 
 # #save all this data as a csv for later reference
-# write.csv(all.secchi, file = "Data/Output/All_Secchi_Data_WQP_DNR.csv")
+# write.csv(all.secchi, file = paste0("Data/Output/All_Secchi_Data_WQP_DNR", format(Sys.Date(), "%Y%m%d") ,".csv"))
 
 
-#BELOW FILTERS OUT THE SECCHI DATA I WANT TO ACTAULLY USE 
-
-#join the combined DNR and WQ data to the inclusion table
-WQ.join <- all.secchi %>%
-  right_join(incl.table.WQ, by = c("parentdow", "year"))
-
-#remove the one rows with a secchi_meters value of 0
-#the only one from the WQP was taken in April so maybe ice?
-#DNR zeroes should have been removed above
-#this does not take out any NA values for lakes with secchi data
-WQ.join.clean <- filter(WQ.join, secchi_meters != 0 | is.na(secchi_meters))
 
 
-#need to think about temporal aspect of secchi - lets take mean of June/July/Aug but need to make sure all three months have data for all the lakes
-#combine all the inidivual station data for each lake when I take this mean
-#as long as I do this consistently and all the lakes are well represented across the time period I should be able to compare between lakes
-
-#filter out only June, July, August samples
-WQ.summer <- WQ.join.clean %>%
-  filter(month == "06" | month == "07" | month == "08")
-#check that all the lakes have data from all three months - summarize with the number of months for each lake/year
-WQ.summer.months <- WQ.summer %>%
-  group_by(parentdow, year) %>%
-  summarize(secchi.month.count = length(unique(month)), .groups = 'drop')
-#create an inclusion table with only the lakes that have enough monthly secchi data representation to include
-WQ.good.lakes <- filter(WQ.summer.months, secchi.month.count == 3)
-#join the summer data back to this to only include the observations for the desired lakes
-WQ.good.summer.secchi <- WQ.summer %>%
-  right_join(WQ.good.lakes, by = c("parentdow", "year"))
 
 
-# #write a csv file with all of your selected good secchi data
-# write.csv(WQ.good.summer.secchi, file = "Data/Output/Selected_Secchi_Data.csv")
 
 
-# #DON'T NEED TO DO THIS, WILL DO IN CREATION OF PRELIM DATASET
-# #summarize the mean of the selected secchi data for each lake/year
-# WQ.secchi.mean <- WQ.good.summer.secchi %>%
+#DO NOT USE BELOW THIS LINE - THIS IS OLD
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+# #BELOW FILTERS OUT THE SECCHI DATA I WANT TO ACTAULLY USE
+# 
+# #join the combined DNR and WQ data to the inclusion table
+# WQ.join <- all.secchi %>%
+#   right_join(incl.table.WQ, by = c("parentdow", "year"))
+# 
+# #remove the one rows with a secchi_meters value of 0
+# #the only one from the WQP was taken in April so maybe ice?
+# #DNR zeroes should have been removed above
+# #this does not take out any NA values for lakes with secchi data
+# WQ.join.clean <- filter(WQ.join, secchi_meters != 0 | is.na(secchi_meters))
+# 
+# 
+# #need to think about temporal aspect of secchi - lets take mean of June/July/Aug but need to make sure all three months have data for all the lakes
+# #combine all the inidivual station data for each lake when I take this mean
+# #as long as I do this consistently and all the lakes are well represented across the time period I should be able to compare between lakes
+# 
+# #filter out only June, July, August samples
+# WQ.summer <- WQ.join.clean %>%
+#   filter(month == "06" | month == "07" | month == "08")
+# #check that all the lakes have data from all three months - summarize with the number of months for each lake/year
+# WQ.summer.months <- WQ.summer %>%
 #   group_by(parentdow, year) %>%
-#   summarize(mean.summer.secchi.meters = mean(secchi_meters), .groups = 'drop')
+#   summarize(secchi.month.count = length(unique(month)), .groups = 'drop')
+# #create an inclusion table with only the lakes that have enough monthly secchi data representation to include
+# WQ.good.lakes <- filter(WQ.summer.months, secchi.month.count == 3)
+# #join the summer data back to this to only include the observations for the desired lakes
+# WQ.good.summer.secchi <- WQ.summer %>%
+#   right_join(WQ.good.lakes, by = c("parentdow", "year"))
+# 
+# 
+# # #write a csv file with all of your selected good secchi data
+# # write.csv(WQ.good.summer.secchi, file = "Data/Output/Selected_Secchi_Data.csv")
+# 
+# 
+# # #DON'T NEED TO DO THIS, WILL DO IN CREATION OF PRELIM DATASET
+# # #summarize the mean of the selected secchi data for each lake/year
+# # WQ.secchi.mean <- WQ.good.summer.secchi %>%
+# #   group_by(parentdow, year) %>%
+# #   summarize(mean.summer.secchi.meters = mean(secchi_meters), .groups = 'drop')
 
 
 
