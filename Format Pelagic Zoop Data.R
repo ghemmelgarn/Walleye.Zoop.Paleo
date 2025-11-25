@@ -10,10 +10,6 @@
 
 
 #LAKES THAT NEED SPECIAL ATTENTION:
-      #Hill North and South need to be combined
+      #Hill North and South need to be kept separate
       #Vermilion needs to be split east-west
       #Red needs to be split upper-lower
-
-
-#remove Hill lake south as a row from the dataset - the zoops will get summarized appropriately in "Hill (north)" by parentdow and the fish will too
-Incl.Table <- filter(Incl.Table, LakeName != "Hill (south)")
