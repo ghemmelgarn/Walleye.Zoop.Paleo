@@ -8,35 +8,39 @@ library(tidyverse)
 #parameters to get: secchi, water temp C (NWIS parm code 00010), air temp C (NWIS parm code 00020)
 #https://www.waterqualitydata.us/public_srsnames/ - this is the link to the list of NWIS parameters
 
-#check data available for one station in one of my lakes
-Long <- readWQPdata(statecode = "MN", siteid = "MNPCA-03-0383-00-202")
-unique(Long$CharacteristicName)
-#looks like temp for MPCA reported as "Temperature, water"
+# #check data available for one station in one of my lakes
+# Long <- readWQPdata(statecode = "MN", siteid = "MNPCA-03-0383-00-202", service = "Result")
+# unique(Long$CharacteristicName)
+# #looks like temp for MPCA reported as "Temperature, water"
+# 
+# 
+# #ONLY RUN THIS TO UPDATE MPCA DATA AND IF YOU HAVE 2-3 HOURS TO WAIT FOR IT
+# #the many things secchi data may be called plus two temp thingies
+# parameter.names <- c("Depth, Secchi disk depth",
+#                   "Depth, Secchi disk depth (choice list)",
+#                   "Secchi Reading Condition (choice list)",
+#                   "Water transparency, Secchi disc"
+#                   )
+# #you want all of the parameters with the above names for the state of Minnesota
+# args1 <- list(statecode = "MN",
+#              characteristicName = parameter.names,
+#              startDateLo = "1998-01-01", #date range makes this smaller so the server doesn't time out and give me "HTTP 500 Internal Server Error"
+#              startDateHi = "2010-12-31") #need to do two smaller date ranges and then rowbind
+# args2 <- list(statecode = "MN",
+#              characteristicName = parameter.names,
+#              startDateLo = "2011-01-01", 
+#              startDateHi = "2025-11-25") #goes up to the day I am running this
+# #Pulls those data from the WQ database
+# WQparms1 <- readWQPdata(args1, service = "Result",  dataProfile = "resultPhysChem")
+# WQparms2 <- readWQPdata(args2, service = "Result",  dataProfile = "resultPhysChem")
+# 
+# WQparms_all <- rbind(WQparms1, WQparms2)
+# 
+# #save the output as csv so I don't have to wait 8 million hours to pull it from the portal except when I want to update the data
+# write_csv(WQparms_all, "Data/Output/WQP_1998-2025_Secchi_20251124.csv") #UPDATE THIS DATE WHEN YOU SAVE IT
+# #see how many observations of each type I have
+# table(WQparms_all$CharacteristicName)
 
-
-#ONLY RUN THIS TO UPDATE MPCA DATA AND IF YOU HAVE 2-3 HOURS TO WAIT FOR IT
-#the many things secchi data may be called plus two temp thingies
-parameter.names <- c("Depth, Secchi disk depth",
-                  "Depth, Secchi disk depth (choice list)",
-                  "Secchi Reading Condition (choice list)",
-                  "Water transparency, Secchi disc",
-                  "Temperature, water",
-                  "Temperature, air")
-#you want all of the parameters with the above names for the state of Minnesota
-args <- list(statecode = "MN",
-             characteristicName = parameter.names)
-#Pulls those data from the WQ database
-WQparms <- readWQPdata(args)
-#save the output as csv so I don't have to wait 8 million hours to pull it from the portal except when I want to update the data
-write_csv(WQparms, "Data/Output/WQ_Secchi_Temp_20251124.csv")
-#see how many observations of each type I have
-count(WQparms$CharacteristicName)
-#it's mostly temp data...
-#this file is too big and my computer is struggling
-#I can't get degree days from this temperature data anyway, so filtering out only the rows with secchi data
-WQsecchi <- filter(WQparms, CharacteristicName == "Depth, Secchi disk depth" | CharacteristicName ==  "Depth, Secchi disk depth (choice list)" | CharacteristicName == "Secchi Reading Condition (choice list)" | CharacteristicName ==  "Water transparency, Secchi disc")
-#save secchi data as a .csv
-write.csv(WQsecchi, file = paste0("Data/Output/MPCA_WQ_Secchi_",  format(Sys.Date(), "%Y%m%d"), ".csv"))
 
 #import WQsecchi file from saved .csv
 WQsecchi <- read.csv("Data/Input/WQ_Secchi_12-6-24.csv")
