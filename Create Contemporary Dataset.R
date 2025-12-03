@@ -380,19 +380,20 @@ rm(RS, RS.clean, RS.long, RS.nogeom, RS.summer, RS.year, CL.CDOM.avg, CL.CDOM.ye
 #SECCHI DATA FROM MPCA ------------------------------------------------------------------------------------------------------
 #Including to compare to coverage and quality from remote sensed data
 
-#import all water quality data pulled from WQP on 11-24-2025 plus the .csv file the DNR gave Denver (idk when exactly)
+#import filtered and formatted water quality data pulled from WQP on 11-24-2025
 #Created in the "Pull Water Quality Data" script
 
-secchi.data <- read.csv("Data/Input/All_Secchi_Data_WQP_DNR.csv")
+secchi.data <- read.csv("Data/Input/WQP_1998-2025_Secchi_20251124_FILTERED_FORMATTED.csv")
 
-#join the combined DNR and WQ data to the inclusion table, preserving all secchi rows
+#make parentdow.year column
+secchi.data$parentdow.year <- paste(secchi.data$parentdow, secchi.data$year)
+
+#join the MPCA secchi data to the inclusion table, preserving all secchi rows
 WQ.join <- secchi.data %>%
-  right_join(Incl.Table, by = c("parentdow", "year"))
+  right_join(Incl.Table, by = "parentdow.year")
 
-#remove the one rows with a secchi_meters value of 0
-#the only one from the WQP was taken in April so maybe ice?
-#DNR zeroes should have been removed when creating this data
-#this does not take out any NA values for lakes with secchi data
+#remove any rows with a secchi_meters value of 0
+#this does not take out any NA values - preserves lakes that don't have secchi data in this dataset
 WQ.join.clean <- filter(WQ.join, secchi_meters != 0 | is.na(secchi_meters))
 
 
@@ -415,19 +416,26 @@ WQ.good.summer.secchi <- WQ.summer %>%
 
 #summarize the mean of the selected secchi data for each lake/year
 secchi.mean <- WQ.good.summer.secchi %>%
-  group_by(parentdow, year) %>%
-  summarize(mean.summer.secchi.meters.MPCA = mean(secchi_meters), .groups = 'drop')
+  group_by(parentdow.year) %>%
+  summarize(secchi.meters.MPCA.Jun.to.Aug = mean(secchi_meters), .groups = 'drop')
 #note that some lake/years are missing because not enough data for them (or none at all)
 
-#create parentdow.year for join
-secchi.mean$parentdow.year = paste(secchi.mean$parentdow, secchi.mean$year)
+#join to the rest of the preliminary data
+Join5 <- left_join(Join4, secchi.mean, by = "parentdow.year")
 
-#remove the parentdow and year columns so they don't get confusing and duplicated
-secchi.mean <- secchi.mean %>%
-  select(parentdow.year, mean.summer.secchi.meters.MPCA)
+
+#Make another MPCA column with July to September mean, not restrictive on how many months present (more equivalent to remote sensed data)
+#filter out only July, August, Sept samples
+WQ.late.summer <- WQ.join.clean %>%
+  filter(month == "7" | month == "8" | month == "9")
+#summarize the mean of the selected secchi data for each lake/year
+secchi.mean2 <- WQ.late.summer %>%
+  group_by(parentdow.year) %>%
+  summarize(secchi.meters.MPCA.Jul.to.Sept = mean(secchi_meters), .groups = 'drop')
+#note that some lake/years are missing because not enough data for them (or none at all)
 
 #join to the rest of the preliminary data
-Data_b <- left_join(Data_a, secchi.mean, by = "parentdow.fish.year")
+Join6 <- left_join(Join5, secchi.mean2, by = "parentdow.year")
 
 #remove unneeded intermediate data frames to keep environment clean
 rm(secchi.data,
@@ -437,7 +445,9 @@ rm(secchi.data,
    WQ.join,
    WQ.join.clean,
    WQ.summer,
-   WQ.summer.months
+   WQ.summer.months,
+   WQ.late.summer,
+   secchi.mean2
 )
 
 
