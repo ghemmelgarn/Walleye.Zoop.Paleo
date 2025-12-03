@@ -43,7 +43,7 @@ library(tidyverse)
 
 
 #import WQsecchi file from saved .csv
-WQsecchi <- read.csv("Data/Input/WQ_Secchi_12-6-24.csv")
+WQsecchi <- read.csv("Data/Input/WQP_1998-2025_Secchi_20251124.csv")
 
 #look at structure of data
 str(WQsecchi)
@@ -53,9 +53,28 @@ unique(WQsecchi$OrganizationFormalName)
 #using all of them
 
 #create parentdow column from monitoring station IDs, also removes hyphen to match data format I have for other datasets
+#THIS CODE MAKES SURE TO GET THE FULL DOW FOR RED, HILL, AND VERMILION TO SEPARATE THE BASINS FOR THESE SPECIFIC LAKES
 WQP.secchi <- WQsecchi %>%
-  mutate(parentdow = substr(MonitoringLocationIdentifier, 7, 13)) %>%
+  mutate(parentdow = case_when(
+    (MonitoringLocationName == "RED (UPPER RED)" | 
+       MonitoringLocationName == "RED (LOWER RED)" |
+       MonitoringLocationName == "HILL (SOUTH ARM)" |
+       MonitoringLocationName == "HILL (SOUTH BASIN)" |
+       MonitoringLocationName == "HILL (MAIN BASIN)" |
+       MonitoringLocationName == "HILL (NORTH BASIN)" |
+       MonitoringLocationName == "WEST VERMILION" |
+       MonitoringLocationName == "EAST VERMILION") ~ substr(MonitoringLocationIdentifier, 7, 16), #gets full DOW for specified lakes
+    (MonitoringLocationName != "RED (UPPER RED)" & 
+       MonitoringLocationName != "RED (LOWER RED)" &
+       MonitoringLocationName != "HILL (SOUTH ARM)" &
+       MonitoringLocationName != "HILL (SOUTH BASIN)" &
+       MonitoringLocationName != "HILL (MAIN BASIN)" &
+       MonitoringLocationName != "HILL (NORTH BASIN)" &
+       MonitoringLocationName != "WEST VERMILION" &
+       MonitoringLocationName != "EAST VERMILION") ~ substr(MonitoringLocationIdentifier, 7, 13)))%>% #gets parentdow for all other lakes
+  mutate(parentdow = str_replace(parentdow, pattern = "^0", replacement = "")) %>% #get rid of leading zeroes where present to match other dataframes
   mutate(parentdow = gsub("-", "", parentdow))
+
 
 #set secchi as numeric, sometimes reported as a text description, these just become NA, then filter out these NA values
 WQP.secchi <- WQP.secchi %>%
@@ -64,18 +83,22 @@ WQP.secchi <- WQP.secchi %>%
 
 #check for consistent method
 unique(WQP.secchi$ResultAnalyticalMethod.MethodName)
-#we have various methods, let's filter out the ones that look like a transparency tube, keep NA
-WQP.secchi <- filter(WQP.secchi, ResultAnalyticalMethod.MethodName != "Secchi Transparency Tube, 100 cm" | is.na(ResultAnalyticalMethod.MethodName))
+table(WQP.secchi$ResultAnalyticalMethod.MethodName)
+#we have various methods, let's filter out the ones that look like a transparency tube or PIIC_QAPP (which I have no idea what that is), keep NA and unknown
+WQP.secchi2 <- filter(WQP.secchi, (ResultAnalyticalMethod.MethodName != "Secchi Transparency Tube, 100 cm" & ResultAnalyticalMethod.MethodName != "PICC_QAPP"))
+#check that it worked
+table(WQP.secchi2$ResultAnalyticalMethod.MethodName)
 
 #check secchi units and make sure all consistent
-unique(WQP.secchi$ResultMeasure.MeasureUnitCode)
+table(WQP.secchi2$ResultMeasure.MeasureUnitCode)
 #we have meters, feet, cm, inches, and "none". Need to convert all to meters and filter out measurements without a unit
-WQP.secchi <- WQP.secchi %>%
+WQP.secchi3 <- WQP.secchi2 %>%
   filter(ResultMeasure.MeasureUnitCode != "None") %>%
   mutate(secchi_meters = case_when(ResultMeasure.MeasureUnitCode == "ft"~ ResultMeasureValue*0.3048, ResultMeasure.MeasureUnitCode == "m"~ ResultMeasureValue, ResultMeasure.MeasureUnitCode == "cm"~ ResultMeasureValue/100, ResultMeasure.MeasureUnitCode == "in"~ ResultMeasureValue*0.0254))
+
   
 #create a smaller dataset with only columns I care about
-WQP.secchi.simple <- WQP.secchi %>%
+WQP.secchi.simple <- WQP.secchi3 %>%
   select(parentdow,
          secchi_meters,
          OrganizationIdentifier,
@@ -108,55 +131,8 @@ WQP.secchi.join <- WQP.secchi.simple %>%
          MonitoringLocationIdentifier,
   )
 
-#THIS CODE TO ADD THE DNR DATA TO THE WQP DATA IS FROM DENVER AND I MODIFIED IT SLIGHTLY TO GET DOW INSTEAD OF NHDHR.ID FOR EACH LAKE
-#linking to dnr secchi data
-
-#read in DNR secchi data
-dnr_secchi <- read_csv("Data/Input/dnr_all_secchi_1decimal.csv")
-
-#change format to match MPCA.secchi.join format
-dnr.secchi.join <- dnr_secchi %>%
-  mutate(parentdow = substr(DOW, 1, 6),
-         secchi_meters = SECCHI_DISC_READING_FEET*0.3048,
-         OrganizationIdentifier = "MNDNR",
-         ActivityStartDate = as.Date(SAMPLE_DATE, format = "%m/%d/%Y"),
-         year = substr(ActivityStartDate, 1, 4),
-         month = substr(ActivityStartDate, 6, 7),
-         MonitoringLocationIdentifier = paste0("mndow_", DOW)) %>%
-  select(parentdow,
-         secchi_meters,
-         OrganizationIdentifier,
-         year,
-         month,
-         MonitoringLocationIdentifier)
-
-# #why are there so many 0s?
-# dnr.secchi.join %>%
-#   summarise(zero = sum(secchi_meters == 0),
-#             non_zero = sum(secchi_meters != 0))
-
-# #returns number of observations per location
-# dnr.secchi.join %>%
-#   group_by(MonitoringLocationIdentifier) %>%
-#   count() %>%
-#   print(n= nrow(.))
-
-#remove rows with 0 for secchi meters - this doesn't make sense, even a low secchi should be at least 0.0000001
-#an email from Corey Geving : "I’m not sure if this is because field crews are skipping over the column and just putting in zero for some reason, or if there’s something else going on. Jon Hansen might have some insight into why there are so many zeroes."
-dnr.secchi.join.filter <- dnr.secchi.join %>%
-  filter(secchi_meters > 0)
-
-#fix some data structure issues to be able to bind rows
-dnr.secchi.join.filter <- dnr.secchi.join.filter %>%
-  mutate(parentdow = as.numeric(parentdow), 
-         year = as.numeric(year)
-         )
-#bind the rows of the WQP and DNR secchi data into one data frame
-all.secchi <- bind_rows(WQP.secchi.join, dnr.secchi.join.filter)
-
-# #save all this data as a csv for later reference
-# write.csv(all.secchi, file = paste0("Data/Output/All_Secchi_Data_WQP_DNR", format(Sys.Date(), "%Y%m%d") ,".csv"))
-
+#Just save this as the output now since I am not using any DNR data anymore
+#write.csv(WQP.secchi.join, file = "Data/Output/WQP_1998-2025_Secchi_20251124_FILTERED_FORMATTED.csv")
 
 
 
@@ -165,6 +141,81 @@ all.secchi <- bind_rows(WQP.secchi.join, dnr.secchi.join.filter)
 
 
 #DO NOT USE BELOW THIS LINE - THIS IS OLD
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#THIS CODE TO ADD THE DNR DATA TO THE WQP DATA IS FROM DENVER AND I MODIFIED IT SLIGHTLY TO GET DOW INSTEAD OF NHDHR.ID FOR EACH LAKE
+#linking to dnr secchi data
+
+
+#I DISCOVERED THAT THEY DID NOT SEPARATE SUB-BASINS... AND I TALKED TO DENVER WHO SAID HE HAD A LOT OF ISSUES WITH THIS DATA
+#THEREFORE: NOT USING THIS DNR SECCHI DATA (I WILL PROBABLY USE THE REMOTE SENSED DATA ANYWAYS)
+
+# #read in DNR secchi data
+# dnr_secchi <- read_csv("Data/Input/dnr_all_secchi_1decimal.csv")
+# 
+# #change format to match MPCA.secchi.join format
+# dnr.secchi.join <- dnr_secchi %>%
+#   mutate(parentdow = case_when(
+#                 (dnr_secchi$DOW == "01014202" | dnr_secchi$DOW == "01014201" | dnr_secchi$DOW == "04003502" | dnr_secchi$DOW == "04003501") ~ substr(dnr_secchi$DOW, 2, 8),   #takes care of North and Red lakes
+#                 (dnr_secchi$DOW == "69037802" | dnr_secchi$DOW == "69037801") ~ substr(dnr_secchi$DOW, 1, 8),  #takes care of Vermilion (different because no leading 0),
+#                 (str_detect(dnr_secchi$DOW, "^0") & (dnr_secchi$DOW != "01014202" & dnr_secchi$DOW != "01014201" & dnr_secchi$DOW != "04003502" & dnr_secchi$DOW != "04003501" & dnr_secchi$DOW != "69037802" & dnr_secchi$DOW != "69037801")) ~ substr(dnr_secchi$DOW, 2, 6), #this gets 5 digits from the DOWs that start with zero and are not those identified before
+#                 (!str_detect(dnr_secchi$DOW, "^0") & (dnr_secchi$DOW != "01014202" & dnr_secchi$DOW != "01014201" & dnr_secchi$DOW != "04003502" & dnr_secchi$DOW != "04003501" & dnr_secchi$DOW != "69037802" & dnr_secchi$DOW != "69037801")) ~ substr(dnr_secchi$DOW, 1, 6) #this gets 6 digits from the DOWs that don't start with zero and are not those identified before
+#               ),
+#          secchi_meters = SECCHI_DISC_READING_FEET*0.3048,
+#          OrganizationIdentifier = "MNDNR",
+#          ActivityStartDate = as.Date(SAMPLE_DATE, format = "%m/%d/%Y"),
+#          year = substr(ActivityStartDate, 1, 4),
+#          month = substr(ActivityStartDate, 6, 7),
+#          MonitoringLocationIdentifier = paste0("mndow_", DOW)) %>%
+#   select(parentdow,
+#          secchi_meters,
+#          OrganizationIdentifier,
+#          year,
+#          month,
+#          MonitoringLocationIdentifier)
+# 
+# 
+# #STOPPED UPDATING THIS CODE HERE ON 12-3-2025
+# 
+# 
+# RS.parentdow <- RS.filter %>%
+#   mutate(parentdow )
+# 
+# # #why are there so many 0s?
+# # dnr.secchi.join %>%
+# #   summarise(zero = sum(secchi_meters == 0),
+# #             non_zero = sum(secchi_meters != 0))
+# 
+# # #returns number of observations per location
+# # dnr.secchi.join %>%
+# #   group_by(MonitoringLocationIdentifier) %>%
+# #   count() %>%
+# #   print(n= nrow(.))
+# 
+# #remove rows with 0 for secchi meters - this doesn't make sense, even a low secchi should be at least 0.0000001
+# #an email from Corey Geving : "I’m not sure if this is because field crews are skipping over the column and just putting in zero for some reason, or if there’s something else going on. Jon Hansen might have some insight into why there are so many zeroes."
+# dnr.secchi.join.filter <- dnr.secchi.join %>%
+#   filter(secchi_meters > 0)
+# 
+# #fix some data structure issues to be able to bind rows
+# dnr.secchi.join.filter <- dnr.secchi.join.filter %>%
+#   mutate(parentdow = as.numeric(parentdow), 
+#          year = as.numeric(year)
+#          )
+# #bind the rows of the WQP and DNR secchi data into one data frame
+# all.secchi <- bind_rows(WQP.secchi.join, dnr.secchi.join.filter)
+# 
+# # #save all this data as a csv for later reference
+# # write.csv(all.secchi, file = paste0("Data/Output/All_Secchi_Data_WQP_DNR", format(Sys.Date(), "%Y%m%d") ,".csv"))
+
+
+
+
+
+
+
+
+#DO NOT USE BELOW THIS LINE - THIS IS EVEN OLDER
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
