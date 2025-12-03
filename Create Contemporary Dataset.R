@@ -1,22 +1,15 @@
 #Code copied from "Create Preliminary Multivariate Analysis Dataset" and modified
-#USE THIS FROM NOW ON TO UPDATE THE DATASET - this data will be used for the conteporary fish/zoop community analysis (Master's chapter 1)
+#USE THIS FROM NOW ON TO UPDATE THE DATASET - this data will be used for the contemporary fish/zoop community analysis (Master's chapter 1)
+
+#Fish and zoop datasets will be formatted and finalized in another script before being added in here at the end
+#This formats covariates and then joins in the ready-to-go fish/zoop datasets
 
 
 #___________________________________________________________________________________
 
-#Starts with inclusion table created in "1a Read in Fish Data" - includes lakes with exact match for fish/zoop sampling years AND all core lakes
+#Starts with inclusion table created in "Create Fish-Zoop Pelagic Model Inclusion Table" 
+  #Includes lakes with exact match for fish/zoop sampling years, with surveys that passed my quality checks
 #Formats and joins all covariates as detailed in the outline of thesis methods document
-
-#Adds fish data for all species
-#Downloads and joins invasive species information (zebra mussels and Bythotrephes only) from DNR infested waters list
-#Filters out to just complete and best data - see description at end
-
-
-#corrects zooplankton taxonomy issues in the selected data and calculates an accurate Shannon Diversity Index
-#cleans zoop dataset based on Kylie's notes and known issues with DNR zooplankton dataset
-#calculates zoop metrics (Bytho and Lepto excluded) and joins them
-
-
 
 #packages
 library(tidyverse)
@@ -33,193 +26,9 @@ library(foreign) #to read in .dbf files
 library(stringr)
 library(gridExtra) #to export multiple plots together as .tiff files
 
-#Starting inclusion table known issues:
-#Inclusive to all potential data that may or may not be used due to various issues
-#Only includes fish/zoop years with EXACT matches PLUS all the core lakes, year listed for core lakes is fish survey
-#at some point check if some core lakes have 2025 fish surveys we didn't know about
-#as of 3-12-25, the 2025 sampling season is still in the future so we won't get all the WQ data yet
 
 #Import inclusion table
-Incl.Table <- read.csv("Data/Input/Inclusion.Table.Clean.Exact.csv")
-
-
-#remove Hill lake south as a row from the dataset - the zoops will get summarized appropriately in "Hill (north)" by parentdow and the fish will too
-Incl.Table <- filter(Incl.Table, LakeName != "Hill (south)")
-
-
-
-
-
-
-
-
-#TEMP DATA ---------------------------------------------------------------------
-
-#read in degree days for water temp that Gretchen already calculated and connected to DOWs
-temp.data <- read.csv("Data/Input/MN_lake_Gdds_all_years.csv")
-
-#create parentdow column
-temp_parentdow <- temp.data %>%
-  mutate(parentdow = case_when(
-    nchar(temp.data$DOW) == 7 ~ substr(DOW, 1, 5),
-    nchar(temp.data$DOW) == 8 ~ substr(DOW, 1, 6)
-  ))
-
-#check the most recent year we have temp data on
-max(temp_parentdow$year)
-#looks like 2021 - we will need to fill in this gap eventually
-
-
-#create parentdow.fish.year for join
-temp_parentdow$parentdow.fish.year = paste(temp_parentdow$parentdow, temp_parentdow$year)
-
-# #there are sub-basins for some lakes in this temp data, so we get multiple parentdow rows when joining is attempted
-# #need to condense into one row per parentdow
-# #are the degree days different between subbasins of the same lake in the same year? check number of unique values:
-# temp.subbasin.check <- temp_parentdow %>%
-#   group_by(parentdow.fish.year) %>%
-#   summarise(num_unique_values = n_distinct(gdd_wtr_5c))
-# #there are some lake-years with different values in subbasins
-# #join this to the MatchData original inclusion table to see if this is an issue for my lakes
-# temp.check.2 <- left_join(Incl.Table, temp.subbasin.check, by = "parentdow.fish.year")
-# unique(temp.check.2$num_unique_values)
-
-#many NA values: these are boundary waters or too recent to be included (2022 or later)
-
-#it is an issue, but only for 4 lakes, corrected here:
-
-#Minnetonka has 4 unique values - this makes sense, it is a huge lake with many sub-basins - fish data came from the non-divided 27013300 DOW so restrict temp to this
-temp.dow.correction <- temp_parentdow %>%
-  filter(DOW != 27013301 & 
-           DOW != 27013302 & 
-           DOW != 27013303 & 
-           DOW != 27013304 &
-           DOW != 27013305 &
-           DOW != 27013309 &
-           DOW != 27013310 &
-           DOW != 27013311 &
-           DOW != 27013312 &
-           DOW != 27013313 &
-           DOW != 27013314 &
-           DOW != 27013315 
-  )
-#Red lake has upper and lower, fish data here came from upper basin (4003501), so restrict to this
-temp.dow.correction <- temp.dow.correction %>%
-  filter(DOW != 4003500 & 
-           DOW != 4003502
-  )
-#Hill lake fish data came from lake without subbasin: 1014200, restrict to this
-temp.dow.correction <- temp.dow.correction %>%
-  filter(DOW != 1014201 & 
-           DOW != 1014202
-  )
-
-#Cut Foot Sioux lake fish data came from lake without subbasin: 31085700, restrict to this
-temp.dow.correction <- temp.dow.correction %>%
-  filter(DOW != 31085701 & 
-           DOW != 31085702 &
-           DOW != 31085703
-  )
-
-# #check that this correction worked:
-# temp.subbasin.check2 <- temp.dow.correction %>%
-#   group_by(parentdow.fish.year) %>%
-#   summarise(num_unique_values = n_distinct(gdd_wtr_5c))
-# temp.check.3 <- left_join(Incl.Table, temp.subbasin.check2, by = "parentdow.fish.year")
-# unique(temp.check.3$num_unique_values)
-# #it worked
-
-#there are some lakes without temp data but that's ok for now, some of these are boundary waters or after this was calculated up to 2021
-#summarize to get only one observation per parentdow.fish.year when there are multiple equivalent degree day values (all the differing ones have already been dealt with individually)
-#use this to also select just the columns you want to join
-temp.join <- temp.dow.correction %>%
-  group_by(parentdow.fish.year) %>%
-  summarize(gdd_wtr_5c = mean(gdd_wtr_5c), .groups = 'drop')
-
-
-#join to the inclusion table
-Data_a <- left_join(Incl.Table, temp.join, by = "parentdow.fish.year")
-
-#remove unneeded intermediate data frames to keep environment clean
-rm(temp_parentdow,
-   temp.check.2,
-   temp.check.3,
-   temp.subbasin.check,
-   temp.subbasin.check2,
-   temp.data,
-   temp.dow.correction,
-   temp.join,
-   test
-)
-#you may get an error message if you didn't run the commented out code to check my work here - this is okay
-
-
-
-
-
-
-
-
-#SECCHI DATA FROM MPCA ------------------------------------------------------------------------------------------------------
-
-#import all water quality data pulled from WQP in December 2024 plus the .csv file the DNR gave Denver (idk when exactly)
-secchi.data <- read.csv("Data/Input/All_Secchi_Data_WQP_DNR.csv")
-
-#join the combined DNR and WQ data to the inclusion table, preserving all secchi rows
-WQ.join <- secchi.data %>%
-  right_join(Incl.Table, by = c("parentdow", "year"))
-
-#remove the one rows with a secchi_meters value of 0
-#the only one from the WQP was taken in April so maybe ice?
-#DNR zeroes should have been removed when creating this data
-#this does not take out any NA values for lakes with secchi data
-WQ.join.clean <- filter(WQ.join, secchi_meters != 0 | is.na(secchi_meters))
-
-
-#need to think about temporal aspect of secchi - lets take mean of June/July/Aug but need to make sure all three months have data for all the lakes
-#combine all the individual station data for each lake when I take this mean
-#as long as I do this consistently and all the lakes are well represented across the time period I should be able to compare between lakes
-
-#filter out only June, July, August samples
-WQ.summer <- WQ.join.clean %>%
-  filter(month == "6" | month == "7" | month == "8")
-#check that all the lakes have data from all three months - summarize with the number of months for each lake/year
-WQ.summer.months <- WQ.summer %>%
-  group_by(parentdow, year) %>%
-  summarize(secchi.month.count = length(unique(month)), .groups = 'drop')
-#create an inclusion table with only the lakes that have enough monthly secchi data representation to include
-WQ.good.lakes <- filter(WQ.summer.months, secchi.month.count == 3)
-#join the summer data back to this to only include the observations for the desired lakes
-WQ.good.summer.secchi <- WQ.summer %>%
-  right_join(WQ.good.lakes, by = c("parentdow", "year"))
-
-#summarize the mean of the selected secchi data for each lake/year
-secchi.mean <- WQ.good.summer.secchi %>%
-  group_by(parentdow, year) %>%
-  summarize(mean.summer.secchi.meters = mean(secchi_meters), .groups = 'drop')
-#note that some lake/years are missing because not enough data for them (or none at all)
-
-#create parentdow.fish.year for join
-secchi.mean$parentdow.fish.year = paste(secchi.mean$parentdow, secchi.mean$year)
-
-#remove the parentdow and year columns so they don't get confusing and duplicated
-secchi.mean <- secchi.mean %>%
-  select(parentdow.fish.year, mean.summer.secchi.meters)
-
-#join to the rest of the preliminary data
-Data_b <- left_join(Data_a, secchi.mean, by = "parentdow.fish.year")
-
-#remove unneeded intermediate data frames to keep environment clean
-rm(secchi.data,
-   secchi.mean,
-   WQ.good.lakes,
-   WQ.good.summer.secchi,
-   WQ.join,
-   WQ.join.clean,
-   WQ.summer,
-   WQ.summer.months
-)
-
+Incl.Table <- read.csv("Data/Input/LakeYear_Pelagic_Inclusion_Table.csv")
 
 
 
@@ -379,18 +188,266 @@ RS.long.old$remote.CDOM <- NA
 RS.all <- rbind(RS.final.new, RS.long.old)
 
 #remove rows (lake years) with NA values for all 3 remote sensed variables
-RS.final <- RS.all %>% 
+RS.filter <- RS.all %>% 
   filter(!is.na(remote.secchi) | !is.na(remote.chla) | !is.na(remote.CDOM))
+
+
+#Create parentdow.year column that matches the inclusion table
+#this is sightly different from other parentdow creation code because we have some leading 0's we need to get rid of to match other data
+RS.parentdow <- RS.filter %>%
+  mutate(parentdow = case_when(
+    (RS.filter$DOW == "01014202" | RS.filter$DOW == "01014201" | RS.filter$DOW == "04003502" | RS.filter$DOW == "04003501") ~ substr(RS.filter$DOW, 2, 8),   #takes care of North and Red lakes
+    (RS.filter$DOW == "69037802" | RS.filter$DOW == "69037801") ~ substr(RS.filter$DOW, 1, 8),  #takes care of Vermilion (different because no leading 0),
+    (str_detect(RS.filter$DOW, "^0") & (RS.filter$DOW != "01014202" & RS.filter$DOW != "01014201" & RS.filter$DOW != "04003502" & RS.filter$DOW != "04003501" & RS.filter$DOW != "69037802" & RS.filter$DOW != "69037801")) ~ substr(RS.filter$DOW, 2, 6), #this gets 5 digits from the DOWs that start with zero and are not those identified before
+    (!str_detect(RS.filter$DOW, "^0") & (RS.filter$DOW != "01014202" & RS.filter$DOW != "01014201" & RS.filter$DOW != "04003502" & RS.filter$DOW != "04003501" & RS.filter$DOW != "69037802" & RS.filter$DOW != "69037801")) ~ substr(RS.filter$DOW, 1, 6) #this gets 6 digits from the DOWs that don't start with zero and are not those identified before
+  ))
+
+RS.parentdow$parentdow.year = paste(RS.parentdow$parentdow, RS.parentdow$Year)
+
+#When there are multiple sub-basins that I don't want to separate, average them together
+#also rename secchi column
+RS.mean <- RS.parentdow %>%
+  group_by(parentdow.year, parentdow, Year) %>%
+  summarize(LakeName = first(LakeName),
+            remote.secchi = mean(remote.secchi), 
+            remote.chla = mean(remote.chla ),
+            remote.CDOM = mean(remote.CDOM),
+            .groups = 'drop')
+
+#Rename lake name to show where it came from to check matches later
+#also rename secchi to show this column is for exact year matches
+RS.final <- RS.mean %>%
+  rename(LakeNameRS = LakeName) %>% 
+  rename(remote.secchi.exact.year = remote.secchi)
+
+#Join to inclusion table
+Join1 <- left_join(Incl.Table, RS.final, by = "parentdow.year")
+
+#now, since we don't have data for every year from the older remote sensed secchi data, we will make another column for the closest secchi year
+#first isolate the secchi data
+RS.secchi <- RS.mean %>% 
+  select(-remote.chla, -remote.CDOM)
+
+#separate parentdows and years in a copy of the Join1 data
+secchi.help <- Join1 %>% 
+  #filter(is.na(remote.secchi.exact.year)) %>%     #UNCOMMENT THIS LINE IF YOU JUST WANT THE LAKE-YEARS WITHOUT EXACT SECCHI YEARS
+  mutate(Year = str_sub(parentdow.year, -4, -1)) %>% 
+  mutate(parentdow = str_sub(parentdow.year, 1, -6))
+         
+#create a column with the closest remote sensed data year
+secchi.help$best.secchi.year <- ifelse((secchi.help$Year == 1999 | secchi.help$Year == 2001 | secchi.help$Year == 2002), 2000,
+                                       ifelse((secchi.help$Year == 2003 | secchi.help$Year == 2004 | secchi.help$Year == 2006), 2005,
+                                              ifelse((secchi.help$Year == 2007 | secchi.help$Year == 2009), 2008, 
+                                                     ifelse((secchi.help$Year == 2010 | secchi.help$Year == 2012 | secchi.help$Year == 2013), 2011,
+                                                            ifelse((secchi.help$Year == 2014 | secchi.help$Year == 2016), 2015, 
+                                                                   ifelse(secchi.help$parentdow.year == "410089 2018", 2019,
+                                                                          ifelse(secchi.help$parentdow.year == "410089 2021", 2022,
+                                                                                 ifelse(secchi.help$parentdow.year == "130027 2023", 2015, secchi.help$Year)))))))) 
+
+
+#create a parentdow.secchi.year to join in the closest year data
+secchi.help$parentdow.secchi.year <- paste(secchi.help$parentdow, secchi.help$best.secchi.year)
+
+#clean up the secchi help data frame to only columns you need
+secchi.help.clean <- secchi.help %>% 
+  select(parentdow.year, parentdow.secchi.year)
+
+#join this secchi year back to the Join1
+Join2 <- left_join(Join1, secchi.help.clean, by = "parentdow.year")
+
+#change the secchi mean dataset to be able to join just the closest secchi years
+secchi.close <- RS.mean %>% 
+  select(parentdow.year, LakeName, remote.secchi) %>% 
+  rename(parentdow.secchi.year = parentdow.year) %>% 
+  rename(LakeNameRS.close = LakeName) %>% 
+  rename(remote.secchi.closest.year = remote.secchi)
+
+#Now join to dataset
+Join3 <- left_join(Join2, secchi.close, by = "parentdow.secchi.year")
+
+#I visually checked names to make sure things joined well - all looks good
+
+#some cleanup in the Join dataframe
+Join4 <- Join3 %>% 
+  mutate(remote.secchi.year = str_sub(parentdow.secchi.year, -4, -1)) %>% #this records the true year the remote secchi data came from
+  mutate(year = str_sub(parentdow.year, -4, -1)) %>% #recalculate year for those that didn't get it from the remote sensed data
+  mutate(parentdow = str_sub(parentdow.year, 1, -6)) %>%  #recalculate parentdow for those that didn't get it from the remote sensed data
+  select(parentdow.year, lake_name, parentdow, year, remote.chla, remote.CDOM, remote.secchi.exact.year, remote.secchi.closest.year, remote.secchi.year) #keep only the columns you want in the order you want them
 
 
 #remove previous dataframes to keep environment clean
 rm(RS, RS.clean, RS.long, RS.nogeom, RS.summer, RS.year, CL.CDOM.avg, CL.CDOM.year,
    RS.all, RS.clean.old, RS.final.new, RS.long.old, RS.no75, RS.old.nogeom, RS.year.old,
-   SD.avg, SD.year, RS.old)
+   SD.avg, SD.year, RS.old, RS.parentdow, RS.filter, RS.mean, RS.secchi, secchi.help, secchi.help.clean, secchi.close)
+
+
+#COMMENTED CODE BELOW EXPLORES WHICH REMOTE SENSED SECCHI DATA I CAN USE (HOW CLOSE THE YEAR HAS TO BE)
+
+# #run a few correlations to see how much using secchi data one year and two years off makes a difference to decide if you can use the closest match
+# #how far off is my closest secchi data?
+# secchi.error <- abs(as.numeric(Join4$year) - as.numeric(Join4$remote.secchi.year))
+# table(secchi.error)
+# #So I should investigate the one that is 8 years off and other than that, I have either one or two years off
+# 
+# RS.test <- RS.final %>% 
+#   select(parentdow, Year, remote.secchi.exact.year)
+# 
+# RS.wide <- pivot_wider(data = RS.test, names_from = Year, values_from = remote.secchi.exact.year)
+# 
+# #2021 vs. 2022
+# cor(RS.wide$`2021`, RS.wide$`2022`, "pairwise.complete.obs")
+# RS_2021_v_2022 <- ggplot(data = RS.wide, aes(x = `2021`, y = `2022`))+
+#   geom_point()+
+#   geom_smooth(method = "lm")
+# RS_2021_v_2022
+# 
+# #2022 vs. 2023
+# cor(RS.wide$`2022`, RS.wide$`2023`, "pairwise.complete.obs")
+# RS_2022_v_2023 <- ggplot(data = RS.wide, aes(x = `2022`, y = `2023`))+
+#   geom_point()+
+#   geom_smooth(method = "lm")
+# RS_2022_v_2023
+# 
+# #2017 vs. 2018
+# cor(RS.wide$`2017`, RS.wide$`2018`, "pairwise.complete.obs")
+# RS_2017_v_2018 <- ggplot(data = RS.wide, aes(x = `2017`, y = `2018`))+
+#   geom_point()+
+#   geom_smooth(method = "lm")
+# RS_2017_v_2018
+# 
+# #CONCLUSION: One year off is okay - we consistently have a correlation of 0.93 and the dataset did this sometimes anyways without telling us
+# 
+# #2021 vs. 2023
+# cor(RS.wide$`2021`, RS.wide$`2023`, "pairwise.complete.obs")
+# RS_2021_v_2023 <- ggplot(data = RS.wide, aes(x = `2021`, y = `2023`))+
+#   geom_point()+
+#   geom_smooth(method = "lm")
+# RS_2021_v_2023
+# 
+# #2022 vs. 2024
+# cor(RS.wide$`2022`, RS.wide$`2024`, "pairwise.complete.obs")
+# RS_2022_v_2024 <- ggplot(data = RS.wide, aes(x = `2022`, y = `2024`))+
+#   geom_point()+
+#   geom_smooth(method = "lm")
+# RS_2022_v_2024
+# 
+# #2017 vs. 2019
+# cor(RS.wide$`2017`, RS.wide$`2019`, "pairwise.complete.obs")
+# RS_2017_v_2019 <- ggplot(data = RS.wide, aes(x = `2017`, y = `2019`))+
+#   geom_point()+
+#   geom_smooth(method = "lm")
+# RS_2017_v_2019
+# 
+# #2019 vs. 2021
+# cor(RS.wide$`2019`, RS.wide$`2021`, "pairwise.complete.obs")
+# RS_2019_v_2021 <- ggplot(data = RS.wide, aes(x = `2019`, y = `2021`))+
+#   geom_point()+
+#   geom_smooth(method = "lm")
+# RS_2019_v_2021
+# 
+# #I AM ALSO GETTING AT LEAST A 0.89 OR HIGHER CORRELATION FOR 2 YEARS OFF - THIS SEEMS OK
+# 
+# #2017 vs. 2024
+# cor(RS.wide$`2017`, RS.wide$`2024`, "pairwise.complete.obs")
+# RS_2017_v_2024 <- ggplot(data = RS.wide, aes(x = `2017`, y = `2024`))+
+#   geom_point()+
+#   geom_smooth(method = "lm")
+# RS_2017_v_2024
+# 
+# #This wide jump seems ok - but I want to look into the trend of the lake that is 8 years off
+# #It is south center lake parentdow = 130027
+# SouthCenter <- RS.wide %>% 
+#   filter(parentdow == "130027") %>% 
+#   pivot_longer(cols = "1985":"2024",names_to = "year", values_to = "secchi")
+# 
+# SouthCenterPlot <- ggplot(data = SouthCenter, aes(x = year, y = secchi)) +
+#   geom_point()+
+#   ylim(0, 5)
+# SouthCenterPlot
+# #It hovers fairly consistently around 1... so I am going to use it
+# #ALSO I looked in lake finder and in 2023 (the year I have fish/zoop data for), they describe a clarity of ~3 feet
+# 
+# #clean up environment
+# rm(RS_2017_v_2018, RS_2017_v_2019, RS_2017_v_2024, RS_2019_v_2019, RS_2019_v_2021, RS_2021_v_2022, RS_2021_v_2023,
+#    RS_2022_v_2023, RS_2022_v_2024, secchi.error, SouthCenterPlot, SouthCenter, RS.test, RS.wide)
 
 
 
-#------------------------------------------------------------------------------------------------------------------
+
+
+
+
+#SECCHI DATA FROM MPCA ------------------------------------------------------------------------------------------------------
+#Including to compare to coverage and quality from remote sensed data
+
+#import all water quality data pulled from WQP on 11-24-2025 plus the .csv file the DNR gave Denver (idk when exactly)
+#Created in the "Pull Water Quality Data" script
+
+secchi.data <- read.csv("Data/Input/All_Secchi_Data_WQP_DNR.csv")
+
+#join the combined DNR and WQ data to the inclusion table, preserving all secchi rows
+WQ.join <- secchi.data %>%
+  right_join(Incl.Table, by = c("parentdow", "year"))
+
+#remove the one rows with a secchi_meters value of 0
+#the only one from the WQP was taken in April so maybe ice?
+#DNR zeroes should have been removed when creating this data
+#this does not take out any NA values for lakes with secchi data
+WQ.join.clean <- filter(WQ.join, secchi_meters != 0 | is.na(secchi_meters))
+
+
+#need to think about temporal aspect of secchi - lets take mean of June/July/Aug but need to make sure all three months have data for all the lakes
+#combine all the individual station data for each lake when I take this mean
+#as long as I do this consistently and all the lakes are well represented across the time period I should be able to compare between lakes
+
+#filter out only June, July, August samples
+WQ.summer <- WQ.join.clean %>%
+  filter(month == "6" | month == "7" | month == "8")
+#check that all the lakes have data from all three months - summarize with the number of months for each lake/year
+WQ.summer.months <- WQ.summer %>%
+  group_by(parentdow, year) %>%
+  summarize(secchi.month.count = length(unique(month)), .groups = 'drop')
+#create an inclusion table with only the lakes that have enough monthly secchi data representation to include
+WQ.good.lakes <- filter(WQ.summer.months, secchi.month.count == 3)
+#join the summer data back to this to only include the observations for the desired lakes
+WQ.good.summer.secchi <- WQ.summer %>%
+  right_join(WQ.good.lakes, by = c("parentdow", "year"))
+
+#summarize the mean of the selected secchi data for each lake/year
+secchi.mean <- WQ.good.summer.secchi %>%
+  group_by(parentdow, year) %>%
+  summarize(mean.summer.secchi.meters.MPCA = mean(secchi_meters), .groups = 'drop')
+#note that some lake/years are missing because not enough data for them (or none at all)
+
+#create parentdow.year for join
+secchi.mean$parentdow.year = paste(secchi.mean$parentdow, secchi.mean$year)
+
+#remove the parentdow and year columns so they don't get confusing and duplicated
+secchi.mean <- secchi.mean %>%
+  select(parentdow.year, mean.summer.secchi.meters.MPCA)
+
+#join to the rest of the preliminary data
+Data_b <- left_join(Data_a, secchi.mean, by = "parentdow.fish.year")
+
+#remove unneeded intermediate data frames to keep environment clean
+rm(secchi.data,
+   secchi.mean,
+   WQ.good.lakes,
+   WQ.good.summer.secchi,
+   WQ.join,
+   WQ.join.clean,
+   WQ.summer,
+   WQ.summer.months
+)
+
+
+
+
+
+
+
+
+
 #LAGOS LOCUS DATA: Lake surface area, centroid coordinates, elevation, shoreline development factor, drainage connectivity ------------------------------------------------
 #these data summarized to lake level, but not lake-year because they should be consistent over the years of my study
 
@@ -576,6 +633,105 @@ rm(fish,
 
 
 
+#TEMP DATA ---------------------------------------------------------------------
+
+#read in degree days for water temp that Gretchen already calculated and connected to DOWs
+temp.data <- read.csv("Data/Input/MN_lake_Gdds_all_years.csv")
+
+#create parentdow column
+temp_parentdow <- temp.data %>%
+  mutate(parentdow = case_when(
+    nchar(temp.data$DOW) == 7 ~ substr(DOW, 1, 5),
+    nchar(temp.data$DOW) == 8 ~ substr(DOW, 1, 6)
+  ))
+
+#check the most recent year we have temp data on
+max(temp_parentdow$year)
+#looks like 2021 - we will need to fill in this gap eventually
+
+
+#create parentdow.year for join
+temp_parentdow$parentdow.year = paste(temp_parentdow$parentdow, temp_parentdow$year)
+
+#there are sub-basins for some lakes in this temp data, so we get multiple parentdow rows when joining is attempted
+#need to condense into one row per parentdow
+#are the degree days different between subbasins of the same lake in the same year? check number of unique values:
+temp.subbasin.check <- temp_parentdow %>%
+  group_by(parentdow.year) %>%
+  summarise(num_unique_values = n_distinct(gdd_wtr_5c))
+#there are some lake-years with different values in subbasins
+#join this to the original inclusion table to see if this is an issue for my lakes
+temp.check.2 <- left_join(Incl.Table, temp.subbasin.check, by = "parentdow.year")
+unique(temp.check.2$num_unique_values)
+
+#many NA values: these are boundary waters or too recent to be included (2022 or later)
+
+#it is an issue, but only for 4 lakes, corrected here:
+
+#Minnetonka has 4 unique values - this makes sense, it is a huge lake with many sub-basins - fish data came from the non-divided 27013300 DOW so restrict temp to this
+temp.dow.correction <- temp_parentdow %>%
+  filter(DOW != 27013301 & 
+           DOW != 27013302 & 
+           DOW != 27013303 & 
+           DOW != 27013304 &
+           DOW != 27013305 &
+           DOW != 27013309 &
+           DOW != 27013310 &
+           DOW != 27013311 &
+           DOW != 27013312 &
+           DOW != 27013313 &
+           DOW != 27013314 &
+           DOW != 27013315 
+  )
+#Red lake has upper and lower, fish data here came from upper basin (4003501), so restrict to this
+temp.dow.correction <- temp.dow.correction %>%
+  filter(DOW != 4003500 & 
+           DOW != 4003502
+  )
+#Hill lake fish data came from lake without subbasin: 1014200, restrict to this
+temp.dow.correction <- temp.dow.correction %>%
+  filter(DOW != 1014201 & 
+           DOW != 1014202
+  )
+
+#Cut Foot Sioux lake fish data came from lake without subbasin: 31085700, restrict to this
+temp.dow.correction <- temp.dow.correction %>%
+  filter(DOW != 31085701 & 
+           DOW != 31085702 &
+           DOW != 31085703
+  )
+
+# #check that this correction worked:
+# temp.subbasin.check2 <- temp.dow.correction %>%
+#   group_by(parentdow.fish.year) %>%
+#   summarise(num_unique_values = n_distinct(gdd_wtr_5c))
+# temp.check.3 <- left_join(Incl.Table, temp.subbasin.check2, by = "parentdow.fish.year")
+# unique(temp.check.3$num_unique_values)
+# #it worked
+
+#there are some lakes without temp data but that's ok for now, some of these are boundary waters or after this was calculated up to 2021
+#summarize to get only one observation per parentdow.fish.year when there are multiple equivalent degree day values (all the differing ones have already been dealt with individually)
+#use this to also select just the columns you want to join
+temp.join <- temp.dow.correction %>%
+  group_by(parentdow.fish.year) %>%
+  summarize(gdd_wtr_5c = mean(gdd_wtr_5c), .groups = 'drop')
+
+
+#join to the inclusion table
+Data_a <- left_join(Incl.Table, temp.join, by = "parentdow.fish.year")
+
+#remove unneeded intermediate data frames to keep environment clean
+rm(temp_parentdow,
+   temp.check.2,
+   temp.check.3,
+   temp.subbasin.check,
+   temp.subbasin.check2,
+   temp.data,
+   temp.dow.correction,
+   temp.join,
+   test
+)
+#you may get an error message if you didn't run the commented out code to check my work here - this is okay
 
 
 
