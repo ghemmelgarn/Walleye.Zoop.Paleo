@@ -26,6 +26,7 @@ library(foreign) #to read in .dbf files
 library(stringr)
 library(gridExtra) #to export multiple plots together as .tiff files
 
+
 #ADD IDENTIFIERS TO INCLUSION TABLE------------------------------------------
 
 
@@ -485,9 +486,13 @@ secchi.data <- read.csv("Data/Input/WQP_1998-2025_Secchi_20251124_FILTERED_FORMA
 #make parentdow.year column
 secchi.data$parentdow.year <- paste(secchi.data$parentdow, secchi.data$year)
 
+#get rid of columns: x, parentdow, year (will get repeated when joined)
+secchi.data.clean <- secchi.data %>% 
+  select(-X, -parentdow, -year)
+
 #join the MPCA secchi data to the inclusion table, preserving all secchi rows
-WQ.join <- secchi.data %>%
-  right_join(Incl.Table, by = "parentdow.year")
+WQ.join <- Incl.Table.Final %>%
+  left_join(secchi.data.clean, by = "parentdow.year")
 
 #remove any rows with a secchi_meters value of 0
 #this does not take out any NA values - preserves lakes that don't have secchi data in this dataset
@@ -503,13 +508,13 @@ WQ.summer <- WQ.join.clean %>%
   filter(month == "6" | month == "7" | month == "8")
 #check that all the lakes have data from all three months - summarize with the number of months for each lake/year
 WQ.summer.months <- WQ.summer %>%
-  group_by(parentdow, year) %>%
+  group_by(parentdow, Year) %>%
   summarize(secchi.month.count = length(unique(month)), .groups = 'drop')
 #create an inclusion table with only the lakes that have enough monthly secchi data representation to include
 WQ.good.lakes <- filter(WQ.summer.months, secchi.month.count == 3)
 #join the summer data back to this to only include the observations for the desired lakes
 WQ.good.summer.secchi <- WQ.summer %>%
-  right_join(WQ.good.lakes, by = c("parentdow", "year"))
+  right_join(WQ.good.lakes, by = c("parentdow", "Year"))
 
 #summarize the mean of the selected secchi data for each lake/year
 secchi.mean <- WQ.good.summer.secchi %>%
@@ -544,8 +549,128 @@ rm(secchi.data,
    WQ.summer,
    WQ.summer.months,
    WQ.late.summer,
-   secchi.mean2
+   secchi.mean2,
+   secchi.data.clean
 )
+
+
+
+
+
+
+
+
+
+#LAGOS LIMNO DATA: Conductivity--------------------------------------------------------------------------------
+
+#read in data
+Limno <- read.csv("Data/Input/chemistry_limno.csv")
+
+#filter to just conductivity data
+Cond <- Limno %>% 
+  filter(parameter_name == "spcond_uscm")
+
+#filter to just MN lakes
+Cond.MN <- Cond %>% 
+  filter(str_detect(sample_id, "MN"))
+
+#where is this data coming from?
+table(Cond.MN$source_id)
+#mostly MPCA, Red Lake, and USGS
+
+#CHECK FOR VARIOUS FLAGS:
+
+            # #0 values
+            # zero.test <- Cond.MN %>% 
+            #   filter(parameter_value == 0)
+            # 
+            # LE6.test <- Cond.MN %>% 
+            #   filter(censorcode == "LE6")
+            # #so all these 0 values have the same censor code of LE6 which means "parameter_value equals 0; detection limit value missing and neither qualifier nor comments provided"
+            # #let's remove these values
+            # 
+            # 
+            # #negative values
+            # neg.test <- Cond.MN %>% 
+            #   filter(parameter_value < 0)
+            # #no negative values present
+            # 
+            # 
+            # #censor code flags related to analytical detection limit
+            # table(Cond.MN$censorcode)
+            # #already dealt with LE6
+            # #LE5 = "parameter_value is missing; detection limit present" - REMOVE THIS ONE OBSERVATION
+            # #NC2 = "parameter_value greater than the parameter_detectionlimit_value, detection limit value provided; neither qualifier or comments provided"
+            #     #this is because detection limits are almost never specified and when they are specified they are ridiculously low
+            #     #IGNORE THIS FLAG
+            # #NC4 = "parameter_detectionlimit_value is missing; neither qualifier or comments provided"
+            #     #this is the majority of my observations
+            #     #IGNORE THIS FLAG
+            # 
+            # 
+            # #not worried about depth flags because depth isn't super important for conductivity - everything is specified anyways
+
+#filter out the data you decided you can't include
+Cond.clean <- Cond.MN %>% 
+  filter(censorcode != "LE6" & censorcode != "LE5")
+
+#first need to isolate year
+Cond.clean$year <- substr(Cond.clean$sample_date, 1, 4)
+
+#lets make a separate column with lagoslakeid separated for east and west vermilion in the inclusion table and the conductivity data
+Join6$lagoslakeid_verm <- ifelse(Join6$lagoslakeid == 2554 & Join6$parentdow == 69037801, "2554E",
+                                 ifelse(Join6$lagoslakeid == 2554 & Join6$parentdow == 69037802, "2554W", Join6$lagoslakeid))
+Join6.ordered <- Join6 %>% 
+  relocate(lagoslakeid_verm, .after = lagoslakeid)
+
+Cond.clean$lagoslakeid_verm <- ifelse(Cond.clean$lagoslakeid == 2554 & str_detect(Cond.clean$source_sample_siteid, "69-0378-02"), "2554W",
+                                      ifelse(Cond.clean$lagoslakeid == 2554 & (str_detect(Cond.clean$source_sample_siteid, "69-0378-01") | str_detect(Cond.clean$source_sample_siteid, "69-0378-00")), "2554E", Cond.clean$lagoslakeid))
+
+#take a mean conductivity for each year
+Cond.mean <- Cond.clean %>%
+  group_by(lagoslakeid_verm, year) %>%
+  summarize(cond_uscm_exact_year = mean(parameter_value), .groups = 'drop') %>% 
+  rename(Year = year)
+
+
+#Join exact years to dataset
+Join7 <- left_join(Join6.ordered, Cond.mean, by = c("lagoslakeid_verm", "Year"))
+
+#Join closest year (but no more than 10 years) to dataset
+#rename the conductivity columns
+Cond.mean.close <- Cond.mean %>% 
+  rename(cond_uscm_closest_year = cond_uscm_exact_year,
+         cond_year = Year)
+
+
+#join ALL The years to see what we can do
+cond.data.test <- left_join(Join7, Cond.mean.close, by = "lagoslakeid_verm")
+
+cond.data.test.ordered <- cond.data.test %>% 
+  relocate(c(cond_uscm_exact_year, cond_uscm_closest_year, cond_year), .after = Year)
+
+#I used this info to make this file by hand which has the closest year with conductivity data for each lake-year:
+cond.years <- read.csv("Data/Input/LakeYear_Pelagic_Cond_Year.csv")
+#get rid of columns I don't need and format the year column to match rest of data
+cond.years.clean <- cond.years %>% 
+  select(-lake_name, -Exact_Match) %>% 
+  mutate(cond_year = as.character(cond_year))
+
+#Join the conductivity data year
+Join8 <- left_join(Join7, cond.years.clean, by = "parentdow.year")
+
+#then join the closest conductivity data
+Join9 <- left_join(Join8, Cond.mean.close, by = c("lagoslakeid_verm", "cond_year"))
+
+#reorder a bit
+Join9.ordered <- Join9 %>% 
+  relocate(cond_year, .after = cond_uscm_closest_year)
+
+#remove intermediate dataframes
+rm(Cond, Cond.clean, Cond.MN, Cond.mean, Cond.mean.close, cond.data.test, cond.data.test.ordered,
+   cond.years, cond.years.clean)
+
+
 
 
 
@@ -635,73 +760,7 @@ Locus.Depth <- full_join(Locus.all, Depth.select.named, by = "lagoslakeid")
 rm(Depth.MN, Depth.select, Depth, Depth.select.named)
 
 
-#LAGOS LIMNO DATA: Conductivity--------------------------------------------------------------------------------
 
-#read in data
-Limno <- read.csv("Data/Input/chemistry_limno.csv")
-
-#filter to just conductivity data
-Cond <- Limno %>% 
-  filter(parameter_name == "spcond_uscm")
-
-#filter to just MN lakes
-Cond.MN <- Cond %>% 
-  filter(str_detect(sample_id, "MN"))
-
-#where is this data coming from?
-table(Cond.MN$source_id)
-#mostly MPCA, Red Lake, and USGS
-
-#CHECK FOR VARIOUS FLAGS:
-
-          # #0 values
-          # zero.test <- Cond.MN %>% 
-          #   filter(parameter_value == 0)
-          # 
-          # LE6.test <- Cond.MN %>% 
-          #   filter(censorcode == "LE6")
-          # #so all these 0 values have the same censor code of LE6 which means "parameter_value equals 0; detection limit value missing and neither qualifier nor comments provided"
-          # #let's remove these values
-          # 
-          # 
-          # #negative values
-          # neg.test <- Cond.MN %>% 
-          #   filter(parameter_value < 0)
-          # #no negative values present
-          # 
-          # 
-          # #censor code flags related to analytical detection limit
-          # table(Cond.MN$censorcode)
-          # #already dealt with LE6
-          # #LE5 = "parameter_value is missing; detection limit present" - REMOVE THIS ONE OBSERVATION
-          # #NC2 = "parameter_value greater than the parameter_detectionlimit_value, detection limit value provided; neither qualifier or comments provided"
-          #     #this is because detection limits are almost never specified and when they are specified they are ridiculously low
-          #     #IGNORE THIS FLAG
-          # #NC4 = "parameter_detectionlimit_value is missing; neither qualifier or comments provided"
-          #     #this is the majority of my observations
-          #     #IGNORE THIS FLAG
-          # 
-          # 
-          # #not worried about depth flags because depth isn't super important for conductivity - everything is specified anyways
-
-#filter out the data you decided you can't include
-Cond.clean <- Cond.MN %>% 
-  filter(censorcode != "LE6" & censorcode != "LE5")
-
-#first need to isolate year
-Cond.clean$year <- substr(Cond.clean$sample_date, 1, 4)
-
-#take a mean conductivity for each year
-Cond.mean <- Cond.clean %>%
-  group_by(lagoslakeid, year) %>%
-  summarize(cond_uscm = mean(parameter_value), .groups = 'drop')
-
-#remvoe intermediate dataframes
-rm(Cond, Cond.clean, Cond.MN)
-
-
-#this is now formatted as lake-year
-#Need to match lagoslakeid to parent DOW, but other than that it should be ready to join
 
 
 #FISH CPUE JOIN - ALL THE FISH and nhdhr-id :))))) ----------------------------------------------------------------
