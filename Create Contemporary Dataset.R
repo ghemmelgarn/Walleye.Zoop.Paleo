@@ -26,9 +26,108 @@ library(foreign) #to read in .dbf files
 library(stringr)
 library(gridExtra) #to export multiple plots together as .tiff files
 
+#ADD IDENTIFIERS TO INCLUSION TABLE------------------------------------------
+
 
 #Import inclusion table
 Incl.Table <- read.csv("Data/Input/LakeYear_Pelagic_Inclusion_Table.csv")
+
+#make separate year and dow columns in the inclusion table
+Incl.Table.DOW <- Incl.Table %>% 
+  mutate(Year = str_sub(parentdow.year, -4, -1)) %>% 
+  mutate(parentdow = str_sub(parentdow.year, 1, -6))
+
+
+#I need the crosswalk to also get nhdid values in the inclusion table to join the LAGOS data
+#read in crosswalk that Denver made from fish database
+crosswalk <- read.csv("Data/Input/dow_nhdhr_fish_lakes.csv")
+
+#create a parentdow column in crosswalk to match my incluson table (no leading zeroes included here)
+cw.parentdow <- crosswalk %>%
+  mutate(parentdow = case_when(
+    (crosswalk$lake_id == "1014202" | crosswalk$lake_id == "1014201" | crosswalk$lake_id == "4003502" | crosswalk$lake_id == "4003501") ~ substr(crosswalk$lake_id, 1, 7),   #takes care of North and Red lakes (7 characters)
+    (crosswalk$lake_id == "69037802" | crosswalk$lake_id == "69037801") ~ substr(crosswalk$lake_id, 1, 8),  #takes care of Vermilion (different because 8 characters)
+    (nchar(crosswalk$lake_id) == 7 & (crosswalk$lake_id != "01014202" & crosswalk$lake_id != "01014201" & crosswalk$lake_id != "04003502" & crosswalk$lake_id != "04003501" & crosswalk$lake_id != "69037802" & crosswalk$lake_id != "69037801")) ~ substr(crosswalk$lake_id, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
+    (nchar(crosswalk$lake_id) == 8 & (crosswalk$lake_id != "01014202" & crosswalk$lake_id != "01014201" & crosswalk$lake_id != "04003502" & crosswalk$lake_id != "04003501" & crosswalk$lake_id != "69037802" & crosswalk$lake_id != "69037801")) ~ substr(crosswalk$lake_id, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
+  ))
+
+#Join it to the inclusion table
+Incl.Table.cross <- left_join(Incl.Table.DOW, cw.parentdow, by = "parentdow")
+#get rid of "nhdhr_" in front of the nhdid's
+Incl.Table.cross2 <- Incl.Table.cross %>% 
+  mutate(nhdhr_id = str_sub(Incl.Table.cross$nhdhr_id, 7))
+
+#Need to find and input nhdids that split Hill and Vermilion, and need to find Lower Red
+#lets check lagos lake link, directly filter down to just MN lakes to make this easier
+lake_link <- read.csv("Data/Input/lake_link.csv") %>% 
+  filter(lake_centroidstate == "MN")
+
+#search for the lakes I want
+lake_link_verm <- lake_link %>% 
+  filter(str_detect(lake_namelagos, "Vermilion"))
+lake_link_hill <- lake_link %>% 
+  filter(str_detect(lake_namelagos, "Hill"))
+lake_link_red <- lake_link %>% 
+  filter(str_detect(lake_namelagos, "Red"))
+
+#Refine further after hand-identifying the right ones
+lake_link_verm <- lake_link_verm %>% 
+  filter(lagoslakeid == 2554) #Vermilion is split east-west with the wqp ID but not with nhdid or lagos lake id in lagos... this will requires some finagling
+lake_link_hill <- lake_link_hill %>% 
+  filter(lagoslakeid == 168 | lagoslakeid == 425)
+lake_link_red <- lake_link_red %>% 
+  filter(lagoslakeid == 39213 | lagoslakeid == 34986)
+#I checked all the coordinates on google maps and they are the correct lakes
+#Extract and save these nhd values
+Verm <- lake_link_verm$lake_nhdid[1]
+NHill <- lake_link_hill$lake_nhdid[4]
+SHill <- lake_link_hill$lake_nhdid[1]
+URed <- lake_link_red$lake_nhdid[29]
+LRed <- lake_link_red$lake_nhdid[1]
+Crane <- lake_link$lake_nhdid[5830] #Crane lake has the wrong nhdid in the fish database so correcting that too
+
+#add the correct nhdhr ID's to the inclusion table
+Incl.Table.nhd <- Incl.Table.cross2 %>% 
+  mutate(nhdhr_id = ifelse(Incl.Table.cross2$lake_name == "Hill north", NHill,
+                           ifelse(Incl.Table.cross2$lake_name == "Hill south", SHill,
+                                  ifelse(Incl.Table.cross2$lake_name == "Red (Lower Red)", LRed,
+                                         ifelse(Incl.Table.cross2$lake_name == "Red (Upper Red)", URed,
+                                                ifelse(Incl.Table.cross2$lake_name == "Crane", Crane,
+                                                      ifelse(Incl.Table.cross2$lake_name == "East Vermilion" | Incl.Table.cross2$lake_name == "West Vermilion", Verm, Incl.Table.cross2$nhdhr_id))))))
+          )
+
+
+#Let's add the lagos lake id to make the inclusion of lagos data easier
+#also bring in lagos names to check my work
+lake_link_simple <- lake_link %>%  #simplify the lake_link file for joining
+  select(lake_nhdid, lagoslakeid, lake_namelagos) %>% #selec the columns I want
+  rename(nhdhr_id = lake_nhdid) #rename the nhd column to match for the join
+
+lake_link_unique <- unique(lake_link_simple) #remove duplicate rows
+
+Incl.Table.lagos <- left_join(Incl.Table.nhd, lake_link_unique, by = "nhdhr_id")
+
+#remove unneeded columns
+Incl.Table.Final <- Incl.Table.lagos %>% 
+  select(-lake_id, -lake_namelagos)
+
+
+#REMEMBER THAT EAST/WEST VERMILION HAVE THE SAME LAGOS AND NHDIDs... BUT with lagos data I can separate with the mpca station identifiers
+
+
+#keep environment clean
+rm(crosswalk, cw.parentdow, Incl.Table, Incl.Table.cross, Incl.Table.cross2, Incl.Table.DOW,
+   Incl.Table.lagos, Incl.Table.nhd, lake_link, lake_link_hill, lake_link_red, lake_link_simple,
+   lake_link_unique, lake_link_verm, Crane, LRed, NHill, SHill, URed, Verm)
+
+
+
+
+
+
+
+
+
 
 
 
@@ -207,7 +306,7 @@ RS.parentdow$parentdow.year = paste(RS.parentdow$parentdow, RS.parentdow$Year)
 #When there are multiple sub-basins that I don't want to separate, average them together
 #also rename secchi column
 RS.mean <- RS.parentdow %>%
-  group_by(parentdow.year, parentdow, Year) %>%
+  group_by(parentdow.year) %>%
   summarize(LakeName = first(LakeName),
             remote.secchi = mean(remote.secchi), 
             remote.chla = mean(remote.chla ),
@@ -221,7 +320,7 @@ RS.final <- RS.mean %>%
   rename(remote.secchi.exact.year = remote.secchi)
 
 #Join to inclusion table
-Join1 <- left_join(Incl.Table, RS.final, by = "parentdow.year")
+Join1 <- left_join(Incl.Table.Final, RS.final, by = "parentdow.year")
 
 #now, since we don't have data for every year from the older remote sensed secchi data, we will make another column for the closest secchi year
 #first isolate the secchi data
@@ -270,9 +369,7 @@ Join3 <- left_join(Join2, secchi.close, by = "parentdow.secchi.year")
 #some cleanup in the Join dataframe
 Join4 <- Join3 %>% 
   mutate(remote.secchi.year = str_sub(parentdow.secchi.year, -4, -1)) %>% #this records the true year the remote secchi data came from
-  mutate(year = str_sub(parentdow.year, -4, -1)) %>% #recalculate year for those that didn't get it from the remote sensed data
-  mutate(parentdow = str_sub(parentdow.year, 1, -6)) %>%  #recalculate parentdow for those that didn't get it from the remote sensed data
-  select(parentdow.year, lake_name, parentdow, year, remote.chla, remote.CDOM, remote.secchi.exact.year, remote.secchi.closest.year, remote.secchi.year) #keep only the columns you want in the order you want them
+  select(parentdow.year, lake_name, Year, parentdow, nhdhr_id, lagoslakeid, remote.chla, remote.CDOM, remote.secchi.exact.year, remote.secchi.closest.year, remote.secchi.year) #keep only the columns you want in the order you want them
 
 
 #remove previous dataframes to keep environment clean
@@ -467,7 +564,7 @@ Locus.info <- read.csv("Data/Input/lake_information.csv")
 Locus.char <- read.csv("Data/Input/lake_characteristics.csv")
 #good they are the same length
 
-#filter the info file to only lakes that are at least partically in Minnesota to make it smaller, then delete the behemoth file
+#filter the info file to only lakes that are at least partially in Minnesota to make it smaller, then delete the behemoth file
 Locus.info.MN <- Locus.info %>% 
   filter(str_detect(lake_states, "MN"))
 
@@ -495,6 +592,8 @@ Locus.char.select <- Locus.char %>%
 
 #Join the characteristics data to the info data so it only preserves lakes in the info dataset, which means it will only have Minnesota lakes
 Locus.all <- left_join(Locus.info.select, Locus.char.select, by = "lagoslakeid")
+
+
                   
                   
 #remove unneeded intermediate data frames to keep environment clean
