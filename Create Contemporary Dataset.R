@@ -711,6 +711,7 @@ Locus.info.select <- Locus.info.MN %>%
 Locus.char.select <- Locus.char %>% 
   select(lagoslakeid,
          lake_waterarea_ha,
+         lake_perimeter_m,
          lake_shorelinedevfactor, #This is "calculated as lake_perimeter_m divided by the product of 2 times the square root of pi times lake_waterarea_ha"
          lake_connectivity_class #This includes both perennial and intermittent-ephemeral flow
          )
@@ -718,7 +719,7 @@ Locus.char.select <- Locus.char %>%
 #Join the characteristics data to the info data so it only preserves lakes in the info dataset, which means it will only have Minnesota lakes
 Locus.all <- left_join(Locus.info.select, Locus.char.select, by = "lagoslakeid")
 
-
+#don't join to everything yet, will join depth and then everything to the join datasets
                   
                   
 #remove unneeded intermediate data frames to keep environment clean
@@ -760,6 +761,176 @@ Locus.Depth <- full_join(Locus.all, Depth.select.named, by = "lagoslakeid")
 rm(Depth.MN, Depth.select, Depth, Depth.select.named)
 
 
+#Join - VERMILION WILL BE A PROBLEM HERE - I guess I need to find these metrics from other sources for Vermilion
+Join10 <- left_join(Join9.ordered, Locus.Depth, by = "lagoslakeid")
+
+#make Vermilion have NA values for lagos characteristics that I can't use because they are not split east-west
+#also get rid of the duplicate nhdid columns
+Join10.clean <- Join10 %>% 
+ mutate(lake_lat_decdeg = ifelse(lagoslakeid == 2554, NA, Join10$lake_lat_decdeg)) %>% 
+  mutate(lake_lon_decdeg = ifelse(lagoslakeid == 2554, NA, Join10$lake_lon_decdeg)) %>%
+  mutate(lake_waterarea_ha = ifelse(lagoslakeid == 2554, NA, Join10$lake_waterarea_ha)) %>% 
+  mutate(lake_shorelinedevfactor = ifelse(lagoslakeid == 2554, NA, Join10$lake_shorelinedevfactor)) %>% 
+  mutate(lagos_lake_maxdepth_m = ifelse(lagoslakeid == 2554, NA, Join10$lagos_lake_maxdepth_m)) %>% 
+  mutate(lagos_lake_meandepth_m = ifelse(lagoslakeid == 2554, NA, Join10$lagos_lake_meandepth_m)) %>% 
+  select(-lake_nhdid, - lake_namelagos)
+
+
+
+
+
+
+#MN GEOSPATIAL COMMONS MORPHOLOGY -----------------------------------------------------------------------------------------------------------------------------------------
+
+#Got this data to address the E/W Vermilion problem from LAGOS LOCUS
+#This formats and joins the data for all lakes as a separate column to first test consistency with LAGOS
+#NEED: centroid lat/long, waterarea, SDI
+#Depth will be later
+#Note that Red Lake is not in this dataset
+
+#read in data
+MNGC.morph <- read.csv("Data/Input/lake_basin_morphology.csv")
+
+#Filter the columns you want:
+MNGC.morph.filter <- MNGC.morph %>% 
+  select(DOWLKNUM, LAKE_NAME, LK_AREA, LK_SHRLN, LK_SDISHRL, LK_MAXDEPT, LK_AVDEPTH)
+
+#Rename things so I know they are from geospatial commons
+#Convert lake area from acres to hectares
+#Convert lake shoreline (perimeter without islands) and both depths from feet to meters
+MNGC.units <- MNGC.morph.filter %>% 
+  mutate(GC_waterarea_ha = LK_AREA * 0.404686,
+         GC_perimeter_m = LK_SHRLN * 0.3048,
+         GC_maxdepth_m = LK_MAXDEPT * 0.3048,
+         GC_meandepth_m = LK_AVDEPTH * 0.3048) %>% 
+  rename(GC_DOW = DOWLKNUM,
+         GC_lakename = LAKE_NAME,
+         GC_shorelinedevfactor = LK_SDISHRL) %>% 
+  select(-LK_AREA, -LK_SHRLN, -LK_MAXDEPT, -LK_AVDEPTH) #remove old columns
+
+#make parentdow columns
+MNGC.parentdow <- MNGC.units %>% 
+  mutate(parentdow = case_when(
+    (MNGC.units$GC_DOW == "1014202" | MNGC.units$GC_DOW == "1014201" | MNGC.units$GC_DOW == "4003502" | MNGC.units$GC_DOW == "4003501") ~ substr(MNGC.units$GC_DOW, 1, 7),   #takes care of North and Red lakes (7 characters)
+    (MNGC.units$GC_DOW == "69037802" | MNGC.units$GC_DOW == "69037801") ~ substr(MNGC.units$GC_DOW, 1, 8),  #takes care of Vermilion (different because 8 characters)
+    (nchar(MNGC.units$GC_DOW) == 7 & (MNGC.units$GC_DOW != "1014202" & MNGC.units$GC_DOW != "1014201" & MNGC.units$GC_DOW != "4003502" & MNGC.units$GC_DOW != "4003501")) ~ substr(MNGC.units$GC_DOW, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
+    (nchar(MNGC.units$GC_DOW) == 8 & (MNGC.units$GC_DOW != "69037802" & MNGC.units$GC_DOW != "69037801")) ~ substr(MNGC.units$GC_DOW, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
+  ))
+
+MNGC.unique <- unique(MNGC.parentdow) #remove duplicate rows
+  #the duplicates exist because every island in a lake has a polygon in the GIS data
+
+#Remove Kabekona bay row for Leech Lake (I decided with map it should not be included and it appears that geospatial commons agrees because it's a different polygon)
+#Remove the individual Minnetonka basins and just keep the row that represents the whole lake
+#Just keep main bay of cut Foot Sioux for max depth
+MNGC.final <- MNGC.unique %>% 
+  filter(GC_lakename != "Leech (Kabekona Bay)" & 
+           GC_lakename != "Minnetonka-Grays Bay" &
+           GC_lakename != "Minnetonka-Lower Lake" &
+           GC_lakename != "Minnetonka-Carsons Bay" &
+           GC_lakename != "Minnetonka-St. Albans Bay" &
+           GC_lakename != "Minnetonka-Upper Lake" &
+           GC_lakename != "Minnetonka-Black Lake" &
+           GC_lakename != "Minnetonka-Seton Lake" &
+           GC_lakename != "Minnetonka-Emerald Lake" &
+           GC_lakename != "Minnetonka-Halsteds Bay" &
+           GC_lakename != "Minnetonka-Crystal Bay" &
+           GC_lakename != "Minnetonka-Maxwell Bay" &
+           GC_lakename != "Minnetonka-Stubbs Bay" &
+           GC_lakename != "Minnetonka-North Arm" &
+           GC_lakename != "Minnetonka-West Arm" &
+           GC_lakename != "Minnetonka-Jennings Bay" &
+           GC_lakename != "Cut Foot Sioux(East Bay)"
+           )
+
+
+#Join to dataset
+Join11 <- left_join(Join10.clean, MNGC.final, by = "parentdow")
+
+# #Analyze differences between LAGOS and MNGC for lake area, lake perimeter, SDI, and max depth
+# Join11.difftest <- Join11 %>% 
+#   mutate(area.test = lake_waterarea_ha - GC_waterarea_ha,
+#          perim.test = lake_perimeter_m - GC_perimeter_m,
+#          maxdepth.test = lagos_lake_maxdepth_m - GC_maxdepth_m,
+#          SDI.test = lake_shorelinedevfactor - GC_shorelinedevfactor) %>% 
+#   #also get rid of lakes that did not join correctly
+#   filter(parentdow != "110203" & parentdow != "270133" & parentdow != "310857" & parentdow != "4003501" & parentdow != "4003502" & parentdow != "470049")
+# 
+# #CONCLUSION HERE (also looked at GIS shapefiles): overall geospatial commons seems more accurate and doesn’t split things on the border like LAGOS does
+#       #Some small digitization differences, this just seems inevitable
+#       #BUT not all my lakes are in geospatial commons
+#       #Decided to use MN Geospatial commons for area, perimeter, SDI, max depth, and mean depth EXCEPT: 
+#           #LAGOS data for Rainy, and Upper/Lower Red
+#           #Cut Foot Sioux & Belle = lagos area and perimeter, GS max depth, and I will calculate mean depth - this is because I don’t want these two lakes split into sub-basins like geospatial commons has it
+#           #East Vermilion missing depth data and perimeter seems wrong - I will calculate
+
+
+
+
+
+
+
+#FINALIZE SHAPE AND DEPTH DATA-------------------------------------------------------------------------------------
+
+#Based on my extensive investigation into the shapefiles and data, here I make a column with final shape and depth values
+#Also have columns that list data source for each one
+#A few I calculated myself with QGIS
+
+Join11.selected <- Join11 %>% 
+  mutate(area.ha = ifelse((lake_name == "Red (Upper Red)" | 
+                            lake_name == "Red (Lower Red)" |
+                            lake_name == "Belle" |
+                            lake_name == "Cut Foot Sioux"), lake_waterarea_ha, 
+                          ifelse(lake_name == "Rainy", NA, GC_waterarea_ha))) %>%
+  mutate(area.source = ifelse((lake_name == "Red (Upper Red)" | 
+                                 lake_name == "Red (Lower Red)" | 
+                                 lake_name == "Belle" |
+                                 lake_name == "Cut Foot Sioux"), "LAGOS", 
+                              ifelse(lake_name == "Rainy", NA, "MNGCLBM"))) %>% 
+  mutate(perimeter.m = ifelse((lake_name == "Red (Upper Red)" | 
+                                 lake_name == "Red (Lower Red)" |
+                                 lake_name == "Belle" |
+                                 lake_name == "Cut Foot Sioux"), lake_perimeter_m, 
+                              ifelse((lake_name == "Rainy" | lake_name == "East Vermilion"), NA, GC_perimeter_m))) %>% 
+  mutate(SDI = ifelse((lake_name == "Red (Upper Red)" | 
+                                  lake_name == "Red (Lower Red)" | 
+                                  lake_name == "Belle" |
+                                  lake_name == "Cut Foot Sioux"), lake_shorelinedevfactor, 
+                               ifelse((lake_name == "Rainy" | lake_name == "East Vermilion"), NA, GC_shorelinedevfactor))) %>% 
+  mutate(SDI.perim.source = ifelse((lake_name == "Red (Upper Red)" | 
+                                 lake_name == "Red (Lower Red)" | 
+                                 lake_name == "Belle" |
+                                 lake_name == "Cut Foot Sioux"), "LAGOS", 
+                              ifelse(lake_name == "Rainy", NA, 
+                                  ifelse(lake_name == "East Vermilion", NA, "MNGCLBM")))) %>% 
+  mutate(max.depth.m = ifelse((lake_name == "Red (Upper Red)" | 
+                         lake_name == "Red (Lower Red)"), lagos_lake_maxdepth_m, 
+                      ifelse((lake_name == "Rainy" | lake_name == "East Vermilion"), NA, GC_maxdepth_m))) %>% 
+  mutate(max.depth.source = ifelse((lake_name == "Red (Upper Red)" | 
+                                 lake_name == "Red (Lower Red)"), "LAGOS", 
+                              ifelse((lake_name == "Rainy" | lake_name == "East Vermilion"), NA, "MNGCLBM"))) %>% 
+  mutate(mean.depth.m = ifelse((lake_name == "Red (Upper Red)" | 
+                         lake_name == "Red (Lower Red)" | 
+                         lake_name == "Belle" |
+                         lake_name == "Cut Foot Sioux" |
+                         lake_name == "Rainy" | 
+                         lake_name == "East Vermilion"), NA, GC_meandepth_m)) %>% 
+  mutate(mean.depth.source = ifelse((lake_name == "Red (Upper Red)" | 
+                                  lake_name == "Red (Lower Red)" | 
+                                  lake_name == "Belle" |
+                                  lake_name == "Cut Foot Sioux" |
+                                  lake_name == "Rainy" | 
+                                  lake_name == "East Vermilion"), NA, "MNGCLBM")) %>% 
+  #also remove rows that are not needed anymore because summarized above
+  select(-lake_onlandborder, -lake_shapeflag, -lake_waterarea_ha, -lake_perimeter_m,
+         -lake_shorelinedevfactor, -lagos_lake_maxdepth_m, -lagos_lake_meandepth_m,
+         -GC_DOW, -GC_lakename, -GC_shorelinedevfactor, -GC_waterarea_ha, -GC_perimeter_m,
+         -GC_maxdepth_m, -GC_meandepth_m)
+  
+  
+  
+ 
+
 
 
 
@@ -795,6 +966,13 @@ rm(fish,
 )
 
 #not all the rows in the inclusion table have fish data - some of these are core surveys with fish data too recent to be in the BMFD and some are not good enough quality surveys/not enough sampling effort
+
+
+
+
+
+
+
 
 
 
