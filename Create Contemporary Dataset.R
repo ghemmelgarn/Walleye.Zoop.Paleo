@@ -21,10 +21,14 @@ library(readr)
 library(dplyr)
 library(vegan)
 library(tidyr)
-library(sf) #to read in .gpkg files
+library(sf) #to read in .gpkg files and to check raster layer projections
 library(foreign) #to read in .dbf files
 library(stringr)
 library(gridExtra) #to export multiple plots together as .tiff files
+library(terra) #for raster work with the precipitation data
+library(tidyterra) # to plot rasters with ggplot2
+library(maps) #to get basic map for GIS check plot
+library(zoo) #to calculate rolling averages
 
 
 #ADD IDENTIFIERS TO INCLUSION TABLE------------------------------------------
@@ -874,41 +878,42 @@ Join11 <- left_join(Join10.clean, MNGC.final, by = "parentdow")
 
 #Based on my extensive investigation into the shapefiles and data, here I make a column with final shape and depth values
 #Also have columns that list data source for each one
-#A few I calculated myself with QGIS
+#Also adds in data that I calculated myself with QGIS
 
 Join11.selected <- Join11 %>% 
   mutate(area.ha = ifelse((lake_name == "Red (Upper Red)" | 
                             lake_name == "Red (Lower Red)" |
                             lake_name == "Belle" |
                             lake_name == "Cut Foot Sioux"), lake_waterarea_ha, 
-                          ifelse(lake_name == "Rainy", NA, GC_waterarea_ha))) %>%
+                          ifelse(lake_name == "Rainy", 85578.233374, GC_waterarea_ha))) %>%
   mutate(area.source = ifelse((lake_name == "Red (Upper Red)" | 
                                  lake_name == "Red (Lower Red)" | 
                                  lake_name == "Belle" |
                                  lake_name == "Cut Foot Sioux"), "LAGOS", 
-                              ifelse(lake_name == "Rainy", NA, "MNGCLBM"))) %>% 
+                              ifelse(lake_name == "Rainy", "NHD QGIS calc", "MNGCLBM"))) %>% 
   mutate(perimeter.m = ifelse((lake_name == "Red (Upper Red)" | 
                                  lake_name == "Red (Lower Red)" |
                                  lake_name == "Belle" |
                                  lake_name == "Cut Foot Sioux"), lake_perimeter_m, 
-                              ifelse((lake_name == "Rainy" | lake_name == "East Vermilion"), NA, GC_perimeter_m))) %>% 
-  mutate(SDI = ifelse((lake_name == "Red (Upper Red)" | 
-                                  lake_name == "Red (Lower Red)" | 
-                                  lake_name == "Belle" |
-                                  lake_name == "Cut Foot Sioux"), lake_shorelinedevfactor, 
-                               ifelse((lake_name == "Rainy" | lake_name == "East Vermilion"), NA, GC_shorelinedevfactor))) %>% 
-  mutate(SDI.perim.source = ifelse((lake_name == "Red (Upper Red)" | 
-                                 lake_name == "Red (Lower Red)" | 
-                                 lake_name == "Belle" |
-                                 lake_name == "Cut Foot Sioux"), "LAGOS", 
-                              ifelse(lake_name == "Rainy", NA, 
-                                  ifelse(lake_name == "East Vermilion", NA, "MNGCLBM")))) %>% 
-  mutate(max.depth.m = ifelse((lake_name == "Red (Upper Red)" | 
-                         lake_name == "Red (Lower Red)"), lagos_lake_maxdepth_m, 
-                      ifelse((lake_name == "Rainy" | lake_name == "East Vermilion"), NA, GC_maxdepth_m))) %>% 
-  mutate(max.depth.source = ifelse((lake_name == "Red (Upper Red)" | 
-                                 lake_name == "Red (Lower Red)"), "LAGOS", 
-                              ifelse((lake_name == "Rainy" | lake_name == "East Vermilion"), NA, "MNGCLBM"))) %>% 
+                              ifelse(lake_name == "Rainy", 1729284.742,
+                                      ifelse(lake_name == "East Vermilion", 226181.098, GC_perimeter_m)))) %>%
+  mutate(perim.source = ifelse((lake_name == "Red (Upper Red)" | 
+                                      lake_name == "Red (Lower Red)" | 
+                                      lake_name == "Belle" |
+                                      lake_name == "Cut Foot Sioux"), "LAGOS", 
+                                   ifelse(lake_name == "Rainy", "NHD QGIS calc", 
+                                          ifelse(lake_name == "East Vermilion", "MNGCLMB QGIS calc", "MNGCLBM")))) %>% 
+  #Calculate SDI
+  #this formula converts ha to m2 within the SDI calculation
+  mutate(SDI = perimeter.m / ((2*sqrt(pi*(area.ha*10000))))) %>% 
+  mutate(max.depth.m = ifelse(lake_name == "Red (Upper Red)", 4.572, 
+                              ifelse(lake_name == "Red (Lower Red)", lagos_lake_maxdepth_m, 
+                              ifelse(lake_name == "Rainy", NA,
+                              ifelse(lake_name == "East Vermilion", 21.336, GC_maxdepth_m))))) %>% 
+  mutate(max.depth.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
+                                   ifelse(lake_name == "Red (Lower Red)", "LAGOS",
+                                   ifelse(lake_name == "Rainy", NA,
+                                   ifelse(lake_name == "East Vermilion", "MNGCLBathymmetry", "MNGCLBM"))))) %>% 
   mutate(mean.depth.m = ifelse((lake_name == "Red (Upper Red)" | 
                          lake_name == "Red (Lower Red)" | 
                          lake_name == "Belle" |
@@ -921,15 +926,176 @@ Join11.selected <- Join11 %>%
                                   lake_name == "Cut Foot Sioux" |
                                   lake_name == "Rainy" | 
                                   lake_name == "East Vermilion"), NA, "MNGCLBM")) %>% 
+  #east and west Vermilion centroid lat/longs
+  mutate(lake_lat_decdeg = ifelse(lake_name == "East Vermilion", 47.86368,
+                                  ifelse(lake_name == "West Vermilion", 47.92812, lake_lat_decdeg))) %>% 
+  mutate(lake_lon_decdeg = ifelse(lake_name == "East Vermilion", -92.32956,
+                                  ifelse(lake_name == "West Vermilion", -92.56557, lake_lon_decdeg))) %>%
   #also remove rows that are not needed anymore because summarized above
   select(-lake_onlandborder, -lake_shapeflag, -lake_waterarea_ha, -lake_perimeter_m,
          -lake_shorelinedevfactor, -lagos_lake_maxdepth_m, -lagos_lake_meandepth_m,
          -GC_DOW, -GC_lakename, -GC_shorelinedevfactor, -GC_waterarea_ha, -GC_perimeter_m,
          -GC_maxdepth_m, -GC_meandepth_m)
   
+
   
-  
- 
+#ANNUAL PRECIPITATION--------------------------------------------------------------------------------------------
+
+#the first part of this (commented out) actually does the GIS work - skip down to just load in the extracted and saved data 
+
+# 
+# #check GIS projections of my precip raster data
+# precip.1989 <- rast("Data/Input/Annual_Precip_Named_for_R_loop/1989_annual_precip_smoothed.grd")
+# crs(precip.1989)
+# #no info.... I have to play detective
+# 
+# #look at extent of raster
+# ext(precip.1989)
+# #based on the large numbers here, I am probably in UTM with units = meters
+# 
+# #plot the raster on a map of the world to see if it makes sense
+# #Assign coordinate reference system (CRS) with my guess (UTM zone 15N = EPSG:26915 - this one is good for Minnesota)
+# crs(precip.1989) <- "EPSG:26915"
+# #get a basic map of the US to check the location of the raster
+# map_data <- map("state", plot = FALSE, fill = TRUE)
+# #convert map to sf object so it can be reprojected
+# map_sf <- st_as_sf(map_data)
+# #reproject the map into utm
+# map_utm <- st_transform(map_sf, crs(precip.1989))
+# #now plot the raster on the map
+# plot(precip.1989)
+# plot(st_geometry(map_utm), add = TRUE, border = "black")
+# #ok this looks good, I got the projection right
+# 
+# #Need to upload all the rasters and set their CRS to UTM zone 15N
+# #set path to the folder that contains all the rasters:
+# folder_path <- "Data/Input/Annual_Precip_Named_for_R_loop/"
+# #make a list of the raster files (this gets both file types that I have)
+# raster_files <- list.files(folder_path, pattern = "\\.grd$|\\.asc$", full.names = TRUE)
+# #stack all the raster files together
+# precip_stack <- rast(raster_files)
+# #set the CRS for the entire stack
+# crs(precip_stack) <- "EPSG:26915"
+# 
+# #save this stack with the defined CRS has a .tif for future use
+# #writeRaster(precip_stack, "Data/Output/Annual_Precip_Stack_1989_2024.tif", overwrite=TRUE)
+# 
+# 
+# 
+# #START HERE TO LOAD IN THE RASTER STACK I MADE AND SAVED
+# precip_stack <- rast("Data/Input/Annual_Precip_Stack_1989_2024.tif")
+# #check the CRS
+# crs(precip_stack)
+# #looks good
+# 
+# #Need to extract a list of centroid coordinates for the locations where I want information
+# coords <- Join11.selected %>%
+#   select(lake_name, parentdow, lake_lat_decdeg, lake_lon_decdeg) %>%
+#   unique() #gets rid of duplicate rows
+# 
+# #How far back do I need info? = 10 years before the oldest datapoint
+# min(Join11.selected$Year)
+# #oldest year is 1999, so I need back to 1989
+# #Pull all the years for all the lakes to simplify the GIS
+# 
+# #Need to transform my decimal degree coordinates into UTM
+# #make the lat and long columns spatial objects
+# coords_sf <- st_as_sf(coords, coords = c("lake_lon_decdeg", "lake_lat_decdeg"), crs = 4326) #this 4326 is the code for WGS94 which is what decimal degrees use
+# #change the crs of these coordinates to match the raster stack
+# coords_utm <- st_transform(coords_sf, crs(precip_stack))
+# 
+# #Make a test plot of the raster, your points, and the outline of MN to make sure all line up
+# mn_map_data <- map("state", region = "minnesota", plot = FALSE, fill = TRUE)
+# #convert map to sf object so it can be reprojected
+# mn_map_sf <- st_as_sf(mn_map_data)
+# #reproject the map into utm
+# mn_map_utm <- st_transform(mn_map_sf, crs(coords_utm))
+# #choose a layer of the raster stack to plot - extract it as a dataframe
+# precip_df <- as.data.frame(precip_stack[[1]], xy = TRUE, na.rm = TRUE)
+# #now plot
+# ggplot() +
+#   #draw the raster
+#   geom_raster(data = precip_df, aes(x = x, y = y, fill = `1989_annual_precip_smoothed`)) +
+#   scale_fill_viridis_c(option = "mako", name = "Precip (in)") +
+#   # Draw Minnesota
+#   geom_sf(data = mn_map_utm, fill = "transparent", color = "black") +
+#   # Draw the Lake Points
+#   geom_sf(data = coords_utm, color = "blue", size = 2) #+                    #UNCOMMENT HERE IF YOU WANT LAKE NAME LABELS
+#   # Add Labels (using ggrepel so they don't sit right on top of the dots)
+#   geom_sf_label(data = coords_utm, aes(label = lake_name),
+#                 size = 3,
+#                 nudge_y = 10000, # Shifts label up slightly (10km in UTM)
+#                 label.size = 0.2) +
+#   theme_minimal()
+# 
+# 
+# #extract the data!
+# extracted_precip <- extract(precip_stack, vect(coords_utm), ID = FALSE)
+# #row order is maintained so immediately join back to coordinate data to identify which rows go with which lakes
+# 
+# precip_coords <- cbind(coords, extracted_precip)
+# #there is in X in front of the column names because they can't start with numbers
+# 
+# 
+# #write.csv(precip_coords, file = "Data/Output/Annual_precip_inches_contemp_lakes.csv")
+# 
+# #keep environment clean
+# rm(extracted_precip, coords_utm, precip_coords, precip_coords_order, mn_map_sf, mn_map_utm, mn_map_data,
+#    coords_sf, coords, precip_stack, raster_files, folder_path, map_data, map_sf, map_utm, precip.1989, precip_df,
+#    precip_to_plot)
+
+
+#START HERE TO LOAD IN SAVED DATA THAT THE CODE ABOVE EXTRACTS
+precip <- read.csv("Data/Input/Annual_precip_inches_contemp_lakes.csv")
+
+#need to calculate a 10-year running average of total annual precipitation for each lake year
+#this is the average of the 10 years before the observed year, INCLUDING the observed year
+
+#get data into long format
+precip.long <- precip %>% 
+  mutate(X2022_annual_precip_smoothed = NA) %>% #add a blank 2022 column for the data I am missing
+  relocate(X2022_annual_precip_smoothed, .after = X2021_annual_precip_smoothed) %>% 
+  select(-X) %>% #get rid of stupid ID number column that was auto generated
+  pivot_longer(cols = starts_with("X"), names_to = "precip.year", values_to = "Precip.in") %>% 
+  select(-lake_lat_decdeg, -lake_lon_decdeg, - parentdow) %>% #get rid of lat/long columns here and parentdow (will compliate average and joins)
+  mutate(precip.year = substr(precip.year, 2, 5)) #isolate just the year for the year column not the whole old column name
+
+
+#using the zoo package for the rolling average
+precip.avg <- precip.long %>%
+  group_by(lake_name) %>%
+  mutate(
+    precip_10yr_avg_in = rollapply(Precip.in, width = 10, 
+                                FUN = function(x) mean(x, na.rm = TRUE), 
+                                fill = "extend", 
+                                align = "right")
+  )
+#width = 10 means I get 10 years
+#fill = extend means that the first 9 years where there isn't enough data will get the same value as the first year that has all the data available - this is fine because I don't need these first 9 years for anything
+#including the na.rm = True means that when data is missing, it calculates the mean of the years it has available within the 10 year period (deals with missing 2022)
+#align = right means that selected year is last year (eg. year 2000 uses data from 1991–2000)
+
+
+#convert to mm
+precip.mm.avg <- precip.avg %>% 
+  mutate(precip_10yr_avg_mm = precip_10yr_avg_in * 25.4) %>% 
+  select(-precip_10yr_avg_in, - Precip.in) %>%  #get rid of columns you don't want to join
+  rename(Year = precip.year) #rename year to match rest of data
+
+
+#join to rest of data
+Join12 <- left_join(Join11.selected, precip.mm.avg, by = c("lake_name", "Year"))
+
+#keep environment clean
+rm(precip.avg, precip, precip.long, precip.mm.avg)
+
+
+
+
+
+
+
+
 
 
 
