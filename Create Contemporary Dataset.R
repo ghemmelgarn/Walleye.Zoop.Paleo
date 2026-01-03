@@ -879,6 +879,7 @@ Join11 <- left_join(Join10.clean, MNGC.final, by = "parentdow")
 #Based on my extensive investigation into the shapefiles and data, here I make a column with final shape and depth values
 #Also have columns that list data source for each one
 #Also adds in data that I calculated myself with QGIS
+#Calculates dynamic ratio and volume development
 
 Join11.selected <- Join11 %>% 
   mutate(area.ha = ifelse((lake_name == "Red (Upper Red)" | 
@@ -906,37 +907,45 @@ Join11.selected <- Join11 %>%
   #Calculate SDI
   #this formula converts ha to m2 within the SDI calculation
   mutate(SDI = perimeter.m / ((2*sqrt(pi*(area.ha*10000))))) %>% 
-  mutate(max.depth.m = ifelse(lake_name == "Red (Upper Red)", 4.572, 
+  #Add in depth info calculated elsewhere
+  mutate(max.depth.m = ifelse(lake_name == "Red (Upper Red)", 15 * 0.3048, #converts feet to m
                               ifelse(lake_name == "Red (Lower Red)", lagos_lake_maxdepth_m, 
-                              ifelse(lake_name == "Rainy", NA,
-                              ifelse(lake_name == "East Vermilion", 21.336, GC_maxdepth_m))))) %>% 
+                              ifelse(lake_name == "Rainy", 161 * 0.3048,   #converts feet to m
+                              ifelse(lake_name == "East Vermilion", 70 * 0.3048, GC_maxdepth_m))))) %>%  #converts feet to m
   mutate(max.depth.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
                                    ifelse(lake_name == "Red (Lower Red)", "LAGOS",
-                                   ifelse(lake_name == "Rainy", NA,
-                                   ifelse(lake_name == "East Vermilion", "MNGCLBathymmetry", "MNGCLBM"))))) %>% 
-  mutate(mean.depth.m = ifelse((lake_name == "Red (Upper Red)" | 
-                         lake_name == "Red (Lower Red)" | 
-                         lake_name == "Belle" |
-                         lake_name == "Cut Foot Sioux" |
-                         lake_name == "Rainy" | 
-                         lake_name == "East Vermilion"), NA, GC_meandepth_m)) %>% 
-  mutate(mean.depth.source = ifelse((lake_name == "Red (Upper Red)" | 
-                                  lake_name == "Red (Lower Red)" | 
-                                  lake_name == "Belle" |
-                                  lake_name == "Cut Foot Sioux" |
-                                  lake_name == "Rainy" | 
-                                  lake_name == "East Vermilion"), NA, "MNGCLBM")) %>% 
+                                   ifelse(lake_name == "Rainy", "MNDNR Lakefinder",
+                                   ifelse(lake_name == "East Vermilion", "MNGCLBathymetry", "MNGCLBM"))))) %>% 
+  mutate(mean.depth.m = ifelse(lake_name == "Red (Upper Red)", 12 * 0.3048,   #converts feet to m
+                                ifelse(lake_name == "Red (Lower Red)", NA,
+                                       ifelse(lake_name == "Belle", 13.19450 * 0.3048,   #converts feet to m
+                                              ifelse(lake_name == "Cut Foot Sioux", 22.78753 * 0.3048,   #converts feet to m
+                                                     ifelse(lake_name == "Rainy", 32 * 0.3048,    #converts feet to m
+                                                            ifelse(lake_name == "East Vermilion", 17.26256 * 0.3048, GC_meandepth_m))))))) %>%   #converts feet to m
+  mutate(mean.depth.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
+                                     ifelse(lake_name == "Red (Lower Red)", NA,
+                                            ifelse(lake_name == "Belle", "MNGCLBathymetry QGIS calc", 
+                                                   ifelse(lake_name == "Cut Foot Sioux", "MNGCLBathymetry QGIS calc", 
+                                                          ifelse(lake_name == "Rainy", "MNDNR Lakefinder",  
+                                                                 ifelse(lake_name == "East Vermilion", "MNGCLBathymetry QGIS calc", "MNGCLBM"))))))) %>% 
   #east and west Vermilion centroid lat/longs
   mutate(lake_lat_decdeg = ifelse(lake_name == "East Vermilion", 47.86368,
                                   ifelse(lake_name == "West Vermilion", 47.92812, lake_lat_decdeg))) %>% 
   mutate(lake_lon_decdeg = ifelse(lake_name == "East Vermilion", -92.32956,
                                   ifelse(lake_name == "West Vermilion", -92.56557, lake_lon_decdeg))) %>%
+  #calculate Dynamic Ratio
+  mutate(dynam.ratio = sqrt(area.ha * 0.01)/mean.depth.m) %>% #converts area hectares to km2
+  #calculate volume development
+  mutate(vol.dev = (3*mean.depth.m)/max.depth.m) %>% 
   #also remove rows that are not needed anymore because summarized above
   select(-lake_onlandborder, -lake_shapeflag, -lake_waterarea_ha, -lake_perimeter_m,
          -lake_shorelinedevfactor, -lagos_lake_maxdepth_m, -lagos_lake_meandepth_m,
          -GC_DOW, -GC_lakename, -GC_shorelinedevfactor, -GC_waterarea_ha, -GC_perimeter_m,
          -GC_maxdepth_m, -GC_meandepth_m)
-  
+
+
+
+
 
   
 #ANNUAL PRECIPITATION--------------------------------------------------------------------------------------------
