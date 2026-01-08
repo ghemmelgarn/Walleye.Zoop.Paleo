@@ -565,7 +565,7 @@ rm(secchi.data,
 
 
 
-#LAGOS LIMNO DATA: Conductivity--------------------------------------------------------------------------------
+#CONDUCTIVITY: LAGOS LIMNO and WQP--------------------------------------------------------------------------------
 
 #read in data
 Limno <- read.csv("Data/Input/chemistry_limno.csv")
@@ -676,7 +676,80 @@ rm(Cond, Cond.clean, Cond.MN, Cond.mean, Cond.mean.close, cond.data.test, cond.d
 
 
 
+#Add the 2021-2024 data that I pulled from the WQP portal myself to get some more recent data
+#this is where LAGOS gets its data, it just only has up until 2020
+WQ.cond <- read.csv("Data/Input/WQP_2021-2024_Conductivity_FILTERED_FORMATTED.csv")
 
+# #test for zeroes and negative values
+# # 0 values
+# zero.test <- WQ.cond %>%
+#   filter(ResultMeasureValue == 0)
+# # 5 zeroes present
+# 
+# #negative values
+# neg.test <- WQ.cond %>%
+#   filter(ResultMeasureValue < 0)
+# # 1 negative value present
+
+#filter out zeroes and negatives, make parentdow year character for join
+WQ.cond.positive <- WQ.cond %>% 
+  filter(ResultMeasureValue > 0) %>% 
+  mutate(parentdow = as.character(parentdow)) %>% 
+  mutate(year = as.character(year))
+
+#take a mean conductivity for each lake-year
+Cond.mean2 <- WQ.cond.positive %>%
+  group_by(parentdow, year) %>%
+  summarize(cond_uscm_exact_yearWQP = mean(ResultMeasureValue), .groups = 'drop') %>% 
+  rename(Year = year)
+
+#Join to dataset
+Join10 <- left_join(Join9.ordered, Cond.mean2, by = c("parentdow", "Year"))
+
+#looks like there are a few years I can add (like 5 but it's something)
+#replace the NA and closest year for these years
+Join10.replace <- Join10 %>% 
+  mutate(cond_uscm_exact_year = ifelse(!is.na(cond_uscm_exact_yearWQP), cond_uscm_exact_yearWQP, cond_uscm_exact_year)) %>% 
+  mutate(cond_year = ifelse(!is.na(cond_uscm_exact_yearWQP), Year, cond_year)) %>% 
+  mutate(cond_uscm_closest_year = ifelse(!is.na(cond_uscm_exact_yearWQP), cond_uscm_exact_yearWQP, cond_uscm_closest_year)) %>% 
+
+#let's see if I have any close years that aren't exact
+  cond.test <- left_join(Join10.replace, Cond.mean2, by = "parentdow")
+
+#filter out years that already have exact year data, also get rid of extra colums so it's easier to see
+cond.test.close <- cond.test %>%
+  filter(is.na(cond_uscm_exact_year)) %>%
+  select(-lagoslakeid, -lagoslakeid_verm, -nhdhr_id, -remote.chla, -remote.CDOM, -remote.secchi.exact.year, -remote.secchi.closest.year, -remote.secchi.year, -secchi.meters.MPCA.Jun.to.Aug, -secchi.meters.MPCA.Jul.to.Sept, -parentdow.year)
+
+#blackwell 1999 - the only year
+#garfield 2020 - the only year
+#newman (all years = 2014, 2015, 2021)
+
+#isolate these rows
+cond.WQP.close.join <- cond.test.close %>% 
+  filter(lake_name == "Newman" | lake_name == "Blackwell" | lake_name == "Garfield") %>% 
+  rename(Year = Year.x) %>% 
+  rename(WQP.year = Year.y) %>% 
+  select(parentdow, Year, WQP.year, cond_uscm_exact_yearWQP.y)
+
+#join to dataset
+Join10.WQPclose <- left_join(Join10.replace, cond.WQP.close.join, by = c("parentdow", "Year"))
+
+  
+#add a few closest years that I identified by hand with the code below:
+#add this data in:
+Join10.WQPrelplace <- Join10.WQPclose %>% 
+  mutate(cond_year = ifelse(!is.na(cond_uscm_exact_yearWQP.y), WQP.year, cond_year)) %>% 
+  mutate(cond_uscm_closest_year = ifelse(!is.na(cond_uscm_exact_yearWQP.y), cond_uscm_exact_yearWQP.y, cond_uscm_closest_year))
+  
+#get rid of extra columns
+Join10.final <- Join10.WQPrelplace %>% 
+  select(-cond_uscm_exact_yearWQP, -cond_uscm_exact_yearWQP.y, -WQP.year)
+  
+
+#keep environment clean
+rm(Join10.replace, Join10.WQPclose, Join10.WQPrelplace, WQ.cond, WQ.cond.positive,
+   zero.test, neg.test, Limno, Join10, Cond.mean, Cond.mean2, cond.test, cond.test.close, cond.WQP.close.join)
 
 
 
@@ -763,17 +836,15 @@ rm(Depth.MN, Depth.select, Depth, Depth.select.named)
 
 
 #Join - VERMILION WILL BE A PROBLEM HERE - I guess I need to find these metrics from other sources for Vermilion
-Join10 <- left_join(Join9.ordered, Locus.Depth, by = "lagoslakeid")
+Join11 <- left_join(Join10.final, Locus.Depth, by = "lagoslakeid")
 
 #make Vermilion have NA values for lagos characteristics that I can't use because they are not split east-west
 #also get rid of the duplicate nhdid columns
-Join10.clean <- Join10 %>% 
- mutate(lake_lat_decdeg = ifelse(lagoslakeid == 2554, NA, Join10$lake_lat_decdeg)) %>% 
-  mutate(lake_lon_decdeg = ifelse(lagoslakeid == 2554, NA, Join10$lake_lon_decdeg)) %>%
-  mutate(lake_waterarea_ha = ifelse(lagoslakeid == 2554, NA, Join10$lake_waterarea_ha)) %>% 
-  mutate(lake_shorelinedevfactor = ifelse(lagoslakeid == 2554, NA, Join10$lake_shorelinedevfactor)) %>% 
-  mutate(lagos_lake_maxdepth_m = ifelse(lagoslakeid == 2554, NA, Join10$lagos_lake_maxdepth_m)) %>% 
-  mutate(lagos_lake_meandepth_m = ifelse(lagoslakeid == 2554, NA, Join10$lagos_lake_meandepth_m)) %>% 
+Join11.clean <- Join11 %>% 
+  mutate(lake_lat_decdeg = ifelse(lagoslakeid == 2554, NA, Join11$lake_lat_decdeg)) %>% 
+  mutate(lake_lon_decdeg = ifelse(lagoslakeid == 2554, NA, Join11$lake_lon_decdeg)) %>%
+  mutate(lagos_lake_maxdepth_m = ifelse(lagoslakeid == 2554, NA, Join11$lagos_lake_maxdepth_m)) %>% 
+  mutate(lagos_lake_meandepth_m = ifelse(lagoslakeid == 2554, NA, Join11$lagos_lake_meandepth_m)) %>% 
   select(-lake_nhdid, - lake_namelagos)
 
 
@@ -806,10 +877,10 @@ area.perim.parentdow <- area.perim %>%
 
 
 #Join to dataset
-Join11 <- left_join(Join10.clean, area.perim.parentdow, by = "parentdow")
+Join12 <- left_join(Join11.clean, area.perim.parentdow, by = "parentdow")
 
 #Calculate SDI, add centroid lat-long for vermilion
-Join11.SDI <-  Join11 %>% 
+Join12.SDI <-  Join12 %>% 
   mutate(SDI = perimeter_m / ((2*sqrt(pi*(area_ha*10000))))) %>% 
   mutate(lake_lat_decdeg = ifelse(lake_name == "East Vermilion", 47.86368,
                                   ifelse(lake_name == "West Vermilion", 47.92812, lake_lat_decdeg))) %>% 
@@ -853,7 +924,7 @@ Join11.SDI <-  Join11 %>%
 #Also adds in data that I calculated myself with QGIS
 #Calculates dynamic ratio and volume development
 
-Join11.selected <- Join11 %>% 
+
   #Add in depth info calculated elsewhere
   mutate(max.depth.m = ifelse(lake_name == "Red (Upper Red)", 15 * 0.3048, #converts feet to m
                               ifelse(lake_name == "Red (Lower Red)", lagos_lake_maxdepth_m, 
@@ -1027,7 +1098,7 @@ precip.mm.avg <- precip.avg %>%
 
 
 #join to rest of data
-Join12 <- left_join(Join11.selected, precip.mm.avg, by = c("lake_name", "Year"))
+Join13 <- left_join(Join12.selected, precip.mm.avg, by = c("lake_name", "Year"))
 
 #keep environment clean
 rm(precip.avg, precip, precip.long, precip.mm.avg)
