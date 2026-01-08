@@ -714,9 +714,6 @@ Locus.info.select <- Locus.info.MN %>%
                   
 Locus.char.select <- Locus.char %>% 
   select(lagoslakeid,
-         lake_waterarea_ha,
-         lake_perimeter_m,
-         lake_shorelinedevfactor, #This is "calculated as lake_perimeter_m divided by the product of 2 times the square root of pi times lake_waterarea_ha"
          lake_connectivity_class #This includes both perennial and intermittent-ephemeral flow
          )
 
@@ -784,72 +781,53 @@ Join10.clean <- Join10 %>%
 
 
 
-#MN GEOSPATIAL COMMONS MORPHOLOGY -----------------------------------------------------------------------------------------------------------------------------------------
+#LAKE MORPHOLOGY -----------------------------------------------------------------------------------------------------------------------------------------
 
-#Got this data to address the E/W Vermilion problem from LAGOS LOCUS
-#This formats and joins the data for all lakes as a separate column to first test consistency with LAGOS
-#NEED: centroid lat/long, waterarea, SDI
-#Depth will be later
-#Note that Red Lake is not in this dataset
+#This data was calculatd in QGIS
+#polygons from MN Geospatial Commons Laky Basin Mophology and NHD polygons
+#Depth data calculated with raster data from MN Geospatial Commons Lake Bathymetry DEM, and Rainy and Red lake depth rasters that I found in the Hansen Lab google drive
+#Rainy was limited to basins ecologically connected to where we have fish/zoop data on this side of the border
 
-#read in data
-MNGC.morph <- read.csv("Data/Input/lake_basin_morphology.csv")
 
-#Filter the columns you want:
-MNGC.morph.filter <- MNGC.morph %>% 
-  select(DOWLKNUM, LAKE_NAME, LK_AREA, LK_SHRLN, LK_SDISHRL, LK_MAXDEPT, LK_AVDEPTH)
+#read in area and perimeter data 
+area.perim <- read.csv("Data/Input/Lake_Area_Perim_QGIS.csv")
 
-#Rename things so I know they are from geospatial commons
-#Convert lake area from acres to hectares
-#Convert lake shoreline (perimeter without islands) and both depths from feet to meters
-MNGC.units <- MNGC.morph.filter %>% 
-  mutate(GC_waterarea_ha = LK_AREA * 0.404686,
-         GC_perimeter_m = LK_SHRLN * 0.3048,
-         GC_maxdepth_m = LK_MAXDEPT * 0.3048,
-         GC_meandepth_m = LK_AVDEPTH * 0.3048) %>% 
-  rename(GC_DOW = DOWLKNUM,
-         GC_lakename = LAKE_NAME,
-         GC_shorelinedevfactor = LK_SDISHRL) %>% 
-  select(-LK_AREA, -LK_SHRLN, -LK_MAXDEPT, -LK_AVDEPTH) #remove old columns
 
 #make parentdow columns
-MNGC.parentdow <- MNGC.units %>% 
+area.perim.parentdow <- area.perim %>% 
   mutate(parentdow = case_when(
-    (MNGC.units$GC_DOW == "1014202" | MNGC.units$GC_DOW == "1014201" | MNGC.units$GC_DOW == "4003502" | MNGC.units$GC_DOW == "4003501") ~ substr(MNGC.units$GC_DOW, 1, 7),   #takes care of North and Red lakes (7 characters)
-    (MNGC.units$GC_DOW == "69037802" | MNGC.units$GC_DOW == "69037801") ~ substr(MNGC.units$GC_DOW, 1, 8),  #takes care of Vermilion (different because 8 characters)
-    (nchar(MNGC.units$GC_DOW) == 7 & (MNGC.units$GC_DOW != "1014202" & MNGC.units$GC_DOW != "1014201" & MNGC.units$GC_DOW != "4003502" & MNGC.units$GC_DOW != "4003501")) ~ substr(MNGC.units$GC_DOW, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
-    (nchar(MNGC.units$GC_DOW) == 8 & (MNGC.units$GC_DOW != "69037802" & MNGC.units$GC_DOW != "69037801")) ~ substr(MNGC.units$GC_DOW, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
-  ))
+    (area.perim$DOWLKNUM == "1014202" | area.perim$DOWLKNUM == "1014201" | area.perim$DOWLKNUM == "4003502" | area.perim$DOWLKNUM == "4003501") ~ substr(area.perim$DOWLKNUM, 1, 7),   #takes care of North and Red lakes (7 characters)
+    (area.perim$DOWLKNUM == "69037802" | area.perim$DOWLKNUM == "69037801") ~ substr(area.perim$DOWLKNUM, 1, 8),  #takes care of Vermilion (different because 8 characters)
+    (nchar(area.perim$DOWLKNUM) == 7 & (area.perim$DOWLKNUM != "1014202" & area.perim$DOWLKNUM != "1014201" & area.perim$DOWLKNUM != "4003502" & area.perim$DOWLKNUM != "4003501")) ~ substr(area.perim$DOWLKNUM, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
+    (nchar(area.perim$DOWLKNUM) == 8 & (area.perim$DOWLKNUM != "69037802" & area.perim$DOWLKNUM != "69037801")) ~ substr(area.perim$DOWLKNUM, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
+  )) %>% 
+  select(-DOWLKNUM, -LAKE_NAME)
 
-MNGC.unique <- unique(MNGC.parentdow) #remove duplicate rows
-  #the duplicates exist because every island in a lake has a polygon in the GIS data
-
-#Remove Kabekona bay row for Leech Lake (I decided with map it should not be included and it appears that geospatial commons agrees because it's a different polygon)
-#Remove the individual Minnetonka basins and just keep the row that represents the whole lake
-#Just keep main bay of cut Foot Sioux for max depth
-MNGC.final <- MNGC.unique %>% 
-  filter(GC_lakename != "Leech (Kabekona Bay)" & 
-           GC_lakename != "Minnetonka-Grays Bay" &
-           GC_lakename != "Minnetonka-Lower Lake" &
-           GC_lakename != "Minnetonka-Carsons Bay" &
-           GC_lakename != "Minnetonka-St. Albans Bay" &
-           GC_lakename != "Minnetonka-Upper Lake" &
-           GC_lakename != "Minnetonka-Black Lake" &
-           GC_lakename != "Minnetonka-Seton Lake" &
-           GC_lakename != "Minnetonka-Emerald Lake" &
-           GC_lakename != "Minnetonka-Halsteds Bay" &
-           GC_lakename != "Minnetonka-Crystal Bay" &
-           GC_lakename != "Minnetonka-Maxwell Bay" &
-           GC_lakename != "Minnetonka-Stubbs Bay" &
-           GC_lakename != "Minnetonka-North Arm" &
-           GC_lakename != "Minnetonka-West Arm" &
-           GC_lakename != "Minnetonka-Jennings Bay" &
-           GC_lakename != "Cut Foot Sioux(East Bay)"
-           )
 
 
 #Join to dataset
-Join11 <- left_join(Join10.clean, MNGC.final, by = "parentdow")
+Join11 <- left_join(Join10.clean, area.perim.parentdow, by = "parentdow")
+
+#Calculate SDI, add centroid lat-long for vermilion
+Join11.SDI <-  Join11 %>% 
+  mutate(SDI = perimeter_m / ((2*sqrt(pi*(area_ha*10000))))) %>% 
+  mutate(lake_lat_decdeg = ifelse(lake_name == "East Vermilion", 47.86368,
+                                  ifelse(lake_name == "West Vermilion", 47.92812, lake_lat_decdeg))) %>% 
+  mutate(lake_lon_decdeg = ifelse(lake_name == "East Vermilion", -92.32956,
+                                  ifelse(lake_name == "West Vermilion", -92.56557, lake_lon_decdeg)))
+
+
+#Add depth data from QGIS
+
+  #calculate Dynamic Ratio
+  mutate(dynam.ratio = sqrt(area.ha * 0.01)/mean.depth.m) %>% #converts area hectares to km2
+  #calculate volume development
+  mutate(vol.dev = (3*mean.depth.m)/max.depth.m) %>% 
+  #also remove rows that are not needed anymore because summarized above
+  select(-lake_onlandborder, -lake_shapeflag, -lake_waterarea_ha, -lake_perimeter_m,
+         -lake_shorelinedevfactor, -lagos_lake_maxdepth_m, -lagos_lake_meandepth_m,
+         -GC_DOW, -GC_lakename, -GC_shorelinedevfactor, -GC_waterarea_ha, -GC_perimeter_m,
+         -GC_maxdepth_m, -GC_meandepth_m)
 
 # #Analyze differences between LAGOS and MNGC for lake area, lake perimeter, SDI, and max depth
 # Join11.difftest <- Join11 %>% 
@@ -870,49 +848,18 @@ Join11 <- left_join(Join10.clean, MNGC.final, by = "parentdow")
 
 
 
-
-
-
-
-#FINALIZE SHAPE AND DEPTH DATA-------------------------------------------------------------------------------------
-
 #Based on my extensive investigation into the shapefiles and data, here I make a column with final shape and depth values
 #Also have columns that list data source for each one
 #Also adds in data that I calculated myself with QGIS
 #Calculates dynamic ratio and volume development
 
 Join11.selected <- Join11 %>% 
-  mutate(area.ha = ifelse((lake_name == "Red (Upper Red)" | 
-                            lake_name == "Red (Lower Red)" |
-                            lake_name == "Belle" |
-                            lake_name == "Cut Foot Sioux"), lake_waterarea_ha, 
-                          ifelse(lake_name == "Rainy", 85578.233374, GC_waterarea_ha))) %>%
-  mutate(area.source = ifelse((lake_name == "Red (Upper Red)" | 
-                                 lake_name == "Red (Lower Red)" | 
-                                 lake_name == "Belle" |
-                                 lake_name == "Cut Foot Sioux"), "LAGOS", 
-                              ifelse(lake_name == "Rainy", "NHD QGIS calc", "MNGCLBM"))) %>% 
-  mutate(perimeter.m = ifelse((lake_name == "Red (Upper Red)" | 
-                                 lake_name == "Red (Lower Red)" |
-                                 lake_name == "Belle" |
-                                 lake_name == "Cut Foot Sioux"), lake_perimeter_m, 
-                              ifelse(lake_name == "Rainy", 1729284.742,
-                                      ifelse(lake_name == "East Vermilion", 226181.098, GC_perimeter_m)))) %>%
-  mutate(perim.source = ifelse((lake_name == "Red (Upper Red)" | 
-                                      lake_name == "Red (Lower Red)" | 
-                                      lake_name == "Belle" |
-                                      lake_name == "Cut Foot Sioux"), "LAGOS", 
-                                   ifelse(lake_name == "Rainy", "NHD QGIS calc", 
-                                          ifelse(lake_name == "East Vermilion", "MNGCLMB QGIS calc", "MNGCLBM")))) %>% 
-  #Calculate SDI
-  #this formula converts ha to m2 within the SDI calculation
-  mutate(SDI = perimeter.m / ((2*sqrt(pi*(area.ha*10000))))) %>% 
   #Add in depth info calculated elsewhere
   mutate(max.depth.m = ifelse(lake_name == "Red (Upper Red)", 15 * 0.3048, #converts feet to m
                               ifelse(lake_name == "Red (Lower Red)", lagos_lake_maxdepth_m, 
                               ifelse(lake_name == "Rainy", 161 * 0.3048,   #converts feet to m
                               ifelse(lake_name == "East Vermilion", 70 * 0.3048, GC_maxdepth_m))))) %>%  #converts feet to m
-  mutate(max.depth.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
+  mutate(depth.raster.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
                                    ifelse(lake_name == "Red (Lower Red)", "LAGOS",
                                    ifelse(lake_name == "Rainy", "MNDNR Lakefinder",
                                    ifelse(lake_name == "East Vermilion", "MNGCLBathymetry", "MNGCLBM"))))) %>% 
@@ -928,20 +875,7 @@ Join11.selected <- Join11 %>%
                                                    ifelse(lake_name == "Cut Foot Sioux", "MNGCLBathymetry QGIS calc", 
                                                           ifelse(lake_name == "Rainy", "MNDNR Lakefinder",  
                                                                  ifelse(lake_name == "East Vermilion", "MNGCLBathymetry QGIS calc", "MNGCLBM"))))))) %>% 
-  #east and west Vermilion centroid lat/longs
-  mutate(lake_lat_decdeg = ifelse(lake_name == "East Vermilion", 47.86368,
-                                  ifelse(lake_name == "West Vermilion", 47.92812, lake_lat_decdeg))) %>% 
-  mutate(lake_lon_decdeg = ifelse(lake_name == "East Vermilion", -92.32956,
-                                  ifelse(lake_name == "West Vermilion", -92.56557, lake_lon_decdeg))) %>%
-  #calculate Dynamic Ratio
-  mutate(dynam.ratio = sqrt(area.ha * 0.01)/mean.depth.m) %>% #converts area hectares to km2
-  #calculate volume development
-  mutate(vol.dev = (3*mean.depth.m)/max.depth.m) %>% 
-  #also remove rows that are not needed anymore because summarized above
-  select(-lake_onlandborder, -lake_shapeflag, -lake_waterarea_ha, -lake_perimeter_m,
-         -lake_shorelinedevfactor, -lagos_lake_maxdepth_m, -lagos_lake_meandepth_m,
-         -GC_DOW, -GC_lakename, -GC_shorelinedevfactor, -GC_waterarea_ha, -GC_perimeter_m,
-         -GC_maxdepth_m, -GC_meandepth_m)
+
 
 
 
