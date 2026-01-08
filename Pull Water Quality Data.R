@@ -1,9 +1,11 @@
-#this script downloads water quality data from USGS Water Quality Portal and some DNR data
+#this script downloads water quality data (secchi and conductivity, separately) from USGS Water Quality Portal and some DNR data
 #based on Denver's water quality pull for his zebra mussel project
 
 library(dataRetrieval)
 library(tidyverse)
 
+
+#SECCHI-------------------------------------------------------------------------
 
 #parameters to get: secchi, water temp C (NWIS parm code 00010), air temp C (NWIS parm code 00020)
 #https://www.waterqualitydata.us/public_srsnames/ - this is the link to the list of NWIS parameters
@@ -135,8 +137,123 @@ WQP.secchi.join <- WQP.secchi.simple %>%
 #write.csv(WQP.secchi.join, file = "Data/Output/WQP_1998-2025_Secchi_20251124_FILTERED_FORMATTED.csv")
 
 
+#CONDUCTIVITY--------------------------------------------------------------------------------------------------------------------------
+
+#check data available for one station in one of my lakes
+#this is a good test if you can connect to the server
+Long <- readWQPdata(statecode = "MN", siteid = "MNPCA-03-0383-00-202", service = "Result")
+unique(Long$CharacteristicName)
+#looks like temp for MPCA reported as "Temperature, water"
 
 
+#ONLY RUN THIS TO UPDATE MPCA DATA AND IF YOU HAVE 2-3 HOURS TO WAIT FOR IT
+# #conductivity is only called "Specific conductance"
+# 
+# #you want the conductivity parameter for the state of Minnesota
+# args1.cond <- list(statecode = "MN",
+#              characteristicName = "Specific conductance",
+#              startDateLo = "1998-01-01", #date range makes this smaller so the server doesn't time out and give me "HTTP 500 Internal Server Error"
+#              startDateHi = "2010-12-31") #need to do two smaller date ranges and then rowbind
+# args2.cond <- list(statecode = "MN",
+#              characteristicName = "Specific conductance",
+#              startDateLo = "2011-01-01",
+#              startDateHi = "2025-12-18") #goes up to the day I am running this
+# #Pulls those data from the WQ database
+# WQparms1.cond <- readWQPdata(args1.cond, service = "Result",  dataProfile = "resultPhysChem")
+# WQparms2.cond <- readWQPdata(args2.cond, service = "Result",  dataProfile = "resultPhysChem")
+# 
+# WQparms_all.cond <- rbind(WQparms1.cond, WQparms2.cond)
+# 
+# #save the output as csv so I don't have to wait 8 million hours to pull it from the portal except when I want to update the data
+# write_csv(WQparms_all.cond, "Data/Output/WQP_1998-2025_Conductivity_20251218.csv") #UPDATE THIS DATE WHEN YOU SAVE IT
+
+
+#import WQconductivity file from saved .csv
+WQcond <- read.csv("Data/Input/WQP_1998-2025_Conductivity_20251218.csv")
+
+
+
+#look at structure of data
+str(WQcond)
+
+#Filter to just the years I need to add to LAGOS (2021-2024)
+WQcond.years <- WQcond %>% 
+  mutate(year = substr(ActivityStartDate, 1, 4)) %>% 
+  filter(year == "2021" | year == "2022" | year == "2023" | year == "2024")
+
+#look at the organization that collected the data
+unique(WQcond.years$OrganizationFormalName)
+#using all of them
+
+#create parentdow column from monitoring station IDs, also removes hyphen to match data format I have for other datasets
+#THIS CODE MAKES SURE TO GET THE FULL DOW FOR RED, HILL, AND VERMILION TO SEPARATE THE BASINS FOR THESE SPECIFIC LAKES
+WQcond.parentdow <- WQcond.years %>%
+  mutate(parentdow = case_when(
+    (MonitoringLocationName == "RED (UPPER RED)" | 
+       MonitoringLocationName == "RED (LOWER RED)" |
+       MonitoringLocationName == "HILL (SOUTH ARM)" |
+       MonitoringLocationName == "HILL (SOUTH BASIN)" |
+       MonitoringLocationName == "HILL (MAIN BASIN)" |
+       MonitoringLocationName == "HILL (NORTH BASIN)" |
+       MonitoringLocationName == "WEST VERMILION" |
+       MonitoringLocationName == "EAST VERMILION") ~ substr(MonitoringLocationIdentifier, 7, 16), #gets full DOW for specified lakes
+    (MonitoringLocationName != "RED (UPPER RED)" & 
+       MonitoringLocationName != "RED (LOWER RED)" &
+       MonitoringLocationName != "HILL (SOUTH ARM)" &
+       MonitoringLocationName != "HILL (SOUTH BASIN)" &
+       MonitoringLocationName != "HILL (MAIN BASIN)" &
+       MonitoringLocationName != "HILL (NORTH BASIN)" &
+       MonitoringLocationName != "WEST VERMILION" &
+       MonitoringLocationName != "EAST VERMILION") ~ substr(MonitoringLocationIdentifier, 7, 13)))%>% #gets parentdow for all other lakes
+  mutate(parentdow = str_replace(parentdow, pattern = "^0", replacement = "")) %>% #get rid of leading zeroes where present to match other dataframes
+  mutate(parentdow = gsub("-", "", parentdow))
+
+
+#set secchi as numeric, sometimes reported as a text description, these just become NA, then filter out these NA values
+WQcond.numeric <- WQcond.parentdow %>%
+  mutate(ResultMeasureValue = as.numeric(ResultMeasureValue)) %>%
+  filter(!is.na(ResultMeasureValue))
+
+#check for consistent method
+unique(WQcond.numeric$ResultAnalyticalMethod.MethodName)
+table(WQcond.numeric$ResultAnalyticalMethod.MethodName)
+#these all look fine
+
+#check cunductivity units and make sure all consistent
+table(WQcond.numeric$ResultMeasure.MeasureUnitCode)
+#filter to just us/cm units, throw out the others
+WQcond.units <- WQcond.numeric %>%
+  filter(ResultMeasure.MeasureUnitCode == "uS/cm" | ResultMeasure.MeasureUnitCode == "uS/cm @25C")
+#check that it worked
+table(WQcond.units$ResultMeasure.MeasureUnitCode)
+  
+#create a smaller dataset with only columns I care about
+WQcond.simple <- WQcond.units %>%
+  select(parentdow,
+         year,
+         OrganizationIdentifier,
+         ActivityStartDate,
+         MonitoringLocationIdentifier,
+         MonitoringLocationName,
+         CharacteristicName,
+         ResultMeasureValue,
+         ResultMeasure.MeasureUnitCode
+  )
+
+#create month column
+WQcond.simple <- WQcond.simple %>%
+  mutate(month = substr(ActivityStartDate, 6, 7))
+
+#make parentdow and year numeric instead of character
+#some of the monitoring location ID numbers do not follow the formula with the dow inside them, so they end up having parentdows with letters and get filtered out here because they become NA when changed to numeric
+WQcond.simple <- WQcond.simple %>%
+  mutate(parentdow = as.numeric(parentdow), year = as.numeric(year), month = as.numeric(month)) %>%
+  filter(!is.na(parentdow))
+
+
+
+#Save this as the output to add in to the Create Contemporary Dataset script
+#write.csv(WQcond.simple, file = "Data/Output/WQP_2021-2024_Conductivity_FILTERED_FORMATTED.csv")
 
 
 
