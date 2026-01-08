@@ -711,7 +711,7 @@ Join10 <- left_join(Join9.ordered, Cond.mean2, by = c("parentdow", "Year"))
 Join10.replace <- Join10 %>% 
   mutate(cond_uscm_exact_year = ifelse(!is.na(cond_uscm_exact_yearWQP), cond_uscm_exact_yearWQP, cond_uscm_exact_year)) %>% 
   mutate(cond_year = ifelse(!is.na(cond_uscm_exact_yearWQP), Year, cond_year)) %>% 
-  mutate(cond_uscm_closest_year = ifelse(!is.na(cond_uscm_exact_yearWQP), cond_uscm_exact_yearWQP, cond_uscm_closest_year)) %>% 
+  mutate(cond_uscm_closest_year = ifelse(!is.na(cond_uscm_exact_yearWQP), cond_uscm_exact_yearWQP, cond_uscm_closest_year))
 
 #let's see if I have any close years that aren't exact
   cond.test <- left_join(Join10.replace, Cond.mean2, by = "parentdow")
@@ -888,17 +888,17 @@ Join12.SDI <-  Join12 %>%
                                   ifelse(lake_name == "West Vermilion", -92.56557, lake_lon_decdeg)))
 
 
-#Add depth data from QGIS
-
-  #calculate Dynamic Ratio
-  mutate(dynam.ratio = sqrt(area.ha * 0.01)/mean.depth.m) %>% #converts area hectares to km2
-  #calculate volume development
-  mutate(vol.dev = (3*mean.depth.m)/max.depth.m) %>% 
-  #also remove rows that are not needed anymore because summarized above
-  select(-lake_onlandborder, -lake_shapeflag, -lake_waterarea_ha, -lake_perimeter_m,
-         -lake_shorelinedevfactor, -lagos_lake_maxdepth_m, -lagos_lake_meandepth_m,
-         -GC_DOW, -GC_lakename, -GC_shorelinedevfactor, -GC_waterarea_ha, -GC_perimeter_m,
-         -GC_maxdepth_m, -GC_meandepth_m)
+# #Add depth data from QGIS
+Join13 <- Join12.SDI #left_join(Join12.SDI, __________, by = "______") #THIS IS A PLACEHOLDER FOR NOW
+#   #calculate Dynamic Ratio
+#   mutate(dynam.ratio = sqrt(area.ha * 0.01)/mean.depth.m) %>% #converts area hectares to km2
+#   #calculate volume development
+#   mutate(vol.dev = (3*mean.depth.m)/max.depth.m) %>% 
+#   #also remove rows that are not needed anymore because summarized above
+#   select(-lake_onlandborder, -lake_shapeflag, -lake_waterarea_ha, -lake_perimeter_m,
+#          -lake_shorelinedevfactor, -lagos_lake_maxdepth_m, -lagos_lake_meandepth_m,
+#          -GC_DOW, -GC_lakename, -GC_shorelinedevfactor, -GC_waterarea_ha, -GC_perimeter_m,
+#          -GC_maxdepth_m, -GC_meandepth_m)
 
 # #Analyze differences between LAGOS and MNGC for lake area, lake perimeter, SDI, and max depth
 # Join11.difftest <- Join11 %>% 
@@ -925,27 +925,27 @@ Join12.SDI <-  Join12 %>%
 #Calculates dynamic ratio and volume development
 
 
-  #Add in depth info calculated elsewhere
-  mutate(max.depth.m = ifelse(lake_name == "Red (Upper Red)", 15 * 0.3048, #converts feet to m
-                              ifelse(lake_name == "Red (Lower Red)", lagos_lake_maxdepth_m, 
-                              ifelse(lake_name == "Rainy", 161 * 0.3048,   #converts feet to m
-                              ifelse(lake_name == "East Vermilion", 70 * 0.3048, GC_maxdepth_m))))) %>%  #converts feet to m
-  mutate(depth.raster.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
-                                   ifelse(lake_name == "Red (Lower Red)", "LAGOS",
-                                   ifelse(lake_name == "Rainy", "MNDNR Lakefinder",
-                                   ifelse(lake_name == "East Vermilion", "MNGCLBathymetry", "MNGCLBM"))))) %>% 
-  mutate(mean.depth.m = ifelse(lake_name == "Red (Upper Red)", 12 * 0.3048,   #converts feet to m
-                                ifelse(lake_name == "Red (Lower Red)", NA,
-                                       ifelse(lake_name == "Belle", 13.19450 * 0.3048,   #converts feet to m
-                                              ifelse(lake_name == "Cut Foot Sioux", 22.78753 * 0.3048,   #converts feet to m
-                                                     ifelse(lake_name == "Rainy", 32 * 0.3048,    #converts feet to m
-                                                            ifelse(lake_name == "East Vermilion", 17.26256 * 0.3048, GC_meandepth_m))))))) %>%   #converts feet to m
-  mutate(mean.depth.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
-                                     ifelse(lake_name == "Red (Lower Red)", NA,
-                                            ifelse(lake_name == "Belle", "MNGCLBathymetry QGIS calc", 
-                                                   ifelse(lake_name == "Cut Foot Sioux", "MNGCLBathymetry QGIS calc", 
-                                                          ifelse(lake_name == "Rainy", "MNDNR Lakefinder",  
-                                                                 ifelse(lake_name == "East Vermilion", "MNGCLBathymetry QGIS calc", "MNGCLBM"))))))) %>% 
+  # #Add in depth info calculated elsewhere
+  # mutate(max.depth.m = ifelse(lake_name == "Red (Upper Red)", 15 * 0.3048, #converts feet to m
+  #                             ifelse(lake_name == "Red (Lower Red)", lagos_lake_maxdepth_m, 
+  #                             ifelse(lake_name == "Rainy", 161 * 0.3048,   #converts feet to m
+  #                             ifelse(lake_name == "East Vermilion", 70 * 0.3048, GC_maxdepth_m))))) %>%  #converts feet to m
+  # mutate(depth.raster.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
+  #                                  ifelse(lake_name == "Red (Lower Red)", "LAGOS",
+  #                                  ifelse(lake_name == "Rainy", "MNDNR Lakefinder",
+  #                                  ifelse(lake_name == "East Vermilion", "MNGCLBathymetry", "MNGCLBM"))))) %>% 
+  # mutate(mean.depth.m = ifelse(lake_name == "Red (Upper Red)", 12 * 0.3048,   #converts feet to m
+  #                               ifelse(lake_name == "Red (Lower Red)", NA,
+  #                                      ifelse(lake_name == "Belle", 13.19450 * 0.3048,   #converts feet to m
+  #                                             ifelse(lake_name == "Cut Foot Sioux", 22.78753 * 0.3048,   #converts feet to m
+  #                                                    ifelse(lake_name == "Rainy", 32 * 0.3048,    #converts feet to m
+  #                                                           ifelse(lake_name == "East Vermilion", 17.26256 * 0.3048, GC_meandepth_m))))))) %>%   #converts feet to m
+  # mutate(mean.depth.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
+  #                                    ifelse(lake_name == "Red (Lower Red)", NA,
+  #                                           ifelse(lake_name == "Belle", "MNGCLBathymetry QGIS calc", 
+  #                                                  ifelse(lake_name == "Cut Foot Sioux", "MNGCLBathymetry QGIS calc", 
+  #                                                         ifelse(lake_name == "Rainy", "MNDNR Lakefinder",  
+  #                                                                ifelse(lake_name == "East Vermilion", "MNGCLBathymetry QGIS calc", "MNGCLBM"))))))) %>% 
 
 
 
@@ -1098,10 +1098,173 @@ precip.mm.avg <- precip.avg %>%
 
 
 #join to rest of data
-Join13 <- left_join(Join12.selected, precip.mm.avg, by = c("lake_name", "Year"))
+Join14 <- left_join(Join13, precip.mm.avg, by = c("lake_name", "Year"))
 
 #keep environment clean
 rm(precip.avg, precip, precip.long, precip.mm.avg)
+
+
+
+
+
+
+
+
+
+#INFESTED WATERS DATA DOWNLOAD AND MERGE ------------------------------------------------------------------------------
+
+# Data
+## Infested Waters List (UPDATE FILE PATHS, THEN RUN SECTION TO UPDATE INFESTED WATERS DATA) 
+# The code below will automatically download the newest infested-waters.xlsx document from our webpage
+# as long as the url for the download hasn't changed. The code will also get the data into 
+# a workable/summarized formats for the visualizations below. 
+
+# Click the down arrow by the line number next to "Data ..." to hide/show
+# the code for downloading and updating the infested waters data used here.
+
+
+#ONLY RUN THIS THE FIRST TIME YOU NEED TO GET THE INFESTED WATERS DATA (OR UPDATE IT)
+# Infested Waters URL
+#url_iw <- "https://files.dnr.state.mn.us/eco/invasives/infested-waters.xlsx"
+
+### UPDATE FILE PATH FOR IW DOWNLOAD
+# Path to where I want data stored
+#data_path <- "G:/My Drive/Thesis/Data/R Working Directories/Walleye.Zoop.Paleo/"
+
+# Date data was downloaded
+# This will make it so that a new file is generated in my Data folder every time I run this code
+#date_downloaded <- Sys.Date()
+
+# Name I want to save infested waters under
+#data_name <- paste("infested-waters_", date_downloaded, ".xlsx", sep="")
+
+# Paste together data_path and data_name to tell R where to save downloaded infested waters list
+#destfile <- paste(data_path, data_name, sep="")
+
+# Download infested waters list
+#download.file(url_iw, destfile, mode='wb')
+
+# Read in infested waters list
+#run this if downloading data for the first time
+#iw <- read_excel(path=destfile, skip=1)
+#RUN THIS IF JUST READING THE INFESTED WATERS SPREADSHEET ALREADY SAVED IN WORKING DIRECTORY
+iw <- read_excel("Data/Input/Copy of infested-waters_2024-10-09.xlsx")
+
+#ALWAYS RUN THIS
+iw <- iw[, -dim(iw)[2]]
+
+# Change column names
+# I normally don't do this, but the default are pretty bulky to code with
+colnames(iw) <- c("waterbody_name", "county", "species", "year", "year_conf", "dowlknum")
+
+#Creates a new column that specifies if a water body is connected or confirmed
+iw$connected <- factor(ifelse(grepl("connect", iw$year_conf) | grepl("Connect", iw$year_conf) | grepl("conect", iw$year_conf),
+                              "connected", "confirmed"))
+
+iw$species[iw$species=="Eurasian Watermilfoil"] <- "Eurasian watermilfoil"
+
+# Fixing some dowlknum entries, hyphenating these really helps here
+# This code fixes dowlknum issues up to 9/11/2024
+# CC-LLLL-BB, where C=county, L=lake or parent dow, B=basin, is a nice convention to standardize to
+unique(iw$dowlknum[!grepl("-", iw$dowlknum)])
+
+iw$dowlknum[iw$dowlknum=="NA"] <- NA
+iw$dowlknum[iw$dowlknum=="na"] <- NA
+iw$dowlknum[iw$dowlknum=="none"] <- NA
+iw$dowlknum[iw$dowlknum=="NONE"] <- NA
+
+iw$dowlknum[iw$dowlknum=="none, part of Winnibigoshish"] <- "11-0147"
+
+iw$dowlknum[iw$dowlknum=="18002900" ] <- "18-0029"
+
+# There are some dowlknum that use hyphens, but not according to the convention above
+# These all look good: CC-LLLL
+unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==7])
+# None here:
+unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==8])
+# Here's a mistake where there isn't a second hyphen
+unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==9])
+# fix second hyphen
+iw$dowlknum[iw$dowlknum=="18-012601"] <- "18-0126-01"
+# These all look good; CC-LLLL-BB
+unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==10])
+
+#Make column for parent dow - no sub-basin
+iw$parentdow <- substr(iw$dowlknum, 1, 7)
+#leading zeros not a problem because stored as character data
+
+#Sub-basins should be considered together here so not worried about separating Red, Hill, and Vermilion basins
+
+
+#INFESTED WATERS JOIN
+
+#Combining infested water data with the matched fish/zoop data
+#Column to match: DOW - but needs to be reformatted in match data
+
+#filter iw to only include confirmed invasive species
+iw_confirmed <-  filter(iw, connected=="confirmed")
+
+#remove "-" from infested waters parent dow and remove leading zeroes to match other data
+iw_confirmed_format <- iw_confirmed %>%
+  mutate(parentdow=str_remove_all(parentdow, "-")) %>%
+  mutate(parentdow=ifelse(substr(parentdow, 1, 1)=="0", substr(parentdow, 2, 6), parentdow))
+
+
+#now the parentdow columns in the two datasets are the same format and can be used to match
+
+#filter out just zebra mussels and spiny water fleas
+zm_swf <- iw_confirmed_format %>% 
+  filter(species == "zebra mussel" | species == "spiny waterflea")
+#need to summarize infested water data into one row per lake - change from long to wide format
+zm_swf_wide <- spread(zm_swf, species, year)
+#combine the rows if multiple for each lake and drop unnecessary rows - only keep parentdow for match
+zm_swf_wide_format <- zm_swf_wide %>%
+  group_by(parentdow) %>%
+  summarize(SpinyWaterflea = max(`spiny waterflea`, na.rm = TRUE), ZebraMussel = max(`zebra mussel`, na.rm = TRUE))
+
+
+
+# #USE THIS CODE IF YOU WANT ALL THE SPECIES
+# #need to summarize infested water data into one row per lake - change from long to wide format
+# #make a column for each invasive species and fill it with the year it was found
+# iw_wide <- spread(iw_confirmed_format, species, year)
+# #combine the rows if multiple for each lake and drop unnecessary rows - only keep parentdow for match
+# iw_wide_format <- iw_wide %>%
+#   group_by(parentdow) %>%
+#   summarize(BigheadCarp = max(`bighead carp`, na.rm = TRUE), BrittleNaiad = max(`brittle naiad`, na.rm = TRUE), 
+#             EurasianWatermilfoil = max(`Eurasian watermilfoil`, na.rm = TRUE), FaucetSnail = max(`faucet snail`, na.rm = TRUE), 
+#             FloweringRush = max(`flowering rush`, na.rm = TRUE), GrassCarp = max(`grass carp`, na.rm = TRUE), 
+#             NZMudSnail = max(`New Zealand mud snail`, na.rm = TRUE), RedSwampCrayfish = max(`red swamp crayfish`, na.rm = TRUE), 
+#             RoundGoby = max(`round goby`, na.rm = TRUE), Ruffe = max(ruffe, na.rm = TRUE), SilverCarp = max(`silver carp`, na.rm = TRUE), 
+#             SpinyWaterflea = max(`spiny waterflea`, na.rm = TRUE), StarryStonewart = max(`starry stonewort`, na.rm = TRUE), 
+#             VHS = max(VHS, na.rm = TRUE), WhitePerch = max(`white perch`, na.rm = TRUE), ZebraMussel = max(`zebra mussel`, na.rm = TRUE))
+
+
+
+Join15 <- left_join(Join14, zm_swf_wide_format, by = "parentdow")
+
+#remove unneeded intermediate data frames to keep environment clean
+rm(iw,
+   iw_confirmed,
+   iw_confirmed_format,
+   zm_swf,
+   zm_swf_wide,
+   zm_swf_wide_format
+)
+
+#calculate if lake-years are invaded or not chronologically
+Join15.yn <- Join15 %>% 
+  mutate(SpinyWaterflea = as.numeric(SpinyWaterflea)) %>% 
+  mutate(ZebraMussel = as.numeric(ZebraMussel)) %>% 
+  rename(SpinyWaterflea.inv.year = SpinyWaterflea) %>% 
+  rename(ZebraMussel.inv.year = ZebraMussel) %>% 
+  mutate(Year = as.numeric(Year)) %>% 
+  mutate(SpinyWaterflea.yn = ifelse(is.na(SpinyWaterflea.inv.year), "no", 
+                                      ifelse(SpinyWaterflea.inv.year - Year <= 0, "yes", "no"))) %>% 
+  mutate(ZebraMussel.yn = ifelse(is.na(ZebraMussel.inv.year), "no", 
+                                 ifelse(ZebraMussel.inv.year - Year <= 0, "yes", "no")))
+
+
 
 
 
@@ -1476,160 +1639,6 @@ rm(zoop_month_tows,
 
 
 
-
-
-
-
-
-
-#INFESTED WATERS DATA DOWNLOAD AND MERGE ------------------------------------------------------------------------------
-
-# Data----
-## Infested Waters List (UPDATE FILE PATHS, THEN RUN SECTION TO UPDATE INFESTED WATERS DATA) ----
-# The code below will automatically download the newest infested-waters.xlsx document from our webpage
-# as long as the url for the download hasn't changed. The code will also get the data into 
-# a workable/summarized formats for the visualizations below. 
-
-# Click the down arrow by the line number next to "Data ..." to hide/show
-# the code for downloading and updating the infested waters data used here.
-
-
-#ONLY RUN THIS THE FIRST TIME YOU NEED TO GET THE INFESTED WATERS DATA (OR UPDATE IT)
-# Infested Waters URL
-#url_iw <- "https://files.dnr.state.mn.us/eco/invasives/infested-waters.xlsx"
-
-### UPDATE FILE PATH FOR IW DOWNLOAD----
-# Path to where I want data stored
-#data_path <- "G:/My Drive/Thesis/Data/R Working Directories/Walleye.Zoop.Paleo/"
-
-# Date data was downloaded
-# This will make it so that a new file is generated in my Data folder every time I run this code
-#date_downloaded <- Sys.Date()
-
-# Name I want to save infested waters under
-#data_name <- paste("infested-waters_", date_downloaded, ".xlsx", sep="")
-
-# Paste together data_path and data_name to tell R where to save downloaded infested waters list
-#destfile <- paste(data_path, data_name, sep="")
-
-# Download infested waters list
-#download.file(url_iw, destfile, mode='wb')
-
-# Read in infested waters list
-#run this if downloading data for the first time
-#iw <- read_excel(path=destfile, skip=1)
-#RUN THIS IF JUST READING THE INFESTED WATERS SPREADSHEET ALREADY SAVED IN WORKING DIRECTORY
-iw <- read_excel("Data/Input/Copy of infested-waters_2024-10-09.xlsx")
-
-#ALWAYS RUN THIS
-iw <- iw[, -dim(iw)[2]]
-
-# Change column names
-# I normally don't do this, but the default are pretty bulky to code with
-colnames(iw) <- c("waterbody_name", "county", "species", "year", "year_conf", "dowlknum")
-
-#Creates a new column that specifies if a water body is connected or confirmed
-iw$connected <- factor(ifelse(grepl("connect", iw$year_conf) | grepl("Connect", iw$year_conf) | grepl("conect", iw$year_conf),
-                              "connected", "confirmed"))
-
-iw$species[iw$species=="Eurasian Watermilfoil"] <- "Eurasian watermilfoil"
-
-# Fixing some dowlknum entries, hyphenating these really helps here
-# This code fixes dowlknum issues up to 9/11/2024
-# CC-LLLL-BB, where C=county, L=lake or parent dow, B=basin, is a nice convention to standardize to
-unique(iw$dowlknum[!grepl("-", iw$dowlknum)])
-
-iw$dowlknum[iw$dowlknum=="NA"] <- NA
-iw$dowlknum[iw$dowlknum=="na"] <- NA
-iw$dowlknum[iw$dowlknum=="none"] <- NA
-iw$dowlknum[iw$dowlknum=="NONE"] <- NA
-
-iw$dowlknum[iw$dowlknum=="none, part of Winnibigoshish"] <- "11-0147"
-
-iw$dowlknum[iw$dowlknum=="18002900" ] <- "18-0029"
-
-# There are some dowlknum that use hyphens, but not according to the convention above
-# These all look good: CC-LLLL
-unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==7])
-# None here:
-unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==8])
-# Here's a mistake where there isn't a second hyphen
-unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==9])
-# fix second hyphen
-iw$dowlknum[iw$dowlknum=="18-012601"] <- "18-0126-01"
-# These all look good; CC-LLLL-BB
-unique(iw$dowlknum[grepl("-", iw$dowlknum) & nchar(iw$dowlknum)==10])
-
-#Make column for parent dow - no sub-basin
-iw$parentdow <- substr(iw$dowlknum, 1, 7)
-#leading zeros not a problem because stored as character data
-
-
-#INFESTED WATERS JOIN
-
-#Combining infested water data with the matched fish/zoop data
-#Column to match: DOW - but needs to be reformatted in match data
-
-#filter iw to only include confirmed invasive species
-iw_confirmed <-  filter(iw, connected=="confirmed")
-
-#remove "-" from infested waters parent dow and remove leading zeroes to match other data
-iw_confirmed_format <- iw_confirmed %>%
-  mutate(parentdow=str_remove_all(parentdow, "-")) %>%
-  mutate(parentdow=ifelse(substr(parentdow, 1, 1)=="0", substr(parentdow, 2, 6), parentdow))
-
-
-#now the parentdow columns in the two datasets are the same format and can be used to match
-
-#filter out just zebra mussels and spiny water fleas
-zm_swf <- iw_confirmed_format %>% 
-  filter(species == "zebra mussel" | species == "spiny waterflea")
-#need to summarize infested water data into one row per lake - change from long to wide format
-zm_swf_wide <- spread(zm_swf, species, year)
-#combine the rows if multiple for each lake and drop unnecessary rows - only keep parentdow for match
-zm_swf_wide_format <- zm_swf_wide %>%
-  group_by(parentdow) %>%
-  summarize(SpinyWaterflea = max(`spiny waterflea`, na.rm = TRUE), ZebraMussel = max(`zebra mussel`, na.rm = TRUE))
-
-
-
-# #USE THIS CODE IF YOU WANT ALL THE SPECIES
-# #need to summarize infested water data into one row per lake - change from long to wide format
-# #make a column for each invasive species and fill it with the year it was found
-# iw_wide <- spread(iw_confirmed_format, species, year)
-# #combine the rows if multiple for each lake and drop unnecessary rows - only keep parentdow for match
-# iw_wide_format <- iw_wide %>%
-#   group_by(parentdow) %>%
-#   summarize(BigheadCarp = max(`bighead carp`, na.rm = TRUE), BrittleNaiad = max(`brittle naiad`, na.rm = TRUE), 
-#             EurasianWatermilfoil = max(`Eurasian watermilfoil`, na.rm = TRUE), FaucetSnail = max(`faucet snail`, na.rm = TRUE), 
-#             FloweringRush = max(`flowering rush`, na.rm = TRUE), GrassCarp = max(`grass carp`, na.rm = TRUE), 
-#             NZMudSnail = max(`New Zealand mud snail`, na.rm = TRUE), RedSwampCrayfish = max(`red swamp crayfish`, na.rm = TRUE), 
-#             RoundGoby = max(`round goby`, na.rm = TRUE), Ruffe = max(ruffe, na.rm = TRUE), SilverCarp = max(`silver carp`, na.rm = TRUE), 
-#             SpinyWaterflea = max(`spiny waterflea`, na.rm = TRUE), StarryStonewart = max(`starry stonewort`, na.rm = TRUE), 
-#             VHS = max(VHS, na.rm = TRUE), WhitePerch = max(`white perch`, na.rm = TRUE), ZebraMussel = max(`zebra mussel`, na.rm = TRUE))
-
-zm_swf_wide_format$parentdow <- as.numeric(zm_swf_wide_format$parentdow)
-
-Data_all <- left_join(Data_e, zm_swf_wide_format, by = "parentdow")
-
-#remove unneeded intermediate data frames to keep environment clean
-rm(iw,
-   iw_confirmed,
-   iw_confirmed_format,
-   zm_swf,
-   zm_swf_wide,
-   zm_swf_wide_format
-)
-
-#calculate if lake-years are invaded or not chronologically
-Data_all$SpinyWaterflea <- as.numeric(Data_all$SpinyWaterflea)
-Data_all$ZebraMussel <- as.numeric(Data_all$ZebraMussel)
-
-Data_all$SpinyWaterflea <- ifelse(is.na(Data_all$SpinyWaterflea), "no", 
-                                  ifelse(Data_all$SpinyWaterflea - Data_all$year <= 0, "yes", "no"))
-
-Data_all$ZebraMussel <- ifelse(is.na(Data_all$ZebraMussel), "no", 
-                               ifelse(Data_all$ZebraMussel - Data_all$year <= 0, "yes", "no"))
 
 
 
