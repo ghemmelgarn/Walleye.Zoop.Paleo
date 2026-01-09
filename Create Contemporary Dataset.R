@@ -1272,6 +1272,60 @@ Join15.yn <- Join15 %>%
 
 
 
+#STOCKING DATA-----------------------------------------------------------------------
+
+#Read in data
+stock <- read.csv("Data/Input/Result_28.csv")
+
+#let's limit this list to just my lakes to see what we are working with here
+#get a list of parentdows of my lakes
+parentdow <- Join15.yn %>% 
+  select(parentdow) %>% 
+  unique()
+
+#add parentdow column to stocking data - MODIFIED FOR THIS DATA
+#vermilion and hill sub-basins are listed together (dow ending in 00), so need to modify their parentdows to get it to join to my data
+stock.parentdow <- stock %>% 
+  mutate(parentdow = case_when(
+    (stock$UNIQUE_IDENTIFIER == "1014202" | stock$UNIQUE_IDENTIFIER == "1014201" | stock$UNIQUE_IDENTIFIER == "4003502" | stock$UNIQUE_IDENTIFIER == "4003501") ~ substr(stock$UNIQUE_IDENTIFIER, 1, 7),   #takes care of North and Red lakes (7 characters)
+    (stock$UNIQUE_IDENTIFIER == "69037802" | stock$UNIQUE_IDENTIFIER == "69037801") ~ substr(stock$UNIQUE_IDENTIFIER, 1, 8),  #takes care of Vermilion (different because 8 characters)
+    (nchar(stock$UNIQUE_IDENTIFIER) == 7 & (stock$UNIQUE_IDENTIFIER != "1014202" & stock$UNIQUE_IDENTIFIER != "1014201" & stock$UNIQUE_IDENTIFIER != "4003502" & stock$UNIQUE_IDENTIFIER != "4003501")) ~ substr(stock$UNIQUE_IDENTIFIER, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
+    (nchar(stock$UNIQUE_IDENTIFIER) == 8 & (stock$UNIQUE_IDENTIFIER != "69037802" & stock$UNIQUE_IDENTIFIER != "69037801")) ~ substr(stock$UNIQUE_IDENTIFIER, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
+  )) %>% 
+  #modifies vermilion and hill:
+  mutate(parentdow = ifelse(UNIQUE_IDENTIFIER == "1014200", "1014201",
+                            ifelse(UNIQUE_IDENTIFIER == "69037800", "69037801", parentdow)
+  ))
+
+#isolate my lakes
+stock.mylakes <- left_join(parentdow, stock.parentdow, by = "parentdow")
+
+#what species do we have
+unique(stock.mylakes$COMMON_NAME)
+
+#what units of measure do we have
+unique(stock.mylakes$UNIT_OF_MEASURE)
+
+#sum the number of fish stocked in each lake-year by species, unit of measure, and life stage
+stock.sum <- stock.mylakes %>%
+  group_by(parentdow, STOCKING_YEAR, LAKE_NAME, COMMON_NAME, NAME, UNIT_OF_MEASURE) %>%
+  summarize(quantity = sum(FISH_QUANTITY), .groups = 'drop')
+
+#how many lake-years do we have for each species and each unit of measure
+table(stock.sum$COMMON_NAME, stock.sum$UNIT_OF_MEASURE)
+#don't worry about the spottail shiner and yellow perch, they were stocked after the lake-years I am interested in
+#channel catfish was too early to be included in the one lake-year that has it
+
+
+
+#PAUSING HERE BECAUSE I AM QUESTIONING WHAT I ACTUALLY WANT TO DO WITH THIS DATA
+
+
+
+
+
+
+
 
 
 
