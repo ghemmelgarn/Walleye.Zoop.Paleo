@@ -559,52 +559,6 @@ rm(secchi.data,
 )
 
 
-#CHOOSE SECCHI DATA---------------------------------------------------------------------------------
-
-#first want to see how much data I have available for each option
-#remote secchi exact year:
-nrow(filter(Join06, !is.na(remote.secchi.exact.year)))
-  #lake-years = 123
-length(unique(filter(Join06, !is.na(remote.secchi.exact.year))$lake_name))
-  #lakes = 39
-
-#remote secchi closest year:
-nrow(filter(Join06, !is.na(remote.secchi.closest.year)))
-  #lake-years = 205
-length(unique(filter(Join06, !is.na(remote.secchi.closest.year))$lake_name))
-  #lakes = 43
-
-#MPCA Jun-Aug:
-nrow(filter(Join06, !is.na(secchi.meters.MPCA.Jun.to.Aug)))
-  #lake-years = 144
-length(unique(filter(Join06, !is.na(secchi.meters.MPCA.Jun.to.Aug))$lake_name))
-  #lakes = 34
-
-#MPCA Jul-Sept:
-nrow(filter(Join06, !is.na(secchi.meters.MPCA.Jul.to.Sept)))
-  #lake-years = 154
-length(unique(filter(Join06, !is.na(secchi.meters.MPCA.Jul.to.Sept))$lake_name))
-  #lakes = 35
-
-#now plot these all against each other
-#first select just the variables you want to run the correlations on
-secchi.test <- Join06 %>%
-  select(remote.secchi.exact.year,
-         remote.secchi.closest.year,
-         secchi.meters.MPCA.Jun.to.Aug,
-         secchi.meters.MPCA.Jul.to.Sept
-         )
-#label the variables
-custom_labels <- c("Remote Secchi Exact Year" = "remote.secchi.exact.year",
-                     "Remote Secchi Closest Year" = "remote.secchi.closest.year",
-                     "MPCA Jun-Aug" = "secchi.meters.MPCA.Jun.to.Aug",
-                     "MPCA Jul-Sept" = "secchi.meters.MPCA.Jul.to.Sept"
-                  )
-
-#tiff("Secchi Metric Correlations.tiff", width = 8, height = 8, units = "in", res = 300)                   
-ggpairs(secchi.test, columnLabels = custom_labels)
-#dev.off()
-
 
 
 #CONDUCTIVITY: LAGOS LIMNO and WQP--------------------------------------------------------------------------------
@@ -793,6 +747,117 @@ Join10.final <- Join10.WQPrelplace %>%
 rm(Join10.replace, Join10.WQPclose, Join10.WQPrelplace, WQ.cond, WQ.cond.positive,
    zero.test, neg.test, Limno, Join10, Cond.mean, Cond.mean2, cond.test, cond.test.close, cond.WQP.close.join)
 
+
+
+
+
+
+
+#CHOOSE SECCHI DATA---------------------------------------------------------------------------------
+
+#Commented out because I don't need to run this to make the dataset, honestly it should probably live in another script
+
+# #first want to see how much data I have available for each option
+# #remote secchi exact year:
+# nrow(filter(Join10.final, !is.na(remote.secchi.exact.year)))
+# #lake-years = 123
+# length(unique(filter(Join10.final, !is.na(remote.secchi.exact.year))$lake_name))
+# #lakes = 39
+# 
+# #remote secchi closest year:
+# nrow(filter(Join10.final, !is.na(remote.secchi.closest.year)))
+# #lake-years = 205
+# length(unique(filter(Join10.final, !is.na(remote.secchi.closest.year))$lake_name))
+# #lakes = 43
+# 
+# #MPCA Jun-Aug:
+# nrow(filter(Join10.final, !is.na(secchi.meters.MPCA.Jun.to.Aug)))
+# #lake-years = 144
+# length(unique(filter(Join10.final, !is.na(secchi.meters.MPCA.Jun.to.Aug))$lake_name))
+# #lakes = 34
+# 
+# #MPCA Jul-Sept:
+# nrow(filter(Join10.final, !is.na(secchi.meters.MPCA.Jul.to.Sept)))
+# #lake-years = 154
+# length(unique(filter(Join10.final, !is.na(secchi.meters.MPCA.Jul.to.Sept))$lake_name))
+# #lakes = 35
+# 
+# #now plot these all against each other
+# #first select just the variables you want to run the correlations on
+# secchi.test <- Join10.final %>%
+#   select(remote.secchi.exact.year,
+#          remote.secchi.closest.year,
+#          secchi.meters.MPCA.Jun.to.Aug,
+#          secchi.meters.MPCA.Jul.to.Sept
+#   )
+# #label the variables
+# custom_labels <- c("Remote Secchi Exact Year" = "remote.secchi.exact.year",
+#                    "Remote Secchi Closest Year" = "remote.secchi.closest.year",
+#                    "MPCA Jun-Aug" = "secchi.meters.MPCA.Jun.to.Aug",
+#                    "MPCA Jul-Sept" = "secchi.meters.MPCA.Jul.to.Sept"
+# )
+# 
+# #tiff("Secchi Metric Correlations.tiff", width = 8, height = 8, units = "in", res = 300)                   
+# ggpairs(secchi.test, columnLabels = custom_labels)
+# #dev.off()
+
+
+
+#COMPARE PRIMARY PRODUCTIVITY METRICS----------------------------------------------------------------------
+
+#Commented out because I don't need to run this to make the dataset, honestly it should probably live in another script
+
+# #How many lake-years and lakes do I have for the other potential primary productivity metrics?
+# #Chlorophyll-a
+# nrow(filter(Join10.final,  !is.na(remote.chla)))
+# #lake-years = 89
+# length(unique(filter(Join10.final, !is.na(remote.chla))$lake_name))
+# #lakes = 32
+# 
+# #CDOM
+# nrow(filter(Join10.final, !is.na(remote.CDOM)))
+# #lake-years = 89
+# length(unique(filter(Join10.final, !is.na(remote.CDOM))$lake_name))
+# #lakes = 32
+# 
+# #Conductivity exact year
+# nrow(filter(Join10.final, !is.na(cond_uscm_exact_year)))
+# #lake-years = 87
+# length(unique(filter(Join10.final, !is.na(cond_uscm_exact_year))$lake_name))
+# #lakes = 26
+# 
+# #Conductivity closest year
+# nrow(filter(Join10.final, !is.na(cond_uscm_closest_year)))
+# #lake-years = 198
+# length(unique(filter(Join10.final, !is.na(cond_uscm_closest_year))$lake_name))
+# #lakes = 40
+# 
+# #Compare them all, including the different secchi measurements too
+# #first select just the variables you want to run the correlations on
+# prod.test <- Join10.final %>%
+#   select(remote.secchi.exact.year,
+#          remote.secchi.closest.year,
+#          secchi.meters.MPCA.Jun.to.Aug,
+#          secchi.meters.MPCA.Jul.to.Sept,
+#          cond_uscm_exact_year,
+#          cond_uscm_closest_year,
+#          remote.chla,
+#          remote.CDOM
+#   )
+# #label the variables
+# custom_labels_prod <- c("Secchi Remote Exact Year" = "remote.secchi.exact.year",
+#                    "Secchi Remote Closest Year" = "remote.secchi.closest.year",
+#                    "Secchi MPCA Jun-Aug" = "secchi.meters.MPCA.Jun.to.Aug",
+#                    "Secchi MPCA Jul-Sept" = "secchi.meters.MPCA.Jul.to.Sept",
+#                    "Conductivity Exact Year" = "cond_uscm_exact_year",
+#                    "Conductivity Closest Year" = "cond_uscm_closest_year",
+#                    "Chlorophyll-a Remote" = "remote.chla",
+#                    "CDOM Remote" = "remote.CDOM"
+# )
+# 
+# #tiff("Primary Productivity Correlations.tiff", width = 12, height = 12, units = "in", res = 300)
+# ggpairs(prod.test, columnLabels = custom_labels_prod)
+# #dev.off()
 
 
 
@@ -1537,7 +1602,7 @@ table(stock.sum$COMMON_NAME, stock.sum$UNIT_OF_MEASURE)
 
 #FOR NOW: Yes or no spring (stocking of young fish (fry or fingerlings of any species)
 
-#Isolate 
+#WANT TO DO SOME EXPLORATORY STUFF WITH THE ZOOP DATA BEFORE I DECIDE WHAT TO DO HERE
 
 
 
