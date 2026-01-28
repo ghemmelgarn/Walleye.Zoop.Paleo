@@ -1663,6 +1663,165 @@ rm(fish,
 
 #ZOOP METRIC JOIN -------------------------------------------------------------------------
 
+#read in the zoop data
+zoop <- read.csv("Data/Input/ZoopDB_data_20251016.csv")
+#this is the zoop data Kylie sent me on Oct 16, 2025 - it is up to date with what she had processed at that time
+
+#create columns for month, day, and year separately
+zoop_months <- zoop %>%
+  mutate(year = substr(sample_date, 1, 4)) %>% 
+  mutate(month = substr(sample_date, 6, 7)) %>%
+  mutate(day = substr(sample_date, 9, 10))
+
+#make parentdow column
+zoop_parentdow <- zoop_months %>%
+  mutate(parentdow = case_when(
+    nchar(zoop$dowlknum) == 7 ~ substr(dowlknum, 1, 5),
+    nchar(zoop$dowlknum) == 8 ~ substr(dowlknum, 1, 6)
+  ))
+
+#make parentdow.year column to join to other data
+zoop_parentdow$parentdow.year = paste(zoop_parentdow$parentdow, zoop_parentdow$year)
+
+
+#Read in the zoop survey inclusion table with vetted good surveys
+zoop_incl <- read.csv("Data/Input/Zoop_Survey_Pelagic_Inclusion_Table.csv")
+
+#get just the zoop surveys in the inclusion table
+zoop_filter <- left_join(zoop_incl, zoop_parentdow, by = c("parentdow.year", "sample_id"))
+
+#Check for any lake names that don't match
+zoop_filter$NAME.MATCH <- zoop_filter$lake_name == zoop_filter$lake_name.y
+table(zoop_filter$NAME.MATCH)
+#Looks good
+
+#NOTE: some sample IDs refer to multiple unrelated samples, BUT when I made the inclusion table, everything was based on parentdows and years, so the inclusion table is okay
+#I just need to always group and join by BOTH parentdow AND sample_id
+
+#When I made the inclusion table, I did this:
+  #isolated just summer months and made sure all selected lake-years had all 5 months
+  #checked the remarks and flags
+  #removed littoral samples, horizontal samples, night samples, closing nets, oblique tows, and LMB stomachs
+  #Removed shallow samples that only sampled the epilimnion
+
+
+# #To confirm all looks good, I checked:
+# #check months
+# unique(zoop_filter$month)
+# #check that all 5 months are present
+# zoop_month_count <- zoop_filter %>%
+#   group_by(parentdow.year) %>%
+#   summarize(Zoop.Month.Count = n_distinct(month), .groups = 'drop')
+# max(zoop_month_count$Zoop.Month.Count)
+# min(zoop_month_count$Zoop.Month.Count)
+# #check flags
+# flags <- data.frame(unique(zoop_filter$remarks)) #visual inspection = these look ok
+# flags$remarks <- flags$`unique(zoop_filter$remarks)` #rename so it works in copied code below
+# problem_flags <- flags %>% 
+#   filter(grepl(pattern = "littoral", x = remarks, ignore.case = TRUE) | 
+#            grepl(pattern = "horizontal", x = remarks, ignore.case = TRUE) | 
+#            grepl(pattern = "night", x = remarks, ignore.case = TRUE) | 
+#            grepl(pattern = "closing", x = remarks, ignore.case = TRUE) | 
+#            grepl(pattern = "oblique", x = remarks, ignore.case = TRUE) | 
+#            grepl(pattern = "LMB", x = remarks, ignore.case = TRUE) | 
+#            grepl(pattern = "composite", x = remarks, ignore.case = TRUE) |
+#            grepl(pattern = "special", x = remarks, ignore.case = TRUE) |
+#            grepl(pattern = "depth", x = remarks, ignore.case = TRUE) |
+#            grepl(pattern = "shallow", x = remarks, ignore.case = TRUE) |
+#            grepl(pattern = "deep", x = remarks, ignore.case = TRUE))
+# #Emailed Kylie to ask what the Rainy lake shallow/deep means - she says "shallow" is epilimnion only and "deep" is full water column - I will use deep)
+# #THIS ALL LOOKS GOOD
+
+
+#Fix other sample-level problems:
+
+#Separate Hill, Verm, and Red samples from each other:
+zoop_split <- zoop_filter %>% 
+  select(-lake_name.y, -NAME.MATCH) %>% #get rid of duplicate / unneccesary columns
+  #Hill north and south are already split, just need to fix their parentdows
+  mutate(parentdow = ifelse(lake_name == "Hill (north)" | lake_name == "Hill (south)", dowlknum, parentdow)) %>% 
+  #Fix vermilion and Red names, also fix a spelling error in Shaokotan
+  mutate(lake_name = ifelse(lake_name == "Vermilion" & (site_number == 1 | site_number == 2 | site_number == 3), "East Vermilion",
+                            ifelse(lake_name == "Vermilion" & (site_number == 4 | site_number == 5 | site_number == 6), "West Vermilion",
+                                   ifelse(lake_name == "Red" & (site_number == 1 | site_number == 2 | site_number == 3), "Red (Lower Red)",
+                                          ifelse(lake_name == "Red" & (site_number == 4 | site_number == 5 | site_number == 6), "Red (Upper Red)", 
+                                                 ifelse(lake_name == "Shaokatan", "Shaokotan", lake_name)))))) %>% 
+  #Fix vermilion and Red parentdows
+  mutate(parentdow = ifelse(lake_name == "East Vermilion", "69037801",
+                            ifelse(lake_name == "West Vermilion", "69037802",
+                                   ifelse(lake_name == "Red (Lower Red)", "4003502",
+                                          ifelse(lake_name == "Red (Upper Red)", "4003501", parentdow))))) %>% 
+  #recalculate parentdow.year
+  mutate(parentdow.year = paste(parentdow, year)) 
+
+#Apparently there is no Hill (south) 2015 zoop data... oh well :(
+
+#Remove shallow Voyageurs National Park sites (site 1)
+#create a df for each lake so I can investigate their site numbers
+Rainy <- zoop_split %>% 
+  filter(lake_name == "Rainy")
+table(Rainy$year, Rainy$site_number)
+#need to remove all site 1 from Rainy - it is a shallow site in all years
+
+Kabe <- zoop_split %>% 
+  filter(lake_name == "Kabetogama")
+table(Kabe$year, Kabe$site_number)
+#this is fine
+
+Nam <- zoop_split %>% 
+  filter(lake_name == "Namakan")
+table(Nam$year, Nam$site_number)
+#need to remove all site 1 from Namakan - it is a shallow site in all years
+
+SP <- zoop_split %>% 
+  filter(lake_name == "Sand Point")
+table(SP$year, SP$site_number)
+#need to remove all site 1 from Sand Point - it is a shallow site in all years
+
+#Remove the shallow VNP samples:
+zoop_deep <- zoop_split %>% 
+  filter(!((lake_name == "Rainy" & site_number == 1) | 
+             (lake_name == "Namakan" & site_number == 1) | 
+             (lake_name == "Sand Point" & site_number == 1)))
+
+
+#Remove samples that Kylie told me were false starts
+
+#DO THIS
+
+#Check for sentinel lakes pre-2013
+#make a list of Sentinel lake names that are in my dataset
+sentinel_lakes <- c("Artichoke", "Bearhead", "Belle", "Carlos", "Cedar", "Elk", "Greenwood", "Hill (north)", "Hill (south)", "Madison", "Pearl",
+                    "Peltier", "Portage", "Shaokatan", "South Center","Tait", "Ten Mile", "Trout", "White Iron")
+
+old_sentinel_zoop <- zoop_split %>% 
+  filter(year < 2013 & lake_name %in% sentinel_lakes)
+
+old_other_zoop <- zoop_split %>% 
+  filter(year < 2013) %>% 
+  filter(!(lake_name %in% sentinel_lakes))
+
+#okay so these exist... need to figure out what to do. 
+#I have emailed Kylie and I'm waiting to hear what she says
+
+zoop_2013_corrected <- zoop_deep #ADD CODE HERE WITH YOUR pre-2013 CORRECTION, this is a placeholder for the name change
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #zooplankton metrics calculated here:
 #biomass of each species in each lake-year (average of all the tows in a day, then in a month and then in a year) - prevents 
 
