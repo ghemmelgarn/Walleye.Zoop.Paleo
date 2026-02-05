@@ -1756,27 +1756,27 @@ zoop_split <- zoop_filter %>%
 
 #Apparently there is no Hill (south) 2015 zoop data... oh well :(
 
-#Remove shallow Voyageurs National Park sites (site 1)
-#create a df for each lake so I can investigate their site numbers
-Rainy <- zoop_split %>% 
-  filter(lake_name == "Rainy")
-table(Rainy$year, Rainy$site_number)
-#need to remove all site 1 from Rainy - it is a shallow site in all years
-
-Kabe <- zoop_split %>% 
-  filter(lake_name == "Kabetogama")
-table(Kabe$year, Kabe$site_number)
-#this is fine
-
-Nam <- zoop_split %>% 
-  filter(lake_name == "Namakan")
-table(Nam$year, Nam$site_number)
-#need to remove all site 1 from Namakan - it is a shallow site in all years
-
-SP <- zoop_split %>% 
-  filter(lake_name == "Sand Point")
-table(SP$year, SP$site_number)
-#need to remove all site 1 from Sand Point - it is a shallow site in all years
+#Remove shallow Voyageurs National Park sites based on site numbers
+# #create a df for each lake so I can investigate their site numbers
+# Rainy <- zoop_split %>% 
+#   filter(lake_name == "Rainy")
+# table(Rainy$year, Rainy$site_number)
+# #need to remove all site 1 from Rainy - it is a shallow site in all years
+# 
+# Kabe <- zoop_split %>% 
+#   filter(lake_name == "Kabetogama")
+# table(Kabe$year, Kabe$site_number)
+# #this is fine
+# 
+# Nam <- zoop_split %>% 
+#   filter(lake_name == "Namakan")
+# table(Nam$year, Nam$site_number)
+# #need to remove all site 1 from Namakan - it is a shallow site in all years
+# 
+# SP <- zoop_split %>% 
+#   filter(lake_name == "Sand Point")
+# table(SP$year, SP$site_number)
+# #need to remove all site 1 from Sand Point - it is a shallow site in all years
 
 #Remove the shallow VNP samples:
 zoop_deep <- zoop_split %>% 
@@ -1784,126 +1784,71 @@ zoop_deep <- zoop_split %>%
              (lake_name == "Namakan" & site_number == 1) | 
              (lake_name == "Sand Point" & site_number == 1)))
 
-
-#Remove samples that Kylie told me were false starts
-
-#DO THIS
-
-#Check for sentinel lakes pre-2013
-#make a list of Sentinel lake names that are in my dataset
-sentinel_lakes <- c("Artichoke", "Bearhead", "Belle", "Carlos", "Cedar", "Elk", "Greenwood", "Hill (north)", "Hill (south)", "Madison", "Pearl",
-                    "Peltier", "Portage", "Shaokatan", "South Center","Tait", "Ten Mile", "Trout", "White Iron")
-
-old_sentinel_zoop <- zoop_split %>% 
-  filter(year < 2013 & lake_name %in% sentinel_lakes)
-
-old_other_zoop <- zoop_split %>% 
-  filter(year < 2013) %>% 
-  filter(!(lake_name %in% sentinel_lakes))
+# #Check for duplicate samples
+# #create a dataframe that has a list of name/date/sites that have multiple associated sample ids
+# zoop_sample_duplicates <- zoop_deep %>% 
+#   group_by(lake_name, sample_date, site_number) %>%
+#   filter(n_distinct(sample_id) > 1) %>% 
+#   summarize(sample_ids = paste(unique(sample_id), collapse = ", "),
+#             .groups = 'drop')
+# 
+# #Do this again but after removing bythotrephes and leptodora rows - it appears that there are some samples just for these species
+# zoop_sample_duplicates_no_predators <- zoop_deep %>% 
+#   filter(species != "Bythotrephes longimanus" & species != "Leptodora kindti") %>% 
+#   group_by(lake_name, sample_date, site_number) %>%
+#   filter(n_distinct(sample_id) > 1) %>% 
+#   summarize(sample_ids = paste(unique(sample_id), collapse = ", "),
+#             .groups = 'drop')
+# #Emailed Kylie to ask about problem samples
+# 
+# 
+# #Check for duplicate taxa within samples
+# zoop_taxa_duplicates <- zoop_deep %>% 
+#   group_by(lake_name, sample_id, species) %>%
+#   filter(n() > 1) %>% 
+#   summarize(num_dups = n(),
+#             .groups = 'drop')
+# #problem: Tenmile samples: 165, 166, 184, 185
+# #NEED TO DECIDE WHAT TO DO ABOUT THESE - EMAIL KYLIE
+# 
+# #Check for sentinel lakes pre-2013
+# #make a list of Sentinel lake names that are in my dataset
+# sentinel_lakes <- c("Artichoke", "Bearhead", "Belle", "Carlos", "Cedar", "Elk", "Greenwood", "Hill (north)", "Hill (south)", "Madison", "Pearl",
+#                     "Peltier", "Portage", "Shaokatan", "South Center","Tait", "Ten Mile", "Trout", "White Iron")
+# 
+# old_sentinel_zoop <- zoop_split %>% 
+#   filter(year < 2013 & lake_name %in% sentinel_lakes)
+# 
+# old_other_zoop <- zoop_split %>% 
+#   filter(year < 2013) %>% 
+#   filter(!(lake_name %in% sentinel_lakes))
 
 #okay so these exist... need to figure out what to do. 
 #I have emailed Kylie and I'm waiting to hear what she says
 
-zoop_2013_corrected <- zoop_deep #ADD CODE HERE WITH YOUR pre-2013 CORRECTION, this is a placeholder for the name change
+#Make changes based on exploration above and communication with Kylie:
+#Remove:
+  #Duplicate Mille Lacs samples that are known issue in database
+  #bythotrephes and leptodora 
+zoop_nodupes <- zoop_deep %>% 
+  filter(!(lake_name == "Mille Lacs" & sample_id >= 4065 & sample_id <= 4072)) %>% 
+  filter(species != "Bythotrephes longimanus" & species != "Leptodora kindti")
+  #ADD TO THIS AS NEEDED AFTER KYLIE RESPONDS TO MY QUESTIONS
 
 
+#Taxonomy simplification based on conversations with Kylie
+#what taxa do we have to start with?
+sort(unique(zoop_nodupes$species))
+#Any how many of each?
+table(sort(zoop_nodupes$species))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#zooplankton metrics calculated here:
-#biomass of each species in each lake-year (average of all the tows in a day, then in a month and then in a year) - prevents 
-
-
-#read data
-zoop <- read.csv("Data/Input/ZoopDB_data_20250204.csv")
-#this is the zoop data Kylie sent me on Feb 4, 2025 - it is up to date with what she had processed at that time
-
-#create columns for month, day, and year separately
-zoop_months <- zoop %>%
-  mutate(year = substr(sample_date, 1, 4)) %>% 
-  mutate(month = substr(sample_date, 6, 7)) %>%
-  mutate(day = substr(sample_date, 9, 10))
-
-#make parentdow column
-zoop_parentdow <- zoop_months %>%
-  mutate(parentdow = case_when(
-    nchar(zoop$dowlknum) == 7 ~ substr(dowlknum, 1, 5),
-    nchar(zoop$dowlknum) == 8 ~ substr(dowlknum, 1, 6)
-  ))
-
-#make parentdow.zoop.year column to join to master datasheet
-zoop_parentdow$parentdow.zoop.year = paste(zoop_parentdow$parentdow, zoop_parentdow$year)
-
-#remove bythotrephes and leptodora from the zoop data -  - discussed with Kylie and Heidi and we don't have the data resolution to include them
-zoop_parentdow <- filter(zoop_parentdow, species != "Bythotrephes longimanus" & species != "Leptodora kindti")
-
-# #are there the same number of tows in each month within each lake-year?
-# zoop_month_tows <- zoop_parentdow %>%
-#   group_by(parentdow.zoop.year, month) %>%
-#   summarize(tow.count = n_distinct(sample_id), .groups = 'drop')
-# #NO THERE ARE NOT - need to average within months first so timing of sampling effort does not affect final calculations
-
-#isolate just summer months (May - October)
-zoop_summer <- zoop_parentdow %>%
-  filter(month == "05" | month == "06" | month == "07" | month == "08" | month == "09" | month == "10")
-
-#calculate number of unique summer months for each parentdow.zoop.year
-zoop_summer_month_count <- zoop_summer %>%
-  group_by(parentdow.zoop.year) %>%
-  summarize(Zoop.Month.Count = n_distinct(month), .groups = 'drop')
-
-#need to know which months each lake has - held as separate data frame to investigate effect of requiring/dropping October later
-#this makes each month a column, and the data is the day it was sampled or NA for no sample that month
-zoop_wide <- pivot_wider(data = zoop_summer, names_from = month, values_from = day)
-#some lake/years have more than one sampling date per month
-
-#rename columns to make them easier to deal with and R doesn't think they are numeric
-#Here I am calling them by their column number in the data frame, not the month number
-zoop_wide <- zoop_wide %>% 
-  rename(May = 27, June = 28, July = 29, Aug = 26, Sept = 30, Oct = 31)
-
-#collapse into one column per lake/year - each month column has the count of days in that month where zoops were sampled
-zoop_wide_short <- zoop_wide %>%
-  group_by(parentdow.zoop.year) %>%
-  summarize(May = length(unique(May[!is.na(May)])), June = length(unique(June[!is.na(June)])), July = length(unique(July[!is.na(July)])), Aug = length(unique(Aug[!is.na(Aug)])), Sept = length(unique(Sept[!is.na(Sept)])), Oct = length(unique(Oct[!is.na(Oct)])), .groups = 'drop')
-
-#join the count of zoop months to this dataframe
-zoop_summer_month_all <- left_join(zoop_wide_short, zoop_summer_month_count, by = "parentdow.zoop.year")
-#KEEP THIS FOR FUTURE USE
-
-#filter to only lake-years with at least 5 summer zoop months (this is the decision... for now)
-#first join the month info to the summer zoop data
-zoop_summer_month_combo <- left_join(zoop_summer,  zoop_summer_month_all, by = "parentdow.zoop.year")
-#now filter to only lake-years with sufficient effort
-zoop_good_effort <- zoop_summer_month_combo %>% 
-  filter(Zoop.Month.Count >= 5)
-
-#example 
-
-#clean up zooplankton taxonomy
-#check species present
-unique(zoop_good_effort$species)
-#this dataset already has all the littoral samples removed
-# 1. rename taxa that need it based on conversation with Heidi and Kylie
+#rename taxa that need it based on conversation with Heidi and Kylie
 #targeted just the Belle lake Daphnia based on Jodie's notes from when she IDed them
 #I know I can run these together but I was getting an error I didn't have time to deal with when I tried that
-zoop_clean_taxa <- zoop_good_effort %>%
+zoop_clean_taxa <- zoop_nodupes %>%
   mutate(species = ifelse(species == "Chydorus sp." | species == "Chydoridae" | species == "Chydorus bicornutus", "Chydorus sphaericus", species)) 
 zoop_clean_taxa <- zoop_clean_taxa %>%
-  mutate(species = ifelse(species == "Bosmina longirostris" | species == "Bosmina sp.", "Bosminidae", species))
-#Bosminid taxonomy here is what we decided with Heidi
+  mutate(species = ifelse(species == "Bosmina longirostris" | species == "Bosmina sp.", "Bosmina sp.", species))
 zoop_clean_taxa <- zoop_clean_taxa %>%
   mutate(species = ifelse(species == "Alona setulosa" | species == "Alona quadrangularis" , "Alona sp.", species))
 zoop_clean_taxa <- zoop_clean_taxa %>%  
@@ -1912,120 +1857,104 @@ zoop_clean_taxa <- zoop_clean_taxa %>%
   mutate(species = ifelse(species == "Daphnia pulex", "Daphnia pulicaria", species))
 #below I am targeting just the Belle lake Daphnia based on Jodie's notes from when she IDed them
 zoop_clean_taxa <- zoop_clean_taxa %>%
-  mutate(species = ifelse(species == "Daphnia sp." & parentdow.zoop.year == "470049 2008", "Daphnia rosea", species))
-# 2. remove the Daphnia sp. observations without species - counts are all low
-zoop_clean_taxa <- zoop_clean_taxa %>%
-  filter(species != "Daphnia sp.")
-# 3. remove other problematic taxonomic resolutions with low counts
-zoop_clean_taxa <- zoop_clean_taxa %>%
-  filter(species != "Pleuroxus sp." & species != "Harpacticoida")
-#Harpacticoida is another order of copepods (like cyclopoids and calanoids) but only 6 individuals in entire dataset and most not measured
-# 4. rename copepod "species" to the taxonomic level we consistently have for them
+  mutate(species = ifelse(species == "Daphnia sp." & parentdow.year == "470049 2008", "Daphnia rosea", species))
+# rename copepod "species" to the taxonomic level we consistently have for them
 zoop_clean_taxa <- zoop_clean_taxa %>%
   mutate(species = ifelse(grp2 == "calanoids", "calanoids", 
                           ifelse(grp2 == "cyclopoids", "cyclopoids", species)))
+#fix group 2 classifications per Kylie's instructions
+zoop_clean_taxa <- zoop_clean_taxa %>%
+  mutate(grp2 = ifelse(species == "Daphnia sp." | species == "Daphnia rosea", "small cladocerans",
+                       ifelse(species == "nauplii" | species == "copepodites", "immature copepods", 
+                              ifelse(species == "Harpacticoida", "harpacticoids",  grp2))))
 
-# #check that it worked
-sort(unique(zoop_clean_taxa$species))
-# #yay!
+#check that it worked
+table(sort(zoop_clean_taxa$species))
+#yay!
 
-# #Here I need to check for the "wonky" samples that Heidi warned me about
-#     #I AM JOINING THIS TO AN INCLUSION TABLE FROM THE END RESULT OF THIS ENTIRE SCRIPT SO I AM ONLY LOOKING AT DB ISSUES THAT AFFECT THE DATA I WANT TO USE
-#     
-#     #read in end result of this script (already saved as .csv file)
-#     incl.tab <- read.csv("Data/output/PrelimMultivarData.csv")
-#     #pull out only the columns you want for the inclusion table
-#     incl.tab2 <- incl.tab %>% 
-#       select(LakeName, lake_id, parentdow.fish.year) %>% 
-#       rename(parentdow.zoop.year = parentdow.fish.year)
-#    
-#     
-#      #I want a count of how many sample_IDs we have for each lake-year
-#     zoop_sample_id_check <- zoop_clean_taxa %>%
-#       group_by(parentdow.zoop.year, sample_date, site_number, haul_depth_m) %>%
-#       summarize(sample.id.Count = n_distinct(sample_id), .groups = 'drop')
-#     #join this to the inclusion table to only get the ones that matter
-#     zoop_sample_id_check_relevant <- left_join(incl.tab2, zoop_sample_id_check, by = "parentdow.zoop.year")
-# 
-#     #Here I need to check for species with multiple rows within a sample ID
-#     #I want a count of how many sample_IDs we have for each lake-year
-#     zoop_species_row_check <- zoop_clean_taxa %>%
-#       group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
-#       summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
-#     #join this to the inclusion table to only get the ones that matter
-#     zoop_species_row_check_relevant <- left_join(incl.tab2, zoop_species_row_check, by = "parentdow.zoop.year")
-#     #remove cyclopoids and calanoids because I created that here
-#     zoop_species_row_check_relevant_filter <- zoop_species_row_check_relevant %>% 
-#       filter(species != "calanoids" & species != "cyclopoids")
-#     #There are a few problematic surveys: Mille Lacs 2010-9-14, Mille Lacs 2010-6-29, Ten Mile 2010-5-19 and Ten Mile 2010-6-21
-# 
-#     #does this also happen before I rename? - try with pre-taxonomic fix zoop data
-#     zoop_species_row_check2 <- zoop_good_effort %>%
-#       group_by(parentdow.zoop.year, sample_date, site_number, sample_id, species) %>%
-#       summarize(sample.id.Count = n_distinct(count), .groups = 'drop')
-#     #YES IT DOES
-#     #DO I get the same list here as when I checked this after renaming? - YES I DO - end up with same list of surveys
-#     #join this to the inclusion table to only get the ones that matter
-#     zoop_species_row_check_relevant2 <- left_join(incl.tab2, zoop_species_row_check2, by = "parentdow.zoop.year")
-# 
-# #TAKEAWAY: WE HAVE PROBLEMS HERE- CURRENTLY WORKING THIS OUT WITH HEIDI, KYLIE, JAKE
-# #FOR NOW (4-10-25) proceeding with analyses for stats class without addressing this - circle back to this.
-
+#Now I might have multiple rows with the same species in the same sample after renaming things (especially copepods because I lumped a lot together)
+#Here I make only row row per species per sample, and I sum the density, biomass, number percent, weight percent, and count if multiple rows
+#this will only keep the columns in the dataset that I want
+#Only keeping metrics I can sum together for rows
+zoop_copepod_rows <- zoop_clean_taxa %>% 
+  group_by(parentdow.year, parentdow, lake_name, sample_date, year, month, sample_id, site_number, species) %>% 
+  summarize(density = sum(density),
+            biomass = sum(biomass),
+            number_pct = sum(number_pct),
+            weight_pct = sum(weight_pct),
+            count = sum(count),
+            .groups = 'drop')
+  
 
 #need to make sure all species have a row for all tows - even if the biomass value is 0 so that my means calculate correctly
-#create a unique identifier for each tow
-zoop_clean_taxa$tow.id <- paste(zoop_clean_taxa$parentdow.zoop.year, zoop_clean_taxa$sample_id)
-#make all the empty rows you need, preserve the groups you need to average, and fill the data values with 0 for the new rows
-zoop_complete <- complete(data = zoop_clean_taxa, nesting(parentdow.zoop.year, month, sample_date, sample_id), species, fill = list(density = 0, biomass = 0, number_pct = 0, weight_pct = 0, mean_weight = 0, mean_length = 0, count = 0), explicit = FALSE)
+#How many rows should I end up with?
+n_distinct(zoop_clean_taxa$parentdow.year, zoop_clean_taxa$parentdow, zoop_clean_taxa$lake_name, zoop_clean_taxa$sample_date, zoop_clean_taxa$year, zoop_clean_taxa$month, zoop_clean_taxa$sample_id)
+length(unique(zoop_clean_taxa$species))
+#we have 3567 tows and they should each have 30 species so we should end up with a data frame that has 3567 * 30 = 107010 rows
+#make all the empty rows you need, preserve the groups you need to average and other data you still want in each row, and fill the data values with 0 for the new rows
+zoop_complete <- complete(data = zoop_copepod_rows, nesting(parentdow.year, parentdow, lake_name, sample_date, year, month, site_number, sample_id), species, fill = list(density = 0, biomass = 0, number_pct = 0, weight_pct = 0, mean_weight = 0, mean_length = 0, count = 0), explicit = FALSE)
+#The number of rows looks good!
+
+#CALCULATE BIOMASS AVERAGES
+
+# #are there the same number of tows in each month within each lake-year?
+# zoop_month_tows <- zoop_complete %>%
+#   group_by(parentdow.year, month) %>%
+#   summarize(tow.count = n_distinct(sample_id), .groups = 'drop')
+# #NO THERE ARE NOT - need to average within months first so timing of sampling effort does not affect final calculations
+# 
+# #what about each day?
+# zoop_day_tows <- zoop_complete %>%
+#   group_by(parentdow.year, sample_date) %>%
+#   summarize(tow.count = n_distinct(sample_id), .groups = 'drop')
+# #NO THERE ARE NOT - BUT:  daily sampling seems pretty consistent within each lake-year BUT is sometimes spread over 2-3 consecutive days - therefore I should not average by day
 
 
-#first need to average tow biomasses on each sampling date in each lake-year for each species
-zoop_biom_day_mean <- zoop_complete %>%
-  group_by(parentdow.zoop.year, month, sample_date, species) %>%
-  summarize(biomass = mean(biomass), .groups = 'drop')    
-
-#then average daily biomass in each month in each lake-year for each species
-zoop_biom_month_mean <- zoop_biom_day_mean %>%
-  group_by(parentdow.zoop.year, month, species) %>%
+#first need to average tow biomasses in each month in each lake-year for each species
+zoop_biom_month_mean <- zoop_complete %>%
+  group_by(parentdow, lake_name, year, month, species) %>%
   summarize(biomass = mean(biomass), .groups = 'drop') 
 
 #finally average monthly biomasses to get average biomass in each lake-year for each species
 zoop_biom_year_mean <- zoop_biom_month_mean %>%
-  group_by(parentdow.zoop.year, species) %>%
+  group_by(parentdow, lake_name, year, species) %>%
   summarize(biomass = mean(biomass), .groups = 'drop')
+
+#I should have 204 lake-years * 30 species = 6120 rows
+#looks good
 
 #convert to wide so there is a column for each species
 zoop_wide <- pivot_wider(data = zoop_biom_year_mean, names_from = species, values_from = biomass)
-#add the zoop sampling month info back in so it makes it to master dataset
-zoop_wide_month <- left_join(zoop_wide, zoop_summer_month_all, by = "parentdow.zoop.year")
-#rename parentdow.zoop.year so I can join it
-zoop_wide_month <- zoop_wide_month %>% 
-  rename(parentdow.fish.year = parentdow.zoop.year)
-
 
 
 #join the zoop biomass metrics to the rest of the data
-Data_e <- left_join(Data_d, zoop_wide_month, by = "parentdow.fish.year")
+#ADD THIS WHEN YOU ARE READY
 
-#clean up the environment
-rm(zoop_month_tows,
-   zoop_months,
-   zoop_parentdow,
-   zoop,
-   zoop_wide,
-   zoop_wide_short,
-   zoop_wide_month,
-   zoop_summer_month_count,
-   zoop_complete,
-   zoop_biom_day_mean,
-   zoop_biom_month_mean,
-   zoop_biom_year_mean,
-   zoop_clean_taxa,
-   zoop_good_effort,
-   zoop_summer_month_combo,
-   zoop_summer_month_all,
-   zoop_summer
-)
+
+
+#keep environment clean 
+rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_complete, zoop_copepod_rows,
+   zoop_deep, zoop_filter, zoop_incl, zoop_months, zoop_nodupes, zoop_parentdow, zoop_sample_duplicates, zoop_sample_duplicates_no_predators,
+   zoop_taxa_duplicates, old_other_zoop, old_sentinel_zoop, zoop_split, Kabe, Nam, Rainy, SP, sentinel_lakes, zoop_month_tows, zoop_day_tows)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
