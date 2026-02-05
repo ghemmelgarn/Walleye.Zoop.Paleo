@@ -44,5 +44,8 @@ rsconnect/
 *.prj
 *.shp
 *.shx
+*.grd
+*.asc
+*.tif
 PosterPredictedPlots.R
 write-test-c4c4824a-5e3c-4ded-9593-d606d3cf817e
