@@ -1,3 +1,7 @@
+#THIS IS OLD DO NOT USE 2-11-2026
+
+
+
 #this script takes the downloaded fish data and calculates fish metrics: abundance and CPUE for all species
 #below it investigates which fish we have length/weight data for
 
