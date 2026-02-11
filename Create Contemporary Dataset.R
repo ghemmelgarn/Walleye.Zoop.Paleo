@@ -48,7 +48,7 @@ Incl.Table.DOW <- Incl.Table %>%
 #read in crosswalk that Denver made from fish database
 crosswalk <- read.csv("Data/Input/dow_nhdhr_fish_lakes.csv")
 
-#create a parentdow column in crosswalk to match my incluson table (no leading zeroes included here)
+#create a parentdow column in crosswalk to match my inclusion table (no leading zeroes included here)
 cw.parentdow <- crosswalk %>%
   mutate(parentdow = case_when(
     (crosswalk$lake_id == "1014202" | crosswalk$lake_id == "1014201" | crosswalk$lake_id == "4003502" | crosswalk$lake_id == "4003501") ~ substr(crosswalk$lake_id, 1, 7),   #takes care of North and Red lakes (7 characters)
@@ -1616,23 +1616,504 @@ table(stock.sum$COMMON_NAME, stock.sum$UNIT_OF_MEASURE)
 
 #FISH CPUE JOIN - ALL THE FISH and nhdhr-id :))))) ----------------------------------------------------------------
 
-#read in fish metrics that I downloaded from fish database, quality checked, and calculated the metrics in other scripts
-fish <- read.csv("Data/Input/All_Fish_CPUE.csv")
+#read in fish metrics that I downloaded from fish database
+#Downloaded in "1a Read In Fish Data.R"
+fish.data <- read.csv("Data/Input/Pelagic_Fish_Data.csv")
+
+#if there is a chance that some of the surveys caught no fish at all, go ask Denver what to do
+
+#check a few things:
+#should all be gillnet
+unique(fish.data$sampling_method)
+#Good
+
+#should all have net nights for effort units
+unique(fish.data$total_effort_1_units)
+#Good
+
+#should all have caught something
+unique(fish.data$total_effort_nothing_caught)
+#Good
+
+# #I need a list of all the species present
+sort(unique(fish.data$species_1))
+# 
+# #to get MN fish abbreiviations
+# # install.packages("remotes")
+# # remotes::install_github("mnsentinellakes/mnsentinellakes")
+# library(mnsentinellakes)
+# data("fishabbreviations")
+# view(fishabbreviations)
+# #export this as a .csv for easy reference
+# #write.csv(fishabbreviations, file = "Data/Output/MNFishAbbreviations.csv")
 
 
-#make parentdow column
-fish_parentdow <- fish %>%
-  mutate(parentdow = case_when(
-    nchar(fish$lake_id) == 7 ~ substr(lake_id, 1, 5),
-    nchar(fish$lake_id) == 8 ~ substr(lake_id, 1, 6)
-  ))
+#investigate redhorses
+redhorses <- fish.data %>%
+  filter(species_1 == "redhorse" | species_1 == "shorthead_redhorse" | species_1 == "greater_redhorse" | species_1 == "silver_redhorse" | species_1 == "golden_redhorse" | species_1 == "river_redhorse")
+#how many of each are there
+table(redhorses$species)
+#Not that many of them (115 not to species level)
+#Let's just group the redhorses AND THE BULLHEADS because red lake does not distinguish bullhead species
+fish.data.redhorse <- fish.data %>% 
+  mutate(species_1 = ifelse((species_1 == "redhorse" | species_1 == "shorthead_redhorse" | species_1 == "greater_redhorse" | species_1 == "silver_redhorse"), "redhorse", 
+                            ifelse(species_1 == "black_bullhead" | species_1 == "brown_bullhead" | species_1 == "brown_bullhead", "bullhead", species_1)))
+#check
+sort(unique(fish.data.redhorse$species_1))
+#looks good
 
-#make parentdow.fish.year column to join to master datasheet
-fish_parentdow$parentdow.fish.year = paste(fish_parentdow$parentdow, fish_parentdow$year)
+#need to calculate combined effort of stratified surveys 
+#separate out shallow + deep stratified surveys from the standard gillnet surveys
+stratified <- fish.data.redhorse %>% 
+  filter(sampling_method == "gill_net_stratified_shallow" | sampling_method == "gill_net_stratified_deep")
 
-#filter just the fish columns to join
-fish.join <- fish_parentdow %>%
-  select(-year.x, -lake_name, -lake_id, -X, -parentdow)
+#get one row for each lake/year/gillnet type
+stratified_surveys <- stratified %>%
+  group_by(lake_id, lake_name, year, sampling_method) %>%
+  summarize(total_effort_1 = first(total_effort_1), .groups = 'drop')
+
+#add effort from shallow + deep stratified surveys
+combined_stratified_effort <- stratified_surveys %>%
+  group_by(lake_id, year) %>%
+  summarize(total_effort_cse = sum(total_effort_1), .groups = 'drop')
+
+#join this sum back to the stratified data
+stratified_sum <- left_join(stratified, combined_stratified_effort, by = c("lake_id", "year"))
+
+#remove original effort column 
+stratified_sum_order <- stratified_sum %>% 
+  select(-total_effort_1) %>% 
+  rename(total_effort_1 = total_effort_cse) %>% #rename the new combined effort to match the rest of the data
+  relocate(total_effort_1, .after = total_effort_ident) #reorder to put effort column back in original location
+
+#remove the stratified rows from the original dataset
+fish_no_strat <- fish.data.redhorse %>% 
+  filter(sampling_method != "gill_net_stratified_shallow" & sampling_method != "gill_net_stratified_deep")
+
+#now paste the new rows back in with the updated effort - now my cpue calculations will be correct
+fish_effort_corrected <- rbind(fish_no_strat, stratified_sum_order)
+
+
+#check if I have any lake-years with more than one fish survey
+fish_survey_test <- fish_effort_corrected %>%
+  group_by(lake_id, year, total_effort_ident) %>% 
+  summarize(lake_id = first(lake_id),
+            year = first(year),
+            total_effort_ident = first(total_effort_ident), 
+            .groups = 'drop') %>% 
+  count(lake_id, year) %>%
+  filter(n > 1)
+
+#okay the only ones are the stratified deep/shallow so we are good
+
+#Split Hill and Vermilion Fish data
+#Vermilion: East = 1-12, West = 13-20
+#Hill: South = sites 1-3, North = sites 4-12
+
+# #explore effort in Hill and Vermilion
+# verm.hill <- fish_effort_corrected %>% 
+#   filter(lake_name == "Vermilion"| lake_name == "Hill") %>% 
+#   relocate(total_effort_1, .after = site_id)
+# table(verm.hill$lake_name, verm.hill$total_effort_1)
+# #okay, it looks like each site has a net for one night each year so I can use the number of sites in each basin to split up total effort
+
+fish_split <- fish_effort_corrected %>% 
+  #Split vermilion and Hill names
+  mutate(lake_name = ifelse(lake_name == "Vermilion" & (site_id == "GN1" | site_id == "GN2" | site_id == "GN3" | site_id == "GN4" | site_id == "GN5" | site_id == "GN6" | site_id == "GN7" | site_id == "GN8" | site_id == "GN9" | site_id ==  "GN10" | site_id == "GN11" | site_id == "GN12"), "East Vermilion",
+                            ifelse(lake_name == "Vermilion" & (site_id == "GN13" | site_id == "GN14" | site_id == "GN15" | site_id == "GN16" | site_id == "GN17" | site_id == "GN18" | site_id == "GN19" | site_id == "GN20" ), "West Vermilion",
+                                   ifelse(lake_name == "Hill" & (site_id == "GN1" | site_id == "GN2" | site_id == "GN3"), "Hill (south)",
+                                          ifelse(lake_name == "Hill" & (site_id == "GN4" | site_id == "GN5" | site_id == "GN6" | site_id == "GN7" | site_id == "GN8" | site_id == "GN9" | site_id ==  "GN10" | site_id == "GN11" | site_id == "GN12"), "Hill (north)", lake_name))))) %>% 
+  #calculate parentdow for all
+  mutate(parentdow = str_sub(lake_id, 1, -3)) %>%  #with the negative this chops off the last two digits no matter if there are a total of 7 or 8 (stops 3 characters from the end)
+  #put the parentdow column near the beginning of the column order
+  relocate(parentdow, .after = lake_id) %>% 
+  #Fix vermilion and Hill parentdows
+  mutate(parentdow = ifelse(lake_name == "East Vermilion", "69037801",
+                            ifelse(lake_name == "West Vermilion", "69037802",
+                                   ifelse(lake_name == "Hill (south)", "1014202",
+                                          ifelse(lake_name == "Hill (north)", "1014201", parentdow))))) %>% 
+  #relocate site and total effort columns for easy checking that this worked
+  relocate(site_id, .after = parentdow) %>% 
+  relocate(total_effort_1, .after = site_id) %>% 
+  #adjust total effort for Hill and Vermilion
+  mutate(total_effort_1 = ifelse(lake_name == "East Vermilion", 12,
+                                 ifelse(lake_name == "West Vermilion", 8, 
+                                        ifelse(lake_name == "Hill (north)", 9,
+                                               ifelse(lake_name == "Hill (south)", 3, total_effort_1)))))
+
+
+# #check that the effort recalc worked
+# verm.hill <- fish_split %>%
+#   filter(lake_name == "East Vermilion"| lake_name == "West Vermilion"| lake_name == "Hill (north)" | lake_name == "Hill (south)")
+# table(verm.hill$lake_name, verm.hill$total_effort_1)
+# #looks good
+
+#I inspected the other changes in the dataframe visually and it looks good
+
+
+#we want cpue of each species for each lake (by parentdow to keep sub-basins separate when necessary) and year - not grouping by total_effort_ident because I want to sum both catch and effort of shallow and deep nets in stratified surveys
+#started with just largemouth bass and walleye, now getting all the species 
+all.fish.cpue <- fish_split %>% 
+  group_by(parentdow, year) %>% 
+  mutate(BIB.count = sum(species_1 == "bigmouth_buffalo"),
+         BIB.CPUE = BIB.count/total_effort_1,
+         BLC.count = sum(species_1 == "black_crappie"),
+         BLC.CPUE = BLC.count/total_effort_1,
+         BLG.count = sum(species_1 == "bluegill"),
+         BLG.CPUE = BLG.count/total_effort_1,
+         BLH.count = sum(species_1 == "bullhead"),
+         BLH.CPUE = BLH.count/total_effort_1,
+         BOF.count = sum(species_1 == "bowfin"),
+         BOF.CPUE = BOF.count/total_effort_1,
+         BKT.count = sum(species_1 == "brook_trout"),
+         BKT.CPUE = BKT.count/total_effort_1,
+         BUB.count = sum(species_1 == "burbot"),
+         BUB.CPUE = BUB.count/total_effort_1,
+         CCF.count = sum(species_1 == "channel_catfish"),
+         CCF.CPUE = CCF.count/total_effort_1,
+         TLC.count = sum(species_1 == "cisco"),
+         TLC.CPUE = TLC.count/total_effort_1,
+         CAP.count = sum(species_1 == "common_carp"),
+         CAP.CPUE = CAP.count/total_effort_1,
+         CRC.count = sum(species_1 == "creek_chub"),
+         CRC.CPUE = CRC.count/total_effort_1,
+         FRD.count = sum(species_1 == "freshwater_drum"),
+         FRD.CPUE = FRD.count/total_effort_1,
+         GIS.count = sum(species_1 == "gizzard_shad"),
+         GIS.CPUE = GIS.count/total_effort_1,
+         GOS.count = sum(species_1 == "golden_shiner"),
+         GOS.CPUE = GOS.count/total_effort_1,
+         GOE.count = sum(species_1 == "goldeye"),
+         GOE.CPUE = GOE.count/total_effort_1,
+         GSF.count = sum(species_1 == "green_sunfish"),
+         GSF.CPUE = GSF.count/total_effort_1,
+         HSF.count = sum(species_1 == "hybrid_sunfish"),
+         HSF.CPUE = HSF.count/total_effort_1,
+         LKS.count = sum(species_1 == "lake_sturgeon"),
+         LKS.CPUE = LKS.count/total_effort_1,
+         LAT.count = sum(species_1 == "lake_trout"),
+         LAT.CPUE = LAT.count/total_effort_1,
+         LKW.count = sum(species_1 == "lake_whitefish"),
+         LKW.CPUE = LKW.count/total_effort_1,
+         LMB.count = sum(species_1 == "largemouth_bass"),
+         LMB.CPUE = LMB.count/total_effort_1,
+         LNS.count = sum(species_1 == "longnose_sucker"),
+         LNS.CPUE = LNS.count/total_effort_1,
+         MOE.count = sum(species_1 == "mooneye"),
+         MOE.CPUE = MOE.count/total_effort_1,
+         MUE.count = sum(species_1 == "muskellunge"),
+         MUE.CPUE = MUE.count/total_effort_1,
+         NOP.count = sum(species_1 == "northern_pike"),
+         NOP.CPUE = NOP.count/total_effort_1,
+         OSS.count = sum(species_1 == "orangespotted_sunfish"),
+         OSS.CPUE = OSS.count/total_effort_1,
+         PRD.count = sum(species_1 == "pearl_dace"),
+         PRD.CPUE = PRD.count/total_effort_1,
+         PMK.count = sum(species_1 == "pumpkinseed"),
+         PMK.CPUE = PMK.count/total_effort_1,
+         QBS.count = sum(species_1 == "quillback"),
+         QBS.CPUE = QBS.count/total_effort_1,
+         RBS.count = sum(species_1 == "rainbow_smelt"),
+         RBS.CPUE = RBS.count/total_effort_1,
+         RBT.count = sum(species_1 == "rainbow_trout"),
+         RBT.CPUE = RBT.count/total_effort_1,
+         RHS.count = sum(species_1 == "redhorse"),
+         RHS.CPUE = RHS.count/total_effort_1,
+         RKB.count = sum(species_1 == "rock_bass"),
+         RKB.CPUE = RKB.count/total_effort_1,
+         SAR.count = sum(species_1 == "sauger"),
+         SAR.CPUE = SAR.count/total_effort_1,
+         SNG.count = sum(species_1 == "shortnose_gar"),
+         SNG.CPUE = SNG.count/total_effort_1,
+         SIL.count = sum(species_1 == "silver_lamprey"),
+         SIL.CPUE = SIL.count/total_effort_1,
+         SMB.count = sum(species_1 == "smallmouth_bass"),
+         SMB.CPUE = SMB.count/total_effort_1,
+         SPO.count = sum(species_1 == "spottail_shiner"),
+         SPO.CPUE = SPO.count/total_effort_1,
+         TPM.count = sum(species_1 == "tadpole_madtom"),
+         TPM.CPUE = TPM.count/total_effort_1,
+         TME.count = sum(species_1 == "tiger_muskellunge"),
+         TME.CPUE = TME.count/total_effort_1,
+         TRP.count = sum(species_1 == "trout_perch"),
+         TRP.CPUE = TRP.count/total_effort_1,
+         WAE.count = sum(species_1 == "walleye"), 
+         WAE.CPUE = WAE.count/total_effort_1,
+         WHB.count = sum(species_1 == "white_bass"),
+         WHB.CPUE = WHB.count/total_effort_1,
+         WHC.count = sum(species_1 == "white_crappie"),
+         WHC.CPUE = WHC.count/total_effort_1,
+         WTS.count = sum(species_1 == "white_sucker"),
+         WTS.CPUE = WTS.count/total_effort_1,
+         YEP.count = sum(species_1 == "yellow_perch"),
+         YEP.CPUE = YEP.count/total_effort_1
+         #other species not present in this dataset are commented out but here if I need them in the future
+         # BLB.count = sum(species_1 == "black_bullhead"),
+         # BLB.CPUE = BLB.count/total_effort_1,
+         # BRB.count = sum(species_1 == "brown_bullhead"),
+         # BRB.CPUE = BRB.count/total_effort_1,
+         # YEB.count = sum(species_1 == "yellow_bullhead"),
+         # YEB.CPUE = YEB.count/total_effort_1,
+         # SHR.count = sum(species_1 == "shorthead_redhorse"),
+         # SHR.CPUE = SHR.count/total_effort_cse,
+         # GRR.count = sum(species_1 == "greater_redhorse"),
+         # GRR.CPUE = GRR.count/total_effort_cse,
+         # SLR.count = sum(species_1 == "silver_redhorse"),
+         # SLR.CPUE = SLR.count/total_effort_cse,
+         # NHS.count = sum(species_1 == "northern_hog_sucker"),
+         # NHS.CPUE = NHS.count/total_effort_cse,
+         # SAB.count = sum(species_1 == "smallmouth_buffalo"),
+         # SAB.CPUE = SAB.count/total_effort_cse,
+         # SLC.count = sum(species_1 == "silver_chub"),
+         # SLC.CPUE = SLC.count/total_effort_cse,
+         # BLS.count = sum(species_1 == "blue_sucker"),
+         # BLS.CPUE = BLS.count/total_effort_cse,
+         # CS.count = sum(species_1 == "carpsucker" | species_1 == "river_carpsucker" | species_1 == "highfin_carpsucker"),
+         # CS.CPUE = CS.count/total_effort_cse,
+         # GLR.count = sum(species_1 == "golden_redhorse"),
+         # GLR.CPUE = GLR.count/total_effort_cse,
+         # LNG.count = sum(species_1 == "longnose_gar"),
+         # LNG.CPUE = LNG.count/total_effort_cse,
+         # FCF.count = sum(species_1 == "flathead_catfish"),
+         # FCF.CPUE = FCF.count/total_effort_cse,
+         # WAS.count = sum(species_1 == "walleye_x_sauger"),
+         # WAS.CPUE = WAS.count/total_effort_cse,
+         # PAH.count = sum(species_1 == "paddlefish"),
+         # PAH.CPUE = PAH.count/total_effort_cse,
+         # RRH.count = sum(species_1 == "river_redhorse"),
+         # RRH.CPUE = RRH.count/total_effort_cse,
+         # SLS.count = sum(species_1 == "shovelnose_sturgeon"),
+         # SLS.CPUE = SLS.count/total_effort_cse,
+  ) %>% 
+  distinct(parentdow, year, .keep_all = TRUE) %>% #keep only one row for each survey (because now all the rows for each survey have repeats of the calculated data)
+  #keep only the columns you want by getting rid of the ones you don't want
+  select(-X, -state, -county, -lake_id, -site_id, -nhdhr_id, -latitude_lake_centroid, -longitude_lake_centroid, -date_survey, -date_total_effort_ident, 
+         -date_sub_effort_ident, -date_sample, -month, -survey_id, -survey_type,
+         -sampling_method_simple, -sampling_method, -sampling_method_2, -gear_data_notes, -target_species, -total_effort_ident,
+         -total_effort_1, -total_effort_2, -total_effort_1_units, -total_effort_2_units, -total_effort_nothing_caught, -water_temp,
+         -water_temp_units, -water_clarity, -water_clarity_units, -lat_start, -lon_start, -lat_end,
+         -lon_end, -sub_effort_ident, -sub_effort_1, -sub_effort_1_units, -sub_effort_2, -sub_effort_2_units,        
+         -sub_effort_nothing_caught, -species_1, -length_1, -length_unit_1, -length_bin, -length_bin_unit,
+         -age, -aging_structure_1, -est_age, -alk, -alk_age_str, -alk_length,
+         -alk_n, -weight_1, -weight_unit_1, -batch_weight, -batch_weight_unit, -sex,
+         -age_class, -flag, -cpue_invalid, -original_file_names, -ind_fish_ident, -lakesize,
+         -lakesize_units, -waterbody_type, -location_notes_1, -notes_1, -obs_id)
+
+#Add in Red Lake fish data
+
+#Read in tribal fish data
+Red_tribal_fish <- read.csv("Data/Input/Red Lake All Species Catches 2012-2024.csv")
+#change some formatting things
+Red_tribal_format <- Red_tribal_fish %>% 
+  #rename important columns so it matches my usual formatting
+  rename(year = YEAR_,
+         date = DATE_,
+         species_1 = SPEC,
+         count = NO,
+         kg = KG) %>% 
+  #remove the blank rows
+  filter(lake != "") %>% 
+  #remove the row where species is "-0- "
+  filter(species_1 != "-0- ") %>% 
+  #make years the full 4 digits, not just the last two digits
+  mutate(year = paste0(20, year)) %>% 
+  #make count numeric
+  mutate(count = as.numeric(count))
+  
+#make species names match the names in the state data
+Red_tribal_species <- Red_tribal_format %>%
+  mutate(species_1 = ifelse(species_1 == "bbt", "burbot",
+                            ifelse(species_1 == "blc" | species_1 == "BLC", "black_crappie",
+                                   ifelse(species_1 == "blg", "bluegill",
+                                          ifelse(species_1 == "blh", "bullhead",
+                                                 ifelse(species_1 == "frd" | species_1 == "FRD", "freshwater_drum",
+                                                        ifelse(species_1 == "goe", "goldeye",
+                                                               ifelse(species_1 == "lks", "lake_sturgeon",
+                                                                      ifelse(species_1 == "lkw", "lake_whitefish",
+                                                                             ifelse(species_1 == "nop", "northern_pike",
+                                                                                    ifelse(species_1 == "pmk", "pumpkinseed",
+                                                                                           ifelse(species_1 == "qui", "quillback",
+                                                                                                  ifelse(species_1 == "rdh", "redhorse",
+                                                                                                         ifelse(species_1 == "rkb" | species_1 == "rob", "rock_bass",
+                                                                                                                       ifelse(species_1 == "wae" | species_1 == "WAE", "walleye",
+                                                                                                                              ifelse(species_1 == "wts", "white_sucker",
+                                                                                                                                     ifelse(species_1 == "yep" | species_1 == "YEP", "yellow_perch", "ERROR"))))))))))))))))
+  )
+
+#check
+table(Red_tribal_species$species_1)
+#looks good
+
+
+#Isolate state Red Lake fish data (upper red only)
+Red_state_fish <- fish_effort_corrected %>% 
+  filter(lake_name == "Red (Upper Red)")
+
+#get counts by species by year for upper red in the state data
+Red_state_counts <- Red_state_fish %>% 
+  group_by(year, species_1) %>% 
+  summarize(count = n(), .groups = 'drop') %>% 
+  #make columns to match tribal data
+  mutate(date = NA,
+         lake = "Upper",
+         STA = NA,
+         NET = NA,
+         DEP = NA,
+         MESH = NA,
+         kg = NA,
+         X = NA) %>% 
+  #put the columns in the correct order to match tribal data
+  relocate(species_1, .after = MESH) %>% 
+  relocate(count, .after = species_1)
+
+#rowbind the state and tribal data
+Red_all_fish <- rbind(Red_tribal_species, Red_state_counts)
+
+#I have multiple rows for each lake-year because I have state + tribal, and tribal is separated by mesh sizes
+#get a sum of all the fish of each species caught in each lake-year
+Red_counts <- Red_all_fish %>% 
+  group_by(year, lake, species_1) %>% 
+  summarize(count = sum(count), .groups = 'drop') %>% 
+  #change lake names to match the rest of the data
+  mutate(lake = ifelse(lake == "Lower", "Red (Lower Red)", "Red (Upper Red)")) %>% 
+  rename(lake_name = lake)
+                    
+
+#Read in a csv that contains gillnet effort from their fisheries report (I made this with a pdf of their report)
+  #this contains accurate gillnet effort data for each year
+  #This effort and walleye CPUE is COMBINED STATE AND TRIBAL EFFORT AND WALLEYE COUNTS
+Red.effort.wae <- read.csv("Data/Input/Red_Lake_Gillnet_Effort_and_Walleye_CPUE.csv")
+
+#isolate just the effort data from this
+Red.effort <- Red.effort.wae %>% 
+  select(lake_name, year, total_effort_1) %>% 
+  mutate(year = as.character(year))
+
+#join effort to count data
+Red.count.effort <- left_join(Red_counts, Red.effort, by = c("lake_name", "year"))
+
+#Calculate CPUE but do it in a way that will get you the same format as the other wide fish data
+Red.cpue <- Red.count.effort %>% 
+  group_by(lake_name, year) %>% 
+  mutate(BIB.count = ifelse(species_1 == "bigmouth_buffalo", count, 0),
+         BIB.CPUE = BIB.count/total_effort_1,
+         BLC.count = ifelse(species_1 == "black_crappie", count, 0),
+         BLC.CPUE = BLC.count/total_effort_1,
+         BLG.count = ifelse(species_1 == "bluegill", count, 0),
+         BLG.CPUE = BLG.count/total_effort_1,
+         BLH.count = ifelse(species_1 == "bullhead", count, 0),
+         BLH.CPUE = BLH.count/total_effort_1,
+         BOF.count = ifelse(species_1 == "bowfin", count, 0),
+         BOF.CPUE = BOF.count/total_effort_1,
+         BKT.count = ifelse(species_1 == "brook_trout", count, 0),
+         BKT.CPUE = BKT.count/total_effort_1,
+         BUB.count = ifelse(species_1 == "burbot", count, 0),
+         BUB.CPUE = BUB.count/total_effort_1,
+         CCF.count = ifelse(species_1 == "channel_catfish", count, 0),
+         CCF.CPUE = CCF.count/total_effort_1,
+         TLC.count = ifelse(species_1 == "cisco", count, 0),
+         TLC.CPUE = TLC.count/total_effort_1,
+         CAP.count = ifelse(species_1 == "common_carp", count, 0),
+         CAP.CPUE = CAP.count/total_effort_1,
+         CRC.count = ifelse(species_1 == "creek_chub", count, 0),
+         CRC.CPUE = CRC.count/total_effort_1,
+         FRD.count = ifelse(species_1 == "freshwater_drum", count, 0),
+         FRD.CPUE = FRD.count/total_effort_1,
+         GIS.count = ifelse(species_1 == "gizzard_shad", count, 0),
+         GIS.CPUE = GIS.count/total_effort_1,
+         GOS.count = ifelse(species_1 == "golden_shiner", count, 0),
+         GOS.CPUE = GOS.count/total_effort_1,
+         GOE.count = ifelse(species_1 == "goldeye", count, 0),
+         GOE.CPUE = GOE.count/total_effort_1,
+         GSF.count = ifelse(species_1 == "green_sunfish", count, 0),
+         GSF.CPUE = GSF.count/total_effort_1,
+         HSF.count = ifelse(species_1 == "hybrid_sunfish", count, 0),
+         HSF.CPUE = HSF.count/total_effort_1,
+         LKS.count = ifelse(species_1 == "lake_sturgeon", count, 0),
+         LKS.CPUE = LKS.count/total_effort_1,
+         LAT.count = ifelse(species_1 == "lake_trout", count, 0),
+         LAT.CPUE = LAT.count/total_effort_1,
+         LKW.count = ifelse(species_1 == "lake_whitefish", count, 0),
+         LKW.CPUE = LKW.count/total_effort_1,
+         LMB.count = ifelse(species_1 == "largemouth_bass", count, 0),
+         LMB.CPUE = LMB.count/total_effort_1,
+         LNS.count = ifelse(species_1 == "longnose_sucker", count, 0),
+         LNS.CPUE = LNS.count/total_effort_1,
+         MOE.count = ifelse(species_1 == "mooneye", count, 0),
+         MOE.CPUE = MOE.count/total_effort_1,
+         MUE.count = ifelse(species_1 == "muskellunge", count, 0),
+         MUE.CPUE = MUE.count/total_effort_1,
+         NOP.count = ifelse(species_1 == "northern_pike", count, 0),
+         NOP.CPUE = NOP.count/total_effort_1,
+         OSS.count = ifelse(species_1 == "orangespotted_sunfish", count, 0),
+         OSS.CPUE = OSS.count/total_effort_1,
+         PRD.count = ifelse(species_1 == "pearl_dace", count, 0),
+         PRD.CPUE = PRD.count/total_effort_1,
+         PMK.count = ifelse(species_1 == "pumpkinseed", count, 0),
+         PMK.CPUE = PMK.count/total_effort_1,
+         QBS.count = ifelse(species_1 == "quillback", count, 0),
+         QBS.CPUE = QBS.count/total_effort_1,
+         RBS.count = ifelse(species_1 == "rainbow_smelt", count, 0),
+         RBS.CPUE = RBS.count/total_effort_1,
+         RBT.count = ifelse(species_1 == "rainbow_trout", count, 0),
+         RBT.CPUE = RBT.count/total_effort_1,
+         RHS.count = ifelse(species_1 == "redhorse", count, 0),
+         RHS.CPUE = RHS.count/total_effort_1,
+         RKB.count = ifelse(species_1 == "rock_bass", count, 0),
+         RKB.CPUE = RKB.count/total_effort_1,
+         SAR.count = ifelse(species_1 == "sauger", count, 0),
+         SAR.CPUE = SAR.count/total_effort_1,
+         SNG.count = ifelse(species_1 == "shortnose_gar", count, 0),
+         SNG.CPUE = SNG.count/total_effort_1,
+         SIL.count = ifelse(species_1 == "silver_lamprey", count, 0),
+         SIL.CPUE = SIL.count/total_effort_1,
+         SMB.count = ifelse(species_1 == "smallmouth_bass", count, 0),
+         SMB.CPUE = SMB.count/total_effort_1,
+         SPO.count = ifelse(species_1 == "spottail_shiner", count, 0),
+         SPO.CPUE = SPO.count/total_effort_1,
+         TPM.count = ifelse(species_1 == "tadpole_madtom", count, 0),
+         TPM.CPUE = TPM.count/total_effort_1,
+         TME.count = ifelse(species_1 == "tiger_muskellunge", count, 0),
+         TME.CPUE = TME.count/total_effort_1,
+         TRP.count = ifelse(species_1 == "trout_perch", count, 0),
+         TRP.CPUE = TRP.count/total_effort_1,
+         WAE.count = ifelse(species_1 == "walleye", count, 0),
+         WAE.CPUE = WAE.count/total_effort_1,
+         WHB.count = ifelse(species_1 == "white_bass", count, 0),
+         WHB.CPUE = WHB.count/total_effort_1,
+         WHC.count = ifelse(species_1 == "white_crappie", count, 0),
+         WHC.CPUE = WHC.count/total_effort_1,
+         WTS.count = ifelse(species_1 == "white_sucker", count, 0),
+         WTS.CPUE = WTS.count/total_effort_1,
+         YEP.count = ifelse(species_1 == "yellow_perch", count, 0),
+         YEP.CPUE = YEP.count/total_effort_1
+  )
+
+#Now condense this into one row per lake-year
+#the counts and cpue are all distributed throughout the rows so tell it to take the max value for each one (only one row has the info for each lake/year/species)
+Red_lakeyear_cpue <- Red.cpue %>% 
+  group_by(year, lake_name) %>% 
+  summarize(across(BIB.count:YEP.CPUE, ~max(.x)), .groups = 'drop')
+
+#format to match big cpue dataframe
+Red_cpue_format <- Red_lakeyear_cpue %>% 
+  mutate(parentdow = ifelse(lake_name == "Red (Lower Red)", 4003502, 4003501)) %>% 
+  relocate(parentdow, .after = lake_name) %>% 
+  relocate(year, .after = parentdow) %>% 
+  mutate(parentdow = as.character(parentdow))
+
+
+#remove old red lake calcs from the big cpue dataframe
+Not_red_cpue <- all.fish.cpue %>% 
+  filter(lake_name != "Red (Upper Red)") %>% 
+  mutate(year = as.character(year))
+  
+#rowbind the red lake data into the rest of the data
+ALL_CPUE <- rbind(Not_red_cpue, Red_cpue_format)
+
+#I just want the CPUE data not the count data, so I am going to get rid of the counts, but I have them calculated here and easily accessible if I ever decide I want them
+ONLY_CPUE <- ALL_CPUE %>% 
+  select(-ends_with("count"))
 
 #join fish CPUE to dataset 
 #full_join will retain all rows in both initial tables and create NA values when the other table doesn't have info for that lake/year
@@ -1640,12 +2121,13 @@ Data_d <- left_join(Data_c, fish.join, by = "parentdow.fish.year")
 
 
 #remove unneeded intermediate data frames to keep environment clean
-rm(fish,
-   fish_parentdow,
-   fish.join
-)
+rm(fish, combined_stratified_effort, fish_effort_corrected, fish_no_strat, fish_split, fish_survey_test, fish.data,
+   fish.data.redhorse, redhorses, stratified, stratified_sum, stratified_sum_order, stratified_surveys, verm.hill, ALL_CPUE,
+   all.fish.cpue, Not_red_cpue, ONLY_CPUE, Red_all_fish, Red_counts, Red_cpue_format, Red.effort, Red.effort.wae, Red_lakeyear_cpue,
+   Red_state_counts, Red_state_fish, Red_tribal_fish, Red_tribal_format, Red_tribal_species, Red.count.effort, Red.cpue
+   )
 
-#not all the rows in the inclusion table have fish data - some of these are core surveys with fish data too recent to be in the BMFD and some are not good enough quality surveys/not enough sampling effort
+
 
 
 
@@ -1925,6 +2407,9 @@ zoop_biom_year_mean <- zoop_biom_month_mean %>%
 
 #convert to wide so there is a column for each species
 zoop_wide <- pivot_wider(data = zoop_biom_year_mean, names_from = species, values_from = biomass)
+
+#calculate a total biomass column
+zoop_wide$total_zoop_biomass <- rowSums(zoop_wide[,4:33])
 
 
 #join the zoop biomass metrics to the rest of the data
