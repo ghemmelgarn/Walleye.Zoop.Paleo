@@ -132,7 +132,7 @@ DNR.WAE.cpue <- fish.split.verm %>%
 
 #need to add Red Lake fish data (a csv that I digitized from a pdf of their fisheries report)
 #Using this red lake data even for upper red instead of DNR data because this combines tribal + DNR surveys
-Red.WAE.CPUE<- read.csv("Data/Input/Red_Lake_Walleye_CPUE.csv")
+Red.WAE.CPUE<- read.csv("Data/Input/Red_Lake_Gillnet_Effort_and_Walleye_CPUE.csv")
 #Note that this data is a little wonky because I calculated the counts and they calculated CPUE and it usually matches up but not always
 #Just going with their CPUE calcs
 
