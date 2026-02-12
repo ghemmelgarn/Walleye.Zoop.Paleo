@@ -2411,6 +2411,40 @@ zoop_wide <- pivot_wider(data = zoop_biom_year_mean, names_from = species, value
 #calculate a total biomass column
 zoop_wide$total_zoop_biomass <- rowSums(zoop_wide[,4:33])
 
+#Calculate three other zoop metrics I want to have: 
+#use the zoop_clean_taxa dataframe for these because it does not matter if the copepods have multiple rows
+
+#Mean length of all taxa (averaged by weighted abundance)
+zoop_mean_length <- zoop_clean_taxa %>% 
+  group_by(parentdow, year) %>%
+  summarize(mean_length_all = sum(mean_length*count)/sum(count), .groups = 'drop')
+
+#Mean length of Cladocerans (averaged by weighted abundance)
+zoop_cladoceran <- filter(zoop_clean_taxa, grp == "Cladocerans")
+clad_mean_length <- zoop_cladoceran %>% 
+  group_by(parentdow, year) %>%
+  summarize(mean_length_clad = sum(mean_length*count)/sum(count), .groups = 'drop')
+  
+#Abundance ratio of small:big cladocerans (Holopedium are large)
+clad_size <- zoop_cladoceran %>% 
+  mutate(size = ifelse(grp2 == "large daphnia", "large", ifelse(grp2 == "Holopedium", "large", "small"))) %>% #simplify large vs. small in size column
+  group_by(parentdow, year, size) %>% 
+  summarize(count = sum(count), .groups = 'drop')  #get a count of each size for each lake-year
+#convert long to wide
+clad_size_wide <- pivot_wider(clad_size, names_from = "size", values_from = "count")
+#replace NA counts with 0
+clad_size_wide0 <- clad_size_wide %>% 
+  mutate(large = ifelse(is.na(large), 0, large),
+         small = ifelse(is.na(small), 0, small))
+#calculate ratio of small:large cladocerans in each lake-year
+clad_ratio <- clad_size_wide0 %>%
+  mutate(clad_ratio = small/large) %>%  #I know it would be more intuitive to do large/small so bigger numbers are more bigger cladocerans, but this handles the one zero in the smalls
+  select(-small, -large) #get rid the the large and small columns
+
+#join all the zoop metrics together
+zoop1 <- left_join(zoop_wide, zoop_mean_length, by = c("parentdow", "year"))
+zoop2 <- left_join(zoop1, clad_mean_length, by = c("parentdow", "year"))
+zoop3 <- left_join(zoop2, clad_ratio, by = c("parentdow", "year"))
 
 #join the zoop biomass metrics to the rest of the data
 #ADD THIS WHEN YOU ARE READY
@@ -2420,7 +2454,8 @@ zoop_wide$total_zoop_biomass <- rowSums(zoop_wide[,4:33])
 #keep environment clean 
 rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_complete, zoop_copepod_rows,
    zoop_deep, zoop_filter, zoop_incl, zoop_months, zoop_nodupes, zoop_parentdow, zoop_sample_duplicates, zoop_sample_duplicates_no_predators,
-   zoop_taxa_duplicates, old_other_zoop, old_sentinel_zoop, zoop_split, Kabe, Nam, Rainy, SP, sentinel_lakes, zoop_month_tows, zoop_day_tows)
+   zoop_taxa_duplicates, old_other_zoop, old_sentinel_zoop, zoop_split, Kabe, Nam, Rainy, SP, sentinel_lakes, zoop_month_tows, zoop_day_tows,
+   zoop_mean_length, clad_mean_length, zoop_cladoceran, clad_ratio, clad_size, clad_size_wide, clad_size_wide0, zoop_wide, zoop1, zoop2, zoop3)
 
 
 
