@@ -1558,7 +1558,7 @@ stock <- read.csv("Data/Input/Result_28.csv")
 
 #let's limit this list to just my lakes to see what we are working with here
 #get a list of parentdows of my lakes
-parentdow <- Join15.yn %>% 
+parentdow <- Incl.Table.DOW %>% 
   select(parentdow) %>% 
   unique()
 
@@ -1596,8 +1596,7 @@ table(stock.sum$COMMON_NAME, stock.sum$UNIT_OF_MEASURE)
 #channel catfish was too early to be included in the one lake-year that has it
 
 
-
-#PAUSING HERE BECAUSE I AM QUESTIONING WHAT I ACTUALLY WANT TO DO WITH THIS DATA
+#I want 
 
 
 #FOR NOW: Yes or no spring (stocking of young fish (fry or fingerlings of any species)
