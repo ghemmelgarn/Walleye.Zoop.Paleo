@@ -26,7 +26,7 @@ library(sf) #to read in .gpkg files and to check raster layer projections
 library(foreign) #to read in .dbf files
 library(stringr)
 library(gridExtra) #to export multiple plots together as .tiff files
-library(terra) #for raster work with the precipitation data
+library(terra) #for raster work with the precipitation and depth data
 library(tidyterra) # to plot rasters with ggplot2
 library(maps) #to get basic map for GIS check plot
 library(zoo) #to calculate rolling averages
@@ -864,7 +864,7 @@ rm(Join10.replace, Join10.WQPclose, Join10.WQPrelplace, WQ.cond, WQ.cond.positiv
 
 
 
-#LAGOS LOCUS DATA: Lake surface area, centroid coordinates, elevation, shoreline development factor, drainage connectivity ------------------------------------------------
+#LAGOS LOCUS DATA: Lake  coordinates, elevation, drainage connectivity ------------------------------------------------
 #these data summarized to lake level, but not lake-year because they should be consistent over the years of my study
 
 
@@ -900,61 +900,24 @@ Locus.char.select <- Locus.char %>%
 #Join the characteristics data to the info data so it only preserves lakes in the info dataset, which means it will only have Minnesota lakes
 Locus.all <- left_join(Locus.info.select, Locus.char.select, by = "lagoslakeid")
 
-#don't join to everything yet, will join depth and then everything to the join datasets
+#join to dataset
+Join11 <- left_join(Join10.final, Locus.all, by = "lagoslakeid")
+
+#make Vermilion have NA values for lagos characteristics that I can't use because they are not split east-west (just lat-long)
+#also get rid of the duplicate nhdid columns
+Join11.clean <- Join11 %>%
+  mutate(lake_lat_decdeg = ifelse(lagoslakeid == 2554, NA, Join11$lake_lat_decdeg)) %>%
+  mutate(lake_lon_decdeg = ifelse(lagoslakeid == 2554, NA, Join11$lake_lon_decdeg)) %>%
+  select(-lake_nhdid, - lake_namelagos)
                   
                   
 #remove unneeded intermediate data frames to keep environment clean
 rm(Locus.char,
    Locus.char.select,
    Locus.info.MN,
-   Locus.info.select
+   Locus.info.select,
+   Locus.all
    )
-
-
-
-
-#LAGOS DEPTH DATA: Max depth and Mean depth----------------------------------------------------------------------------------------------
-#mean depth not available for all, but worth seeing how many lakes have it
-
-#read in data
-Depth <- read.csv("Data/Input/lake_depth.csv")
-
-#filter to just MN lakes
-Depth.MN <- Depth %>% 
-  filter(str_detect(lake_states, "MN"))
-
-#select just the columns you want
-Depth.select <- Depth.MN %>% 
-  select(lagoslakeid,
-         lake_maxdepth_m,
-         lake_meandepth_m)
-
-#rename to specify I got these depths from lagos
-Depth.select.named <- Depth.select %>% 
-  rename(lagos_lake_maxdepth_m = lake_maxdepth_m,
-         lagos_lake_meandepth_m = lake_meandepth_m)
-  
-
-#join to Locus data
-Locus.Depth <- full_join(Locus.all, Depth.select.named, by = "lagoslakeid")
-
-#remove intermediary dataframes
-rm(Depth.MN, Depth.select, Depth, Depth.select.named)
-
-
-#Join - VERMILION WILL BE A PROBLEM HERE - I guess I need to find these metrics from other sources for Vermilion
-Join11 <- left_join(Join10.final, Locus.Depth, by = "lagoslakeid")
-
-#make Vermilion have NA values for lagos characteristics that I can't use because they are not split east-west
-#also get rid of the duplicate nhdid columns
-Join11.clean <- Join11 %>% 
-  mutate(lake_lat_decdeg = ifelse(lagoslakeid == 2554, NA, Join11$lake_lat_decdeg)) %>% 
-  mutate(lake_lon_decdeg = ifelse(lagoslakeid == 2554, NA, Join11$lake_lon_decdeg)) %>%
-  mutate(lagos_lake_maxdepth_m = ifelse(lagoslakeid == 2554, NA, Join11$lagos_lake_maxdepth_m)) %>% 
-  mutate(lagos_lake_meandepth_m = ifelse(lagoslakeid == 2554, NA, Join11$lagos_lake_meandepth_m)) %>% 
-  select(-lake_nhdid, - lake_namelagos)
-
-
 
 
 
@@ -995,66 +958,200 @@ Join12.SDI <-  Join12 %>%
                                   ifelse(lake_name == "West Vermilion", -92.56557, lake_lon_decdeg)))
 
 
-# #Add depth data from QGIS
-Join13 <- Join12.SDI #left_join(Join12.SDI, __________, by = "______") #THIS IS A PLACEHOLDER FOR NOW
-#   #calculate Dynamic Ratio
-#   mutate(dynam.ratio = sqrt(area.ha * 0.01)/mean.depth.m) %>% #converts area hectares to km2
-#   #calculate volume development
-#   mutate(vol.dev = (3*mean.depth.m)/max.depth.m) %>% 
-#   #also remove rows that are not needed anymore because summarized above
-#   select(-lake_onlandborder, -lake_shapeflag, -lake_waterarea_ha, -lake_perimeter_m,
-#          -lake_shorelinedevfactor, -lagos_lake_maxdepth_m, -lagos_lake_meandepth_m,
-#          -GC_DOW, -GC_lakename, -GC_shorelinedevfactor, -GC_waterarea_ha, -GC_perimeter_m,
-#          -GC_maxdepth_m, -GC_meandepth_m)
-
-# #Analyze differences between LAGOS and MNGC for lake area, lake perimeter, SDI, and max depth
-# Join11.difftest <- Join11 %>% 
-#   mutate(area.test = lake_waterarea_ha - GC_waterarea_ha,
-#          perim.test = lake_perimeter_m - GC_perimeter_m,
-#          maxdepth.test = lagos_lake_maxdepth_m - GC_maxdepth_m,
-#          SDI.test = lake_shorelinedevfactor - GC_shorelinedevfactor) %>% 
-#   #also get rid of lakes that did not join correctly
-#   filter(parentdow != "110203" & parentdow != "270133" & parentdow != "310857" & parentdow != "4003501" & parentdow != "4003502" & parentdow != "470049")
-# 
-# #CONCLUSION HERE (also looked at GIS shapefiles): overall geospatial commons seems more accurate and doesn’t split things on the border like LAGOS does
-#       #Some small digitization differences, this just seems inevitable
-#       #BUT not all my lakes are in geospatial commons
-#       #Decided to use MN Geospatial commons for area, perimeter, SDI, max depth, and mean depth EXCEPT: 
-#           #LAGOS data for Rainy, and Upper/Lower Red
-#           #Cut Foot Sioux & Belle = lagos area and perimeter, GS max depth, and I will calculate mean depth - this is because I don’t want these two lakes split into sub-basins like geospatial commons has it
-#           #East Vermilion missing depth data and perimeter seems wrong - I will calculate
+#keep environment clean
+rm(area.perim, area.perim.parentdow)
 
 
 
-#Based on my extensive investigation into the shapefiles and data, here I make a column with final shape and depth values
-#Also have columns that list data source for each one
-#Also adds in data that I calculated myself with QGIS
-#Calculates dynamic ratio and volume development
 
 
-  # #Add in depth info calculated elsewhere
-  # mutate(max.depth.m = ifelse(lake_name == "Red (Upper Red)", 15 * 0.3048, #converts feet to m
-  #                             ifelse(lake_name == "Red (Lower Red)", lagos_lake_maxdepth_m, 
-  #                             ifelse(lake_name == "Rainy", 161 * 0.3048,   #converts feet to m
-  #                             ifelse(lake_name == "East Vermilion", 70 * 0.3048, GC_maxdepth_m))))) %>%  #converts feet to m
-  # mutate(depth.raster.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
-  #                                  ifelse(lake_name == "Red (Lower Red)", "LAGOS",
-  #                                  ifelse(lake_name == "Rainy", "MNDNR Lakefinder",
-  #                                  ifelse(lake_name == "East Vermilion", "MNGCLBathymetry", "MNGCLBM"))))) %>% 
-  # mutate(mean.depth.m = ifelse(lake_name == "Red (Upper Red)", 12 * 0.3048,   #converts feet to m
-  #                               ifelse(lake_name == "Red (Lower Red)", NA,
-  #                                      ifelse(lake_name == "Belle", 13.19450 * 0.3048,   #converts feet to m
-  #                                             ifelse(lake_name == "Cut Foot Sioux", 22.78753 * 0.3048,   #converts feet to m
-  #                                                    ifelse(lake_name == "Rainy", 32 * 0.3048,    #converts feet to m
-  #                                                           ifelse(lake_name == "East Vermilion", 17.26256 * 0.3048, GC_meandepth_m))))))) %>%   #converts feet to m
-  # mutate(mean.depth.source = ifelse(lake_name == "Red (Upper Red)", "MNDNR Lakefinder", 
-  #                                    ifelse(lake_name == "Red (Lower Red)", NA,
-  #                                           ifelse(lake_name == "Belle", "MNGCLBathymetry QGIS calc", 
-  #                                                  ifelse(lake_name == "Cut Foot Sioux", "MNGCLBathymetry QGIS calc", 
-  #                                                         ifelse(lake_name == "Rainy", "MNDNR Lakefinder",  
-  #                                                                ifelse(lake_name == "East Vermilion", "MNGCLBathymetry QGIS calc", "MNGCLBM"))))))) %>% 
 
 
+
+
+#DEPTH DATA:----------------------------------------------------------------------------------------------
+#LAGOS did not have much data for my lakes and didn't seem particularly accurate either - not using it
+#Doing my own calculations with raster files here
+#Viewed, selected, and clipped appropriate raster files in QGIS
+#Lake polygons are what I made in QGIS and used to calculate perimeter and area
+
+#Load in lake polygons
+lakes <- vect("Data/Input/GIS_Depth/Comtemporary Lake Shapefile Rainy Edited.shp")
+#see attribute table - uncomment if needed
+#View(as.data.frame(lakes))
+
+#Load in raster depth files
+depth <- rast("Data/Input/GIS_Depth/lake_bathymetric_elevation_model.tif")
+depth_LowRed <- rast("Data/Input/GIS_Depth/Lower_Red_Bathy_Raster")
+depth_Rainy <- rast("Data/Input/GIS_Depth/Edited_Rainy_Bathy_Raster.tif")
+depth_UpRed <- rast("Data/Input/GIS_Depth/Upper_Red_Bathy_Raster.tif")
+
+#extract the pixel values for each lake and store them as a list
+lake_pixels <- extract(depth, lakes)
+#let's get lake names back in here
+lake_names <- data.frame(ID = 1:nrow(lakes),
+                         lake_name = lakes$LAKE_NAME)
+#but make sure the names are the same as listed in the rest of the data
+lake_names_correct <- lake_names %>% 
+  mutate(lake_name = ifelse(lake_name == "Bearhead", "Bear Head", 
+                            ifelse(lake_name == "Belle Lake", "Belle", 
+                                   ifelse(lake_name == "Cut Foot Sioux Lake", "Cut Foot Sioux", 
+                                          ifelse(lake_name == "Hill (North Basin)", "Hill north", 
+                                                 ifelse(lake_name == "Hill (South Basin)", "Hill south", 
+                                                        ifelse(lake_name == "Leech (Main Basin)", "Leech", 
+                                                               ifelse(lake_name == "Lower Red Lake", "Red (Lower Red)", 
+                                                                      ifelse(lake_name == "Rainy Lake", "Rainy", 
+                                                                             ifelse(lake_name == "Upper Red Lake", "Red (Upper Red)", lake_name))))))))))
+
+
+
+lake_pixels_names <- left_join(lake_pixels, lake_names_correct, by = "ID")
+#remove NA values, values greater than 0, and lakes you don't want data for, and rename the data column to "depth"
+lake_pixels_nona <- lake_pixels_names %>%
+  filter(!is.na(lake_bathymetric_elevation_model)) %>%
+  filter(lake_name != "Rainy" & lake_name != "Red (Lower Red)" & lake_name != "Red (Upper Red)") %>% 
+  filter(lake_bathymetric_elevation_model < 0) %>% 
+  rename(depth = lake_bathymetric_elevation_model) %>% 
+  #get depth values to be positive numbers
+  mutate(depth = -1 * depth)
+
+LowRed_pixels <- extract(depth_LowRed, lakes)
+LowRed_pixels_names <- left_join(LowRed_pixels, lake_names_correct, by = "ID")
+#keep only data for correct lake, no na values, and values less than 0
+LowRed_pixels_nona <- LowRed_pixels_names %>%
+  filter(!is.na(Lower_Red_Bathy_Raster)) %>%
+  filter(lake_name == "Red (Lower Red)") %>% 
+  filter(Lower_Red_Bathy_Raster > 0) %>% 
+  #rename column, values already positive numbers
+  rename(depth = Lower_Red_Bathy_Raster)
+
+
+UpRed_pixels <- extract(depth_UpRed, lakes)
+UpRed_pixels_names <- left_join(UpRed_pixels, lake_names_correct, by = "ID")
+#keep only data for correct lake, no na values, and values less than 0
+UpRed_pixels_nona <- UpRed_pixels_names %>%
+  filter(!is.na(Upper_Red_Bathy_Raster)) %>%
+  filter(lake_name == "Red (Upper Red)") %>%
+  filter(Upper_Red_Bathy_Raster > 0) %>%
+  #rename column
+  rename(depth = Upper_Red_Bathy_Raster)
+
+
+Rainy_pixels <- extract(depth_Rainy, lakes)
+Rainy_pixels_names <- left_join(Rainy_pixels, lake_names_correct, by = "ID")
+#keep only data for correct lake, no na values, and values less than 0
+Rainy_pixels_nona <- Rainy_pixels_names %>%
+  filter(!is.na(Edited_Rainy_Bathy_Raster)) %>%
+  filter(lake_name == "Rainy") %>% 
+  filter(Edited_Rainy_Bathy_Raster < 0) %>% 
+  #rename column
+  rename(depth = Edited_Rainy_Bathy_Raster) %>% 
+  #get depth values to be positive numbers
+  mutate(depth = -1 * depth)
+
+#Rowbind to get all the data in one dataframe
+depth_all <- rbind(lake_pixels_nona, LowRed_pixels_nona, Rainy_pixels_nona, UpRed_pixels_nona)
+
+#convert to meters except Rainy which is already in m
+depth_m <- depth_all %>% 
+  mutate(depth = ifelse(lake_name != "Rainy", depth/ 3.28084, depth))
+
+#get max and mean depth values from this
+depth_max_mean <- depth_m %>% 
+  group_by(lake_name) %>% 
+  summarize(depth.max.m = max(depth),
+            depth.mean.m = mean(depth),
+            .groups = 'drop')
+
+
+
+#join max and mean depth to data
+Join13 <- left_join(Join12.SDI, depth_max_mean, by = "lake_name")
+
+
+#calculate Dynamic Ratio
+Join13.ratio <- Join13 %>% 
+  mutate(dynam.ratio = sqrt(area_ha * 0.01)/depth.mean.m) %>% #converts area hectares to km2
+  #calculate volume development
+  mutate(vol.dev = (3*depth.mean.m)/depth.max.m)
+
+
+
+
+#PHOTIC ZONE-----------------------------------------------------------
+#use the raster data and the various secchi/clarity measurements to calculate depth of photic zone in each lake-year
+
+#create a dataframe to store data
+photic.zone <- data.frame(
+  lake_name = character(),
+  Year = character(),
+  total_pixels = numeric(),
+  photic_pixels_remote.secchi.exact.year. = numeric(),
+  photic_pixels_remote.secchi.closest.year = numeric(),
+  photic_pixels_secchi.meters.MPCA.Jun.to.Aug = numeric(),
+  photic_pixels_secchi.meters.MPCA.Jul.to.Sept = numeric()
+)
+
+
+#use a for loop to go through each row (lake-year) in data and calculate number of pixels less than secchi reading
+#everything is in meters (secchi and depth)
+
+for(i in 1:nrow(Join13.ratio)){
+  #isolate the depth data for the correct lake
+  depth_data <- depth_m %>% 
+    filter(lake_name == Join13.ratio[i,2])
+  
+  #fill in lake name and year in the photic.zone data frame
+  photic.zone[i,1] = Join13.ratio[i,2]
+  photic.zone[i,2] = Join13.ratio[i,3]
+  
+  #calculate total number of pixels in lake
+  photic.zone[i,3] = nrow(depth_data)
+  
+  #calculate number of pixels less than or equal to each secchi measurement
+  photic.zone[i,4] = nrow(filter(depth_data, depth <= Join13.ratio[i,10]))
+  photic.zone[i,5] = nrow(filter(depth_data, depth <= Join13.ratio[i,11]))
+  photic.zone[i,6] = nrow(filter(depth_data, depth <= Join13.ratio[i,13]))
+  photic.zone[i,7] = nrow(filter(depth_data, depth <= Join13.ratio[i,14]))
+
+}
+
+#anything where there was no secchi data came out as a 0 - need to change that to NA
+photic.na <- photic.zone %>% 
+  mutate(photic_pixels_remote.secchi.exact.year. = na_if(photic_pixels_remote.secchi.exact.year., 0),
+         photic_pixels_remote.secchi.closest.year = na_if(photic_pixels_remote.secchi.closest.year, 0),
+         photic_pixels_secchi.meters.MPCA.Jun.to.Aug = na_if(photic_pixels_secchi.meters.MPCA.Jun.to.Aug, 0),
+         photic_pixels_secchi.meters.MPCA.Jul.to.Sept = na_if(photic_pixels_secchi.meters.MPCA.Jul.to.Sept, 0)
+  )
+
+#divide secchi pixels by total number of pixels to get proportion of lake area
+photic.prop <- photic.na %>% 
+  mutate(photic_prop_remote.secchi.exact.year. = photic_pixels_remote.secchi.exact.year. / total_pixels,
+         photic_prop_remote.secchi.closest.year = photic_pixels_remote.secchi.closest.year / total_pixels,
+         photic_prop_secchi.meters.MPCA.Jun.to.Aug = photic_pixels_secchi.meters.MPCA.Jun.to.Aug / total_pixels,
+         photic_prop_secchi.meters.MPCA.Jul.to.Sept = photic_pixels_secchi.meters.MPCA.Jul.to.Sept / total_pixels
+)
+
+#select only columns you want
+photic.select <- photic.prop %>% 
+  select(-photic_pixels_remote.secchi.exact.year.,
+         -photic_pixels_remote.secchi.closest.year,
+         -photic_pixels_secchi.meters.MPCA.Jun.to.Aug,
+         -photic_pixels_secchi.meters.MPCA.Jul.to.Sept)
+
+#join to data
+
+Join14 <- left_join(Join13.ratio, photic.select, by = c("lake_name", "Year"))
+
+
+
+
+#keep environment clean
+rm(depth, depth_all, depth_data, depth_LowRed, depth_m, depth_max_mean, depth_Rainy, depth_UpRed,
+   lake_names, lake_names_correct, lake_pixels, lake_pixels_names, lake_pixels_nona, lakes,
+   LowRed_pixels, LowRed_pixels_names, LowRed_pixels_nona, photic.na, photic.prop, photic.select,
+   photic.zone, Rainy_pixels, Rainy_pixels_names, Rainy_pixels_nona, UpRed_pixels, UpRed_pixels_names,
+   UpRed_pixels_nona)
 
 
 
@@ -1205,7 +1302,7 @@ precip.mm.avg <- precip.avg %>%
 
 
 #join to rest of data
-Join14 <- left_join(Join13, precip.mm.avg, by = c("lake_name", "Year"))
+Join15 <- left_join(Join14, precip.mm.avg, by = c("lake_name", "Year"))
 
 #keep environment clean
 rm(precip.avg, precip, precip.long, precip.mm.avg)
@@ -1348,7 +1445,7 @@ zm_swf_wide_format <- zm_swf_wide %>%
 
 
 
-Join15 <- left_join(Join14, zm_swf_wide_format, by = "parentdow")
+Join16 <- left_join(Join15, zm_swf_wide_format, by = "parentdow")
 
 #remove unneeded intermediate data frames to keep environment clean
 rm(iw,
@@ -1359,8 +1456,8 @@ rm(iw,
    zm_swf_wide_format
 )
 
-#calculate if lake-years are invaded or not chronologically
-Join15.yn <- Join15 %>% 
+#calculate if lake-years are invaded or not chronologically and calculate years since invasion
+Join16.yn <- Join16 %>% 
   mutate(SpinyWaterflea = as.numeric(SpinyWaterflea)) %>% 
   mutate(ZebraMussel = as.numeric(ZebraMussel)) %>% 
   rename(SpinyWaterflea.inv.year = SpinyWaterflea) %>% 
@@ -1369,7 +1466,12 @@ Join15.yn <- Join15 %>%
   mutate(SpinyWaterflea.yn = ifelse(is.na(SpinyWaterflea.inv.year), "no", 
                                       ifelse(SpinyWaterflea.inv.year - Year <= 0, "yes", "no"))) %>% 
   mutate(ZebraMussel.yn = ifelse(is.na(ZebraMussel.inv.year), "no", 
-                                 ifelse(ZebraMussel.inv.year - Year <= 0, "yes", "no")))
+                                 ifelse(ZebraMussel.inv.year - Year <= 0, "yes", "no"))) %>% 
+  #calculate years since invastion #FINISH THIS
+  mutate(SpinyWaterFlea.ysi = ifelse(is.na(SpinyWaterflea.inv.year), 0, 
+                                     ifelse(SpinyWaterflea.inv.year - Year <= 0, Year - SpinyWaterflea.inv.year, 0))) %>% 
+  mutate(ZebraMussel.ysi = ifelse(is.na(ZebraMussel.inv.year), 0, 
+                                 ifelse(ZebraMussel.inv.year - Year <= 0, Year - ZebraMussel.inv.year, 0)))
 
 
 
@@ -1403,145 +1505,84 @@ temp.year <- temp.positive %>%
   mutate(parentdow = as.character(parentdow))
 
 
-#read in degree days for water temp that Gretchen already calculated and connected to DOWs
-#I will use this to check my own calculations, but does not have complete or updated data for my lakes
-temp.data.check <- read.csv("Data/Input/MN_lake_Gdds_all_years.csv")
-
-#create parentdow column and rename year so it is capitalized
-temp.data.check.parentdow <- temp.data.check %>%
-  mutate(parentdow = case_when(
-    nchar(temp.data.check$DOW) == 7 ~ substr(DOW, 1, 5), 
-    nchar(temp.data.check$DOW) == 8 ~ substr(DOW, 1, 6)
-  )) %>% 
-  rename(Year = year)
-
-
-#join to the values I calculated to see if they match
-gdd.check <- left_join(temp.year, temp.data.check.parentdow, by = c("parentdow", "Year"))
-
-#calculate the difference
-gdd.check$diff <- gdd.check$gdd.year.5c - gdd.check$gdd_wtr_5c
+# #read in degree days for water temp that Gretchen already calculated and connected to DOWs
+# #I will use this to check my own calculations, but does not have complete or updated data for my lakes
+# temp.data.check <- read.csv("Data/Input/MN_lake_Gdds_all_years.csv")
+# 
+# #create parentdow column and rename year so it is capitalized
+# temp.data.check.parentdow <- temp.data.check %>%
+#   mutate(parentdow = case_when(
+#     nchar(temp.data.check$DOW) == 7 ~ substr(DOW, 1, 5), 
+#     nchar(temp.data.check$DOW) == 8 ~ substr(DOW, 1, 6)
+#   )) %>% 
+#   rename(Year = year)
+# 
+# 
+# #join to the values I calculated to see if they match
+# gdd.check <- left_join(temp.year, temp.data.check.parentdow, by = c("parentdow", "Year"))
+# 
+# #calculate the difference
+# gdd.check$diff <- gdd.check$gdd.year.5c - gdd.check$gdd_wtr_5c
 
 #OKAY THESE ARE SIGNIFICANTLY DIFFERENT - NEED TO FIGURE OUT WHAT IS GOING ON HERE
+  #ANSWER = Gretchen's are water temps, mine are air temps
+  #This difference is okay
 
-#Try rounding everything up and rounding everything with normal rules
-temp.round <- temp %>% 
-  mutate(tmax.round.up = ceiling(tmax)) %>% 
-  mutate(tmin.round.up = ceiling(tmin)) %>% 
-  mutate(tmean.round.up = (tmin.round.up + tmax.round.up)/2) %>%
-  mutate(gdd.day.5c.round.up = tmean.round.up - 5) %>% 
-  mutate(tmax.round = round(tmax)) %>% 
-  mutate(tmin.round = round(tmin)) %>% 
-  mutate(tmean.round = (tmin.round + tmax.round)/2) %>%
-  mutate(gdd.day.5c.round = tmean.round - 5)
-  
-temp.round.up.gdd <- temp.round %>% 
-  filter(gdd.day.5c.round.up > 0) %>% 
+# #Try rounding everything up and rounding everything with normal rules
+# temp.round <- temp %>% 
+#   mutate(tmax.round.up = ceiling(tmax)) %>% 
+#   mutate(tmin.round.up = ceiling(tmin)) %>% 
+#   mutate(tmean.round.up = (tmin.round.up + tmax.round.up)/2) %>%
+#   mutate(gdd.day.5c.round.up = tmean.round.up - 5) %>% 
+#   mutate(tmax.round = round(tmax)) %>% 
+#   mutate(tmin.round = round(tmin)) %>% 
+#   mutate(tmean.round = (tmin.round + tmax.round)/2) %>%
+#   mutate(gdd.day.5c.round = tmean.round - 5)
+#   
+# temp.round.up.gdd <- temp.round %>% 
+#   filter(gdd.day.5c.round.up > 0) %>% 
+#   group_by(parentdow, Year) %>%
+#   summarize(gdd.year.5c.round.up = sum(gdd.day.5c.round.up), .groups = 'drop') %>% 
+#   mutate(parentdow = as.character(parentdow))
+# 
+# temp.round.gdd <- temp.round %>% 
+#   filter(gdd.day.5c.round > 0) %>% 
+#   group_by(parentdow, Year) %>%
+#   summarize(gdd.year.5c.round = sum(gdd.day.5c.round), .groups = 'drop') %>% 
+#   mutate(parentdow = as.character(parentdow))
+# 
+# #join to the values I calculated to see if they match
+# gdd.check.round.up <- left_join(temp.round.up.gdd, temp.data.check.parentdow, by = c("parentdow", "Year"))
+# gdd.check.round.up$diff <- gdd.check.round.up$gdd.year.5c.round.up - gdd.check.round.up$gdd_wtr_5c
+# 
+# gdd.check.round <- left_join(temp.round.gdd, temp.data.check.parentdow, by = c("parentdow", "Year"))
+# gdd.check.round$diff <- gdd.check.round$gdd.year.5c.round - gdd.check.round$gdd_wtr_5c
+# 
+# #rounding everything up helps a little but not much
+
+
+#check the most recent year we have temp data on
+max(temp.year$Year)
+#looks like 2024 - this is good
+
+
+#there are sub-basins for some lakes in this temp data, so we get multiple parentdow rows when joining is attempted
+#need to condense into one row per parentdow
+#are the degree days different between subbasins of the same lake in the same year? check number of unique values:
+temp.subbasin.check <- temp.year %>%
   group_by(parentdow, Year) %>%
-  summarize(gdd.year.5c.round.up = sum(gdd.day.5c.round.up), .groups = 'drop') %>% 
-  mutate(parentdow = as.character(parentdow))
-
-temp.round.gdd <- temp.round %>% 
-  filter(gdd.day.5c.round > 0) %>% 
-  group_by(parentdow, Year) %>%
-  summarize(gdd.year.5c.round = sum(gdd.day.5c.round), .groups = 'drop') %>% 
-  mutate(parentdow = as.character(parentdow))
-
-#join to the values I calculated to see if they match
-gdd.check.round.up <- left_join(temp.round.up.gdd, temp.data.check.parentdow, by = c("parentdow", "Year"))
-gdd.check.round.up$diff <- gdd.check.round.up$gdd.year.5c.round.up - gdd.check.round.up$gdd_wtr_5c
-
-gdd.check.round <- left_join(temp.round.gdd, temp.data.check.parentdow, by = c("parentdow", "Year"))
-gdd.check.round$diff <- gdd.check.round$gdd.year.5c.round - gdd.check.round$gdd_wtr_5c
-
-#rounding everything up helps a little but not much
+  summarise(num_unique_values = n_distinct(gdd.year.5c))
+#looks good, one value for each lake-year
 
 
-# #check the most recent year we have temp data on
-# max(temp.data.check.parentdow$year)
-# #looks like 2021 - we will need to fill in this gap eventually
+#Join to data
+
+#join to the inclusion table
+Join17 <- left_join(Join16.yn, temp.year, by = c("parentdow", "Year"))
 
 
-# #there are sub-basins for some lakes in this temp data, so we get multiple parentdow rows when joining is attempted
-# #need to condense into one row per parentdow
-# #are the degree days different between subbasins of the same lake in the same year? check number of unique values:
-# temp.subbasin.check <- temp_parentdow %>%
-#   group_by(parentdow.year) %>%
-#   summarise(num_unique_values = n_distinct(gdd_wtr_5c))
-# #there are some lake-years with different values in subbasins
-# #join this to the original inclusion table to see if this is an issue for my lakes
-# temp.check.2 <- left_join(Incl.Table, temp.subbasin.check, by = "parentdow.year")
-# unique(temp.check.2$num_unique_values)
-
-#many NA values: these are boundary waters or too recent to be included (2022 or later)
-
-#it is an issue, but only for 4 lakes, corrected here:
-
-# #Minnetonka has 4 unique values - this makes sense, it is a huge lake with many sub-basins - fish data came from the non-divided 27013300 DOW so restrict temp to this
-# temp.dow.correction <- temp_parentdow %>%
-#   filter(DOW != 27013301 & 
-#            DOW != 27013302 & 
-#            DOW != 27013303 & 
-#            DOW != 27013304 &
-#            DOW != 27013305 &
-#            DOW != 27013309 &
-#            DOW != 27013310 &
-#            DOW != 27013311 &
-#            DOW != 27013312 &
-#            DOW != 27013313 &
-#            DOW != 27013314 &
-#            DOW != 27013315 
-#   )
-# #Red lake has upper and lower, fish data here came from upper basin (4003501), so restrict to this
-# temp.dow.correction <- temp.dow.correction %>%
-#   filter(DOW != 4003500 & 
-#            DOW != 4003502
-#   )
-# #Hill lake fish data came from lake without subbasin: 1014200, restrict to this
-# temp.dow.correction <- temp.dow.correction %>%
-#   filter(DOW != 1014201 & 
-#            DOW != 1014202
-#   )
-# 
-# #Cut Foot Sioux lake fish data came from lake without subbasin: 31085700, restrict to this
-# temp.dow.correction <- temp.dow.correction %>%
-#   filter(DOW != 31085701 & 
-#            DOW != 31085702 &
-#            DOW != 31085703
-#   )
-
-# #check that this correction worked:
-# temp.subbasin.check2 <- temp.dow.correction %>%
-#   group_by(parentdow.fish.year) %>%
-#   summarise(num_unique_values = n_distinct(gdd_wtr_5c))
-# temp.check.3 <- left_join(Incl.Table, temp.subbasin.check2, by = "parentdow.fish.year")
-# unique(temp.check.3$num_unique_values)
-# #it worked
-
-# #there are some lakes without temp data but that's ok for now, some of these are boundary waters or after this was calculated up to 2021
-# #summarize to get only one observation per parentdow.fish.year when there are multiple equivalent degree day values (all the differing ones have already been dealt with individually)
-# #use this to also select just the columns you want to join
-# temp.join <- temp.dow.correction %>%
-#   group_by(parentdow.fish.year) %>%
-#   summarize(gdd_wtr_5c = mean(gdd_wtr_5c), .groups = 'drop')
-# 
-# 
-# #join to the inclusion table
-# Data_a <- left_join(Incl.Table, temp.join, by = "parentdow.fish.year")
-# 
-# #remove unneeded intermediate data frames to keep environment clean
-# rm(temp_parentdow,
-#    temp.check.2,
-#    temp.check.3,
-#    temp.subbasin.check,
-#    temp.subbasin.check2,
-#    temp.data,
-#    temp.dow.correction,
-#    temp.join,
-#    test
-# )
-# #you may get an error message if you didn't run the commented out code to check my work here - this is okay
-
+#keep environment clean
+rm(temp, temp.positive, temp.subbasin.check, temp.year)
 
 
 
@@ -1558,7 +1599,7 @@ stock <- read.csv("Data/Input/Result_28.csv")
 
 #let's limit this list to just my lakes to see what we are working with here
 #get a list of parentdows of my lakes
-parentdow <- Incl.Table.DOW %>% 
+parentdow <- Incl.Table.Final %>% 
   select(parentdow) %>% 
   unique()
 
@@ -1585,28 +1626,56 @@ unique(stock.mylakes$COMMON_NAME)
 #what units of measure do we have
 unique(stock.mylakes$UNIT_OF_MEASURE)
 
-#sum the number of fish stocked in each lake-year by species, unit of measure, and life stage
-stock.sum <- stock.mylakes %>%
-  group_by(parentdow, STOCKING_YEAR, LAKE_NAME, COMMON_NAME, NAME, UNIT_OF_MEASURE) %>%
-  summarize(quantity = sum(FISH_QUANTITY), .groups = 'drop')
-
-#how many lake-years do we have for each species and each unit of measure
-table(stock.sum$COMMON_NAME, stock.sum$UNIT_OF_MEASURE)
-#don't worry about the spottail shiner and yellow perch, they were stocked after the lake-years I am interested in
-#channel catfish was too early to be included in the one lake-year that has it
-
-
-#I want 
-
-
-#FOR NOW: Yes or no spring (stocking of young fish (fry or fingerlings of any species)
-
-#WANT TO DO SOME EXPLORATORY STUFF WITH THE ZOOP DATA BEFORE I DECIDE WHAT TO DO HERE
+#not doing this sum anymore:
+# #sum the number of fish stocked in each lake-year by species, unit of measure, and life stage
+# stock.sum <- stock.mylakes %>%
+#   group_by(parentdow, STOCKING_YEAR, LAKE_NAME, COMMON_NAME, NAME, UNIT_OF_MEASURE) %>%
+#   summarize(quantity = sum(FISH_QUANTITY), .groups = 'drop')
+# 
+# #how many lake-years do we have for each species and each unit of measure
+# table(stock.sum$COMMON_NAME, stock.sum$UNIT_OF_MEASURE)
+# #don't worry about the spottail shiner and yellow perch, they were stocked after the lake-years I am interested in
+# #channel catfish was too early to be included in the one lake-year that has it
 
 
 
+#FOR NOW: Yes or no spring (stocking of young fish (fry or fingerlings of any species)) - all done in spring so timing doesn't matter
+
+#I want just Fry, frylings, and eggs
+#filter to the life stages I want
+stock.fry <- stock.mylakes %>% 
+  filter(NAME == "Fry" | NAME == "Fryling" | NAME == "Egg")
+
+#isolate this to just my lake-years
+#make the year columns match for the join
+Incl.Table.Stock <- Incl.Table.Final %>% 
+  mutate(Year = as.numeric(Year))
+stock.fry.year <- stock.fry %>%
+  rename(Year = STOCKING_YEAR) %>%
+  mutate()
+
+stock.lakeyear <- inner_join(Incl.Table.Stock, stock.fry.year, by = c("parentdow", "Year")) #only keep my lake-years that actually had fry stocked
+
+#Get a "yes" for each lakeyear
+stock.yes <- stock.lakeyear %>% 
+  group_by(parentdow, Year) %>%
+  summarize(stock.yn = "yes", .groups = 'drop') %>% 
+  mutate(year = Year) %>% #get this name to match the rest of the data
+  select(-year)
 
 
+#join back to whole dataset
+Join18 <- left_join(Join17, stock.yes, by = c("parentdow", "Year"))
+
+
+#give the lake-years without young fish stocking a no instead of NA
+Join18.no <- Join18 %>% 
+  mutate(stock.yn = ifelse(is.na(stock.yn), "no", stock.yn))
+
+
+#keep dataset clean
+rm(stock, stock.parentdow, stock.mylakes, stock.fry, stock.lakeyear, Incl.Table.Stock., stock.yes, stock.fry.year,
+   Incl.Table.Stock)
 
 
 
@@ -2111,12 +2180,15 @@ Not_red_cpue <- all.fish.cpue %>%
 ALL_CPUE <- rbind(Not_red_cpue, Red_cpue_format)
 
 #I just want the CPUE data not the count data, so I am going to get rid of the counts, but I have them calculated here and easily accessible if I ever decide I want them
+#also format for join
 ONLY_CPUE <- ALL_CPUE %>% 
-  select(-ends_with("count"))
+  select(-ends_with("count"), -lake_name) %>% 
+  rename(Year = year) %>% 
+  mutate(Year = as.numeric(Year))
 
 #join fish CPUE to dataset 
 #full_join will retain all rows in both initial tables and create NA values when the other table doesn't have info for that lake/year
-Data_d <- left_join(Data_c, fish.join, by = "parentdow.fish.year")
+Join19 <- left_join(Join18.no, ONLY_CPUE, by = c("parentdow", "Year"))
 
 
 #remove unneeded intermediate data frames to keep environment clean
@@ -2125,15 +2197,6 @@ rm(fish, combined_stratified_effort, fish_effort_corrected, fish_no_strat, fish_
    all.fish.cpue, Not_red_cpue, ONLY_CPUE, Red_all_fish, Red_counts, Red_cpue_format, Red.effort, Red.effort.wae, Red_lakeyear_cpue,
    Red_state_counts, Red_state_fish, Red_tribal_fish, Red_tribal_format, Red_tribal_species, Red.count.effort, Red.cpue
    )
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2445,16 +2508,30 @@ zoop1 <- left_join(zoop_wide, zoop_mean_length, by = c("parentdow", "year"))
 zoop2 <- left_join(zoop1, clad_mean_length, by = c("parentdow", "year"))
 zoop3 <- left_join(zoop2, clad_ratio, by = c("parentdow", "year"))
 
-#join the zoop biomass metrics to the rest of the data
-#ADD THIS WHEN YOU ARE READY
+#a bit of formatting pre-join
+zoop.join <- zoop3 %>% 
+  rename(mean_length_all_zoop = mean_length_all) %>% 
+  mutate(Year = as.numeric(year)) %>% 
+  select(-lake_name, -year)
 
+#join the zoop biomass metrics to the rest of the data
+Join20 <- left_join(Join19, zoop.join, by = c("parentdow", "Year"))
 
 
 #keep environment clean 
 rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_complete, zoop_copepod_rows,
    zoop_deep, zoop_filter, zoop_incl, zoop_months, zoop_nodupes, zoop_parentdow, zoop_sample_duplicates, zoop_sample_duplicates_no_predators,
    zoop_taxa_duplicates, old_other_zoop, old_sentinel_zoop, zoop_split, Kabe, Nam, Rainy, SP, sentinel_lakes, zoop_month_tows, zoop_day_tows,
-   zoop_mean_length, clad_mean_length, zoop_cladoceran, clad_ratio, clad_size, clad_size_wide, clad_size_wide0, zoop_wide, zoop1, zoop2, zoop3)
+   zoop_mean_length, clad_mean_length, zoop_cladoceran, clad_ratio, clad_size, clad_size_wide, clad_size_wide0, zoop_wide, zoop1, zoop2, zoop3,
+   zoop.join)
+
+
+
+
+#SAVE THE DATASET---------------------------------------------------------------------------------------------------------------------
+
+# #change this date if you update things after today
+# write.csv(Join20, file = "Data/Output/Contemporary_Dataset_2026_02_18.csv", row.names = FALSE)
 
 
 
@@ -2481,176 +2558,5 @@ rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_comple
 
 
 
-
-
-
-
-
-
-#FILTER out to select the lakes with all the data I can actually use. ------------------------------------------------------------------------
-
-#remove extra columns I never used or don't need like the empty invasive species and the walleye count from the old spreadsheet
-Data_all <- Data_all %>%
-  select(-Chosen.for.analysis.)
-
-#Requirements:
-#conditions filtered above in this script:
-#lake/years with exact matches of fish/zoop data
-#zoops: at least 5 summer months for each lake/year, removed Bytho and Lepto
-
-#conditions filtered as I generated data in other scripts:
-#fish: acceptable survey and gear types, sufficient effort, removed surveys with gear issues
-#productivity: secchi data must have samples from June, July, and August in the lake/year, no secchi values of 0, all secchi data from MPCA and DNR 
-
-#need to filter to lake-years that have all the data: fish survey, zoop survey, temp, clarity, area AND require May and June zoop samples
-Data_complete <- Data_all %>%    
-  filter(!is.na(calanoids) &
-           !is.na(WAE.CPUE) &
-           !is.na(gdd_wtr_5c) &
-           !is.na(mean.summer.secchi.meters) &
-           !is.na(lake.area.acres)&
-           May != 0 &
-           June != 0
-  )
-#sample size = 110 lake-years (it's 119 if I don't require any specific zoop months)
-unique(Data_complete$LakeName)
-#31 different lakes represented
-
-#INVEESTIGATE EFFECT OF EXCLUDING MONTHS WITHOUT OCTOBER
-Data_req_Oct <- Data_all %>%    
-  filter(!is.na(calanoids) &
-           !is.na(WAE.CPUE) &
-           !is.na(gdd_wtr_5c) &
-           !is.na(mean.summer.secchi.meters) &
-           !is.na(lake.area.acres)&
-           May != 0 &
-           June != 0 &
-           Oct != 0
-  )
-
-#requiring october brings the sample size down to 82
-unique(Data_req_Oct$LakeName)
-#29 different lakes represented - lose Freeborn and Garfield
-
-#WHAT IF I REQUIRE MAY-SEPTEMBER 
-Data_req_M_S <- Data_all %>%    
-  filter(!is.na(calanoids) &
-           !is.na(WAE.CPUE) &
-           !is.na(gdd_wtr_5c) &
-           !is.na(mean.summer.secchi.meters) &
-           !is.na(lake.area.acres)&
-           May != 0 &
-           June != 0 &
-           July != 0 &
-           Aug != 0 &
-           Sept != 0
-  )
-
-#This gets us a sample size of 106. I think this is the best option.
-unique(Data_req_M_S$LakeName)
-#31 different lakes represented - SO WE DON'T LOSE ANY LAKES - THIS IS GOOD
-table(Data_req_M_S$LakeName)
-
-#Save this output!
-#write.csv(Data_req_M_S, file = "Data/Output/PrelimMultivarData.csv")
-
-# #What is the effect of the potential confounding variable lack of data?
-# 
-# #what is our sample size if we don't consider, temp, area, productivity data coverage but keep the May-Sept zoop restriction?
-# test <- Data_all %>%    
-#       filter(!is.na(calanoids) &
-#          !is.na(WAE.CPUE) &
-#          May != 0 &
-#          June != 0 &
-#          July != 0 &
-#          Aug != 0 &
-#          Sept != 0
-# )
-# unique(test$LakeName)
-# #168 observations on 38 lakes
-# #so these potential confounding variables take 62 observations and 7 lakes from us...
-# 
-# #How many of which observations are we missing?
-# test2 <- Data_all %>%    
-#   filter(!is.na(calanoids) &
-#            !is.na(WAE.CPUE) &
-#            is.na(gdd_wtr_5c) &
-#            May != 0 &
-#            June != 0 &
-#            July != 0 &
-#            Aug != 0 &
-#            Sept != 0
-#   )
-# unique(test2$LakeName)
-# #29 lake-years on 6 lakes missing temp data
-# 
-# test3 <- Data_all %>%    
-#   filter(!is.na(calanoids) &
-#            !is.na(WAE.CPUE) &
-#            is.na(mean.summer.secchi.meters) &
-#            May != 0 &
-#            June != 0 &
-#            July != 0 &
-#            Aug != 0 &
-#            Sept != 0
-#   )
-# unique(test3$LakeName)
-# #37 lake-years on 11 lakes missing secchi data
-# 
-# test4 <- Data_all %>%    
-#   filter(!is.na(calanoids) &
-#            !is.na(WAE.CPUE) &
-#            is.na(lake.area.acres) &
-#            May != 0 &
-#            June != 0 &
-#            July != 0 &
-#            Aug != 0 &
-#            Sept != 0
-#   )
-# unique(test4$LakeName)
-# #None are missing lake area!
-# 
-# #How many are missing BOTH temp and secchi?
-# test5 <- Data_all %>%    
-#   filter(!is.na(calanoids) &
-#            !is.na(WAE.CPUE) &
-#            is.na(mean.summer.secchi.meters) &
-#            is.na(gdd_wtr_5c) &
-#            May != 0 &
-#            June != 0 &
-#            July != 0 &
-#            Aug != 0 &
-#            Sept != 0
-#   )
-# unique(test5$LakeName)
-# #only 4 observations on two lakes: Namakan and Winnie
-# 
-# #lakes missing only secchi
-# test6 <- Data_all %>%
-#   filter(!is.na(calanoids) &
-#            !is.na(WAE.CPUE) &
-#            is.na(mean.summer.secchi.meters) &
-#            !is.na(gdd_wtr_5c) &
-#            May != 0 &
-#            June != 0 &
-#            July != 0 &
-#            Aug != 0 &
-#            Sept != 0
-#   )
-# table(test6$LakeName)
-# 
-# #lakes missing only temp
-# test7 <- Data_all %>%
-#   filter(!is.na(calanoids) &
-#            !is.na(WAE.CPUE) &
-#            !is.na(mean.summer.secchi.meters) &
-#            is.na(gdd_wtr_5c) &
-#            May != 0 &
-#            June != 0 &
-#            July != 0 &
-#            Aug != 0 &
-#            Sept != 0
-#   )
-# table(test7$LakeName)
 
 
