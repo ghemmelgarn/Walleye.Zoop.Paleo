@@ -1334,6 +1334,7 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
       theme(plot.title = element_text(hjust = 0.5, size = 23), legend.text = element_text(size = 12), axis.title = element_text(size = 18), axis.text= element_text(size = 12))
     #dev.off()
     
+    
     #plot PLS axis weightings (eigenvector weightings)
     #ZOOPS
     #need a vector of names for the categories
@@ -1767,10 +1768,23 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
                     axis.text = element_text(size = 15))
             #dev.off() 
             
+            
+            #MODIFIED PLOT FOR LOW PRESENTATION
+            #tiff("PLS1.scale_LOW_Presentation.tiff", width = 7, height = 5, units = "in", res = 300)  #adjust dimensions of output
+            ggplot(pls.plot.data.scale, aes(x = X1, y = X1.1, color = fish3.WAE.LMB.Ind.scale))+
+              geom_point(size = 3, alpha = 0.5)+  #adjust point size and transparency
+              labs(title = "Two-Block Partial Least Squares", x = "Zooplankton Community PLS 1", y = "Fish Community PLS 1",) +
+              scale_x_continuous(limits = c(-4,5))+
+              scale_y_continuous(limits = c(-4,5))+
+              scale_color_gradient(low = "blue", high = "red", name = " ", labels = c("Bass Dominated", "Walleye Dominated"), breaks = c(-0.8993171, 2.6700774))+
+              coord_fixed()+
+              theme_classic()+
+              theme(plot.title = element_text(hjust = 0.5, size = 18), legend.text = element_text(size = 12), axis.title = element_text(size = 15), axis.text= element_text(size = 10))  #adjust text sizes
+            #dev.off()
 
             
                     #plot zoop loadings
-                    tiff("PLS1.Zoop.Loadings.scale.tiff", width = 15, height = 7, units = "in", res = 300)
+                    #tiff("PLS1.Zoop.Loadings.scale.tiff", width = 15, height = 7, units = "in", res = 300)
                     ggplot(zoop.pls.loadings.scale, aes(x = plot.order, y = X1, fill = color.cat))+
                       geom_bar(stat = "identity")+
                       labs(x = "Variable", y = "Relative Contribution to PLS 1", fill = NULL) +
@@ -1782,10 +1796,21 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
                             axis.text = element_text(angle = 45, hjust = 1, size = 15),
                             legend.text = element_text(size = 15),
                             legend.position = "right")
-                    dev.off()
+                    #dev.off()
+                    
+                    #MODIFIED PLOT FOR LOW PRESENTATION
+                    #tiff("PLS1.Zoop.Loadings_LOW_Presentation.tiff", width = 8, height = 5, units = "in", res = 300)
+                    ggplot(zoop.pls.loadings.scale, aes(x = plot.order, y = X1))+ #removed color by preservation type
+                      geom_bar(stat = "identity", color = "steelblue", fill = "steelblue")+
+                      labs(x = "Zooplankton Species", y = "Relative Contribution to PLS 1", fill = NULL) +
+                      scale_x_discrete(labels = setNames(zoop.pls.loadings.scale$taxa, zoop.pls.loadings.scale$plot.order))+
+                      theme_classic()+
+                      geom_hline(yintercept = 0)+
+                      theme(axis.title = element_text(size = 14), axis.text = element_text(angle = 45, hjust = 1, size = 11))
+                    #dev.off()
                     
                     #plot fish loadings
-                    tiff("PLS1.Fish.Loadings.scale.tiff", width = 15, height = 7, units = "in", res = 300)
+                    #tiff("PLS1.Fish.Loadings.scale.tiff", width = 15, height = 7, units = "in", res = 300)
                     ggplot(fish.pls.loadings.scale, aes(x = plot.order, y = X1, fill = color.cat))+
                       geom_bar(stat = "identity")+
                       labs(x = "Variable", y = "Relative Contribution to PLS 1", fill = NULL) +
@@ -1797,7 +1822,7 @@ ggplot(bgpca.means.scores.color, aes(x = X1, y = X2, color = WalleyeVCentrarchid
                             axis.text = element_text(angle = 45, hjust = 1, size = 15),
                             legend.text = element_text(size = 15),
                             legend.position = "right")
-                    dev.off()
+                    #dev.off()
             
             #plot the second PLS component
             
