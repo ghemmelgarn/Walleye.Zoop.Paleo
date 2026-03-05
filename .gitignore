@@ -46,6 +46,8 @@ rsconnect/
 *.shx
 *.grd
 *.asc
-*.tif
+*.tif 
+*.adf
+*.qmd
 PosterPredictedPlots.R
 write-test-c4c4824a-5e3c-4ded-9593-d606d3cf817e
