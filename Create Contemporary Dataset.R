@@ -2200,9 +2200,20 @@ rm(fish, combined_stratified_effort, fish_effort_corrected, fish_no_strat, fish_
 
 
 
+#WALLEYE YOY DATA------------------------------------------------------------
 
+#read in the walleye yoy data
+wae.yoy <- read.csv("Data/Input/Walleye_YOY_Fall_Electrofishing_2026_03_09.csv")
 
+#calculate parentdows and select columns for joining
+wae.yoy.select <- wae.yoy %>% 
+  mutate(parentdow = ifelse(lake_name == "East Vermilion" | lake_name == "West Vermilion" | lake_name == "Hill (north)", lake_id, str_sub(lake_id, 1, -3))) %>% 
+  rename(Year = year,
+         WAE.YOY.CPUE = CPUE) %>% 
+  select(parentdow, Year, WAE.YOY.CPUE)
 
+#left join to data to just get the lake-years we want
+Join20 <- left_join(Join19, wae.yoy.select, by = c("parentdow", "Year"))
 
 
 #ZOOP METRIC JOIN -------------------------------------------------------------------------
@@ -2515,7 +2526,7 @@ zoop.join <- zoop3 %>%
   select(-lake_name, -year)
 
 #join the zoop biomass metrics to the rest of the data
-Join20 <- left_join(Join19, zoop.join, by = c("parentdow", "Year"))
+Join21 <- left_join(Join20, zoop.join, by = c("parentdow", "Year"))
 
 
 #keep environment clean 
@@ -2531,7 +2542,7 @@ rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_comple
 #SAVE THE DATASET---------------------------------------------------------------------------------------------------------------------
 
 # #change this date if you update things after today
-# write.csv(Join20, file = "Data/Output/Contemporary_Dataset_2026_02_18.csv", row.names = FALSE)
+# write.csv(Join21, file = "Data/Output/Contemporary_Dataset_2026_02_18.csv", row.names = FALSE)
 
 
 
