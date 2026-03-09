@@ -112,10 +112,13 @@ surveys_target <- mn_data %>%
   dplyr::filter(is.na(flag)) %>%
   collect()
 
-#split east and west vermilion by site number #THIS NEEDS TO BE UPDATED WITH REAL SITE INFO
+
+#split east and west vermilion by site number - This is different pre-2011 so split into two date ranges here
 surveys_target_verm <- surveys_target %>% 
-  mutate(lake_name = ifelse(lake_name == "Vermilion" & (site_id == "" | site_id == ""), "West Vermilion", 
-                            ifelse(lake_name == "Vermilion" & (site_id == "" | site_id == ""), "East Vermilion", lake_name)),
+  mutate(lake_name = ifelse(lake_name == "Vermilion" & year >= 2011 & (site_id == "EW8" | site_id == "EW9" | site_id == "EW12"), "West Vermilion", 
+                            ifelse(lake_name == "Vermilion" & year >= 2011 & (site_id == "EW1" | site_id == "EW10" | site_id == "EW3" | site_id == "EW4" | site_id == "EW11" | site_id == "EW6"), "East Vermilion", 
+                                   ifelse(lake_name == "Vermilion" & year < 2011 & (site_id == "EW7" | site_id == "EW8" | site_id == "EW9"), "West Vermilion",
+                                          ifelse(lake_name == "Vermilion" & year < 2011 & (site_id == "EW1" | site_id == "EW2" | site_id == "EW3" | site_id == "EW4" | site_id == "EW5" | site_id == "EW6"), "East Vermilion", lake_name)))),
          lake_id = ifelse(lake_name == "West Vermilion", 69037802, 
                                  ifelse(lake_name == "East Vermilion", 69037801, lake_id)))
 
@@ -160,6 +163,8 @@ surveys <- mn_data %>% filter(state == "Minnesota") %>%
   dplyr::filter(total_effort_1 > 0.5) %>%
   dplyr::filter(is.na(flag)) %>%
   collect()
+
+#No vermilion surveys here
 
 # Get the surveys where fish were caught (not zeroes)
 non_zero <- surveys %>%
@@ -208,7 +213,7 @@ example <- surveys_target_verm %>% filter(lake_id == "31053800") %>% filter(year
 unique(example$total_effort_ident)
 
 #Grace investigates Vermilion 2016
-verm <- surveys_target_verm %>% filter(lake_id == "69037800") %>% filter(year == 2016)
+verm <- surveys_target_verm %>% filter(lake_id == "69037801" | lake_id == "69037802") %>% filter(year == 2016)
 unique(verm$total_effort_ident)
 #All the walleye in 38232 are not YOY, so I can just get rid of that survey
 
@@ -221,7 +226,7 @@ new_surveys2 <- new_surveys %>%
          lake_id = ifelse(lake_id == 1014200, 1014201, lake_id))
 
 #save as csv
-#write.csv(new_surveys2, file = "Data/Output/Walleye_YOY_Fall_Electrofishing_2026_03_06.csv", row.names = FALSE)
+#write.csv(new_surveys2, file = "Data/Output/Walleye_YOY_Fall_Electrofishing_2026_03_09.csv", row.names = FALSE)
 
 
 
