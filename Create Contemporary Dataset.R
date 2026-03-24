@@ -2202,7 +2202,7 @@ rm(fish, combined_stratified_effort, fish_effort_corrected, fish_no_strat, fish_
 
 #WALLEYE YOY DATA------------------------------------------------------------
 
-#read in the walleye yoy data
+#read in the walleye yoy data, already has CPUE calculated
 wae.yoy <- read.csv("Data/Input/Walleye_YOY_Fall_Electrofishing_2026_03_09.csv")
 
 #calculate parentdows and select columns for joining
@@ -2557,32 +2557,8 @@ rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_comple
 
 #SAVE THE DATASET---------------------------------------------------------------------------------------------------------------------
 
-# #change this date if you update things after today
-# write.csv(Join21, file = "Data/Output/Contemporary_Dataset_2026_02_18.csv", row.names = FALSE)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#change this date if you update things after today
+#write.csv(Join21, file = "Data/Output/Contemporary_Dataset_2026_03_24.csv", row.names = FALSE)
 
 
 
