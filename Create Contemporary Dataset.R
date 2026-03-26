@@ -1283,7 +1283,7 @@ precip.long <- precip %>%
 precip.avg <- precip.long %>%
   group_by(lake_name) %>%
   mutate(
-    precip_10yr_avg_in = rollapply(Precip.in, width = 5, 
+    precip_5yr_avg_in = rollapply(Precip.in, width = 5, 
                                 FUN = function(x) mean(x, na.rm = TRUE), 
                                 fill = "extend", 
                                 align = "right")
@@ -1296,8 +1296,8 @@ precip.avg <- precip.long %>%
 
 #convert to mm
 precip.mm.avg <- precip.avg %>% 
-  mutate(precip_10yr_avg_mm = precip_10yr_avg_in * 25.4) %>% 
-  select(-precip_10yr_avg_in, - Precip.in) %>%  #get rid of columns you don't want to join
+  mutate(precip_5yr_avg_mm = precip_5yr_avg_in * 25.4) %>% 
+  select(-precip_5yr_avg_in, - Precip.in) %>%  #get rid of columns you don't want to join
   rename(Year = precip.year) #rename year to match rest of data
 
 
