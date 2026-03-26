@@ -1283,12 +1283,12 @@ precip.long <- precip %>%
 precip.avg <- precip.long %>%
   group_by(lake_name) %>%
   mutate(
-    precip_10yr_avg_in = rollapply(Precip.in, width = 10, 
+    precip_10yr_avg_in = rollapply(Precip.in, width = 5, 
                                 FUN = function(x) mean(x, na.rm = TRUE), 
                                 fill = "extend", 
                                 align = "right")
   )
-#width = 10 means I get 10 years
+#width = 5 means I get 5 years
 #fill = extend means that the first 9 years where there isn't enough data will get the same value as the first year that has all the data available - this is fine because I don't need these first 9 years for anything
 #including the na.rm = True means that when data is missing, it calculates the mean of the years it has available within the 10 year period (deals with missing 2022)
 #align = right means that selected year is last year (eg. year 2000 uses data from 1991–2000)
@@ -2558,7 +2558,7 @@ rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_comple
 #SAVE THE DATASET---------------------------------------------------------------------------------------------------------------------
 
 #change this date if you update things after today
-#write.csv(Join21, file = "Data/Output/Contemporary_Dataset_2026_03_24.csv", row.names = FALSE)
+write.csv(Join21, file = "Data/Output/Contemporary_Dataset_2026_03_25.csv", row.names = FALSE)
 
 
 
