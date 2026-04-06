@@ -231,6 +231,16 @@ CL.CDOM.avg <- CL.CDOM.year %>%
   mutate(DataType = ifelse(DataType == "CL", "remote.chla", 
                        ifelse(DataType == "a440", "remote.CDOM", "error")))
 
+#Calculate an average summer CDOM over all years of available data for each lake
+#This is to filter out stained lakes
+stain <- CL.CDOM.avg %>% 
+  filter(DataType == "remote.CDOM") %>% #filter to just CDOM data
+  group_by(DOW, LakeName) %>%  #group by lake
+  summarize(CDOM.lake.avg = mean(value, na.rm = TRUE), #average across the CDOM values within each lake
+            .groups = 'drop') %>%  #ungroup
+  mutate(CDOM.lake.avg = na_if(CDOM.lake.avg, NaN)) #format NA properly
+
+
 #For secchi data, remove all the monthly averages and the summer average (June - Sept)
 #rename the late summer average column to "value"
 #also rename the data types with the column names you want in the final dataset
@@ -309,6 +319,16 @@ RS.parentdow <- RS.filter %>%
 
 RS.parentdow$parentdow.year = paste(RS.parentdow$parentdow, RS.parentdow$Year)
 
+#calculate parentdow for the stained lake data
+stain.parentdow <- stain %>%
+  mutate(parentdow = case_when(
+    (stain$DOW == "01014202" | stain$DOW == "01014201" | stain$DOW == "04003502" | stain$DOW == "04003501") ~ substr(stain$DOW, 2, 8),   #takes care of North and Red lakes
+    (stain$DOW == "69037802" | stain$DOW == "69037801") ~ substr(stain$DOW, 1, 8),  #takes care of Vermilion (different because no leading 0),
+    (str_detect(stain$DOW, "^0") & (stain$DOW != "01014202" & stain$DOW != "01014201" & stain$DOW != "04003502" & stain$DOW != "04003501" & stain$DOW != "69037802" & stain$DOW != "69037801")) ~ substr(stain$DOW, 2, 6), #this gets 5 digits from the DOWs that start with zero and are not those identified before
+    (!str_detect(stain$DOW, "^0") & (stain$DOW != "01014202" & stain$DOW != "01014201" & stain$DOW != "04003502" & stain$DOW != "04003501" & stain$DOW != "69037802" & stain$DOW != "69037801")) ~ substr(stain$DOW, 1, 6) #this gets 6 digits from the DOWs that don't start with zero and are not those identified before
+  ))
+
+
 #When there are multiple sub-basins that I don't want to separate, average them together
 #also rename secchi column
 RS.mean <- RS.parentdow %>%
@@ -317,6 +337,13 @@ RS.mean <- RS.parentdow %>%
             remote.secchi = mean(remote.secchi), 
             remote.chla = mean(remote.chla ),
             remote.CDOM = mean(remote.CDOM),
+            .groups = 'drop')
+
+#also do this average for the stain data
+stain.mean <- stain.parentdow %>%
+  group_by(parentdow) %>%
+  summarize(LakeName = first(LakeName),
+            CDOM.lake.avg = mean(CDOM.lake.avg),
             .groups = 'drop')
 
 #Rename lake name to show where it came from to check matches later
@@ -372,16 +399,20 @@ Join03 <- left_join(Join02, secchi.close, by = "parentdow.secchi.year")
 
 #I visually checked names to make sure things joined well - all looks good
 
+#Join in the stain data
+Join03.stain <- left_join(Join03, stain.mean, by = "parentdow")
+
 #some cleanup in the Join dataframe
-Join04 <- Join03 %>% 
+Join04 <- Join03.stain %>% 
   mutate(remote.secchi.year = str_sub(parentdow.secchi.year, -4, -1)) %>% #this records the true year the remote secchi data came from
-  select(parentdow.year, lake_name, Year, parentdow, nhdhr_id, lagoslakeid, remote.chla, remote.CDOM, remote.secchi.exact.year, remote.secchi.closest.year, remote.secchi.year) #keep only the columns you want in the order you want them
+  select(parentdow.year, lake_name, Year, parentdow, nhdhr_id, lagoslakeid, remote.chla, remote.CDOM, CDOM.lake.avg, remote.secchi.exact.year, remote.secchi.closest.year, remote.secchi.year) #keep only the columns you want in the order you want them
 
 
 #remove previous dataframes to keep environment clean
 rm(RS, RS.clean, RS.long, RS.nogeom, RS.summer, RS.year, CL.CDOM.avg, CL.CDOM.year,
    RS.all, RS.clean.old, RS.final.new, RS.long.old, RS.no75, RS.old.nogeom, RS.year.old,
-   SD.avg, SD.year, RS.old, RS.parentdow, RS.filter, RS.mean, RS.secchi, secchi.help, secchi.help.clean, secchi.close)
+   SD.avg, SD.year, RS.old, RS.parentdow, RS.filter, RS.mean, RS.secchi, secchi.help, secchi.help.clean, secchi.close,
+   stain, stain.parentdow, stain.mean)
 
 
 #COMMENTED CODE BELOW EXPLORES WHICH REMOTE SENSED SECCHI DATA I CAN USE (HOW CLOSE THE YEAR HAS TO BE)
@@ -2558,7 +2589,7 @@ rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_comple
 #SAVE THE DATASET---------------------------------------------------------------------------------------------------------------------
 
 #change this date if you update things after today
-#write.csv(Join21, file = "Data/Output/Contemporary_Dataset_2026_03_25.csv", row.names = FALSE)
+#write.csv(Join21, file = "Data/Output/Contemporary_Dataset_2026_04_06.csv", row.names = FALSE)
 
 
 
