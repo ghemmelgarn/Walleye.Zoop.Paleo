@@ -982,3 +982,180 @@ NMDS_zoop_yoy
 #ggsave(filename = "Walleye_YOY_Zoop_NMDS.png", plot = NMDS_zoop_yoy, width = 8, height = 6, units = "in", dpi = 300)
 
 #walleye YOY on its own doesn't seem to affect zoops at all... also lots of missing data...
+
+
+
+
+#DATA SELECTION 4/6/26------------------------------------------------------------
+data3 <- read.csv("Data/Input/Contemporary_Dataset_2026_04_06.csv")
+
+#apply no trout and no high CDOM filters
+filter_3.38 <- data3 %>% 
+  #removes Hill south that does not have zoop data :(
+  filter(!is.na(total_zoop_biomass)) %>% 
+  #no NA values for selected covariates
+  filter(!is.na(secchi.meters.MPCA.Jul.to.Sept) & 
+           !is.na(gdd.year.5c) & 
+           !is.na(precip_5yr_avg_mm) & 
+           !is.na(area_ha) & 
+           !is.na(depth.max.m) & 
+           !is.na(photic_prop_secchi.meters.MPCA.Jul.to.Sept) &
+           !is.na(lake_connectivity_class) &
+           !is.na(SpinyWaterflea.yn) &
+           !is.na(ZebraMussel.yn)) %>% 
+  #remove trout lakes  
+  filter(!(BKT.CPUE > 0 | LAT.CPUE > 0 | RBT.CPUE > 0)) %>%  
+  #remove CDOM >= 3.38
+  filter(CDOM.lake.avg < 3.38)
+unique(filter_3.38$lake_name) 
+
+
+#isolate the high CDOM lakes
+high.CDOM <- data3 %>% 
+  #removes Hill south that does not have zoop data :(
+  filter(!is.na(total_zoop_biomass)) %>% 
+  #no NA values for selected covariates
+  filter(!is.na(secchi.meters.MPCA.Jul.to.Sept) & 
+           !is.na(gdd.year.5c) & 
+           !is.na(precip_5yr_avg_mm) & 
+           !is.na(area_ha) & 
+           !is.na(depth.max.m) & 
+           !is.na(photic_prop_secchi.meters.MPCA.Jul.to.Sept) &
+           !is.na(lake_connectivity_class) &
+           !is.na(SpinyWaterflea.yn) &
+           !is.na(ZebraMussel.yn)) %>% 
+  #remove trout lakes  
+  filter(!(BKT.CPUE > 0 | LAT.CPUE > 0 | RBT.CPUE > 0)) %>%  
+  #keep only high CDOM
+  filter(CDOM.lake.avg >= 3.38) %>% 
+  select(lake_name, Year, CDOM.lake.avg)
+
+#what if we made the cdom filter 3.6 so we don't lose Rainy and Namakan?
+filter_3.6 <- data3 %>% 
+  #removes Hill south that does not have zoop data :(
+  filter(!is.na(total_zoop_biomass)) %>% 
+  #no NA values for selected covariates
+  filter(!is.na(secchi.meters.MPCA.Jul.to.Sept) & 
+           !is.na(gdd.year.5c) & 
+           !is.na(precip_5yr_avg_mm) & 
+           !is.na(area_ha) & 
+           !is.na(depth.max.m) & 
+           !is.na(photic_prop_secchi.meters.MPCA.Jul.to.Sept) &
+           !is.na(lake_connectivity_class) &
+           !is.na(SpinyWaterflea.yn) &
+           !is.na(ZebraMussel.yn)) %>% 
+  #remove trout lakes  
+  filter(!(BKT.CPUE > 0 | LAT.CPUE > 0 | RBT.CPUE > 0)) %>%  
+  #remove CDOM >= 3.6
+  filter(CDOM.lake.avg < 3.6)
+unique(filter_3.6$lake_name) 
+
+
+#PLOTS FOR THE 3.38 CDOM filter:
+#plot temp v clarity
+temp.clar.3.38 <- ggplot(data = filter_3.38, aes(x = gdd.year.5c, y = secchi.meters.MPCA.Jul.to.Sept))+
+  geom_point()+
+  theme_classic()
+#png("Temp_Clarity_Pelagic_Model_3.38CDOM.png", width = 6, height = 6, units = "in", res = 300)
+ggMarginal(temp.clar.3.38, type = "density", fill = "skyblue", col = "blue", alpha = 0.8)
+#dev.off()
+
+#add in the MN fish data
+#format and rbind in the sample data
+filter_3.38.cpue <- filter_3.38 %>% 
+  select(lake_name, parentdow, Year, WAE.CPUE, LMB.CPUE) %>% 
+  mutate(type = "Pelagic Model",
+         parentdow = as.character(parentdow))
+MN.plot.data_3.38 <- rbind(all.fish.cpue, filter_3.38.cpue)
+
+#add in core lake data
+#rbind
+ALL.PLOT.DATA_3.38 <- rbind(MN.plot.data_3.38, core.surface, core.full)
+
+wae.lmb.core_3.38 <- ggplot(data = ALL.PLOT.DATA_3.38, aes(x = WAE.CPUE, y = LMB.CPUE, color = type))+
+  geom_point(alpha = 0.5)+
+  scale_color_manual(values = c("gray", "saddlebrown", "red", "blue"))+
+  theme_classic()
+#png("WAE_LMB_representation_3.38CDOM.png", width = 6, height = 6, units = "in", res = 300)
+ggMarginal(wae.lmb.core_3.38, type = "density", groupColor = TRUE, groupFill = TRUE)
+#dev.off()
+
+#plot this on log scae
+wae.lmb.core.log_3.38 <- ggplot(data = ALL.PLOT.DATA_3.38, aes(x = WAE.CPUE, y = LMB.CPUE, color = type))+
+  geom_point(alpha = 0.6, size = 3)+
+  scale_color_manual(values = c("gray", "saddlebrown", "red", "blue"))+
+  theme_classic()+
+  scale_x_log10(labels = scales::comma) + 
+  scale_y_log10(labels = scales::comma)
+#png("WAE_LMB_representation_log_3.38CDOM.png", width = 8, height = 6, units = "in", res = 300)
+ggMarginal(wae.lmb.core.log_3.38, type = "density", groupColor = TRUE, groupFill = TRUE)
+#dev.off()
+
+
+
+
+
+
+#PLOTS FOR THE 3.6 CDOM filter:
+#plot temp v clarity
+temp.clar.3.6 <- ggplot(data = filter_3.6, aes(x = gdd.year.5c, y = secchi.meters.MPCA.Jul.to.Sept))+
+  geom_point()+
+  theme_classic()
+#png("Temp_Clarity_Pelagic_Model_3.6CDOM.png", width = 6, height = 6, units = "in", res = 300)
+ggMarginal(temp.clar.3.6, type = "density", fill = "skyblue", col = "blue", alpha = 0.8)
+#dev.off()
+
+#add in the MN fish data
+#format and rbind in the sample data
+filter_3.6.cpue <- filter_3.6 %>% 
+  select(lake_name, parentdow, Year, WAE.CPUE, LMB.CPUE) %>% 
+  mutate(type = "Pelagic Model",
+         parentdow = as.character(parentdow))
+MN.plot.data_3.6 <- rbind(all.fish.cpue, filter_3.6.cpue)
+
+#add in core lake data
+#rbind
+ALL.PLOT.DATA_3.6 <- rbind(MN.plot.data_3.6, core.surface, core.full)
+
+wae.lmb.core_3.6 <- ggplot(data = ALL.PLOT.DATA_3.6, aes(x = WAE.CPUE, y = LMB.CPUE, color = type))+
+  geom_point(alpha = 0.5)+
+  scale_color_manual(values = c("gray", "saddlebrown", "red", "blue"))+
+  theme_classic()
+#png("WAE_LMB_representation_3.6CDOM.png", width = 6, height = 6, units = "in", res = 300)
+ggMarginal(wae.lmb.core_3.6, type = "density", groupColor = TRUE, groupFill = TRUE)
+#dev.off()
+
+#plot this on log scae
+wae.lmb.core.log_3.6 <- ggplot(data = ALL.PLOT.DATA_3.6, aes(x = WAE.CPUE, y = LMB.CPUE, color = type))+
+  geom_point(alpha = 0.6, size = 3)+
+  scale_color_manual(values = c("gray", "saddlebrown", "red", "blue"))+
+  theme_classic()+
+  scale_x_log10(labels = scales::comma) + 
+  scale_y_log10(labels = scales::comma)
+#png("WAE_LMB_representation_log_3.6CDOM.png", width = 8, height = 6, units = "in", res = 300)
+ggMarginal(wae.lmb.core.log_3.6, type = "density", groupColor = TRUE, groupFill = TRUE)
+#dev.off()
+
+
+#what happens to our sample size if we require walleye YOY data?
+filter_3.6_waeyoy <- data3 %>% 
+  #removes Hill south that does not have zoop data :(
+  filter(!is.na(total_zoop_biomass)) %>% 
+  #no NA values for selected covariates
+  filter(!is.na(secchi.meters.MPCA.Jul.to.Sept) & 
+           !is.na(gdd.year.5c) & 
+           !is.na(precip_5yr_avg_mm) & 
+           !is.na(area_ha) & 
+           !is.na(depth.max.m) & 
+           !is.na(photic_prop_secchi.meters.MPCA.Jul.to.Sept) &
+           !is.na(lake_connectivity_class) &
+           !is.na(SpinyWaterflea.yn) &
+           !is.na(ZebraMussel.yn)) %>% 
+  #remove trout lakes  
+  filter(!(BKT.CPUE > 0 | LAT.CPUE > 0 | RBT.CPUE > 0)) %>%  
+  #remove CDOM >= 3.6
+  filter(CDOM.lake.avg < 3.6) %>% 
+  filter(!is.na(WAE.YOY.CPUE))
+unique(filter_3.6_waeyoy$lake_name) 
+#BAD NEWS FOR THIS ONE
+  
