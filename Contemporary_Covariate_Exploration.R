@@ -1158,4 +1158,106 @@ filter_3.6_waeyoy <- data3 %>%
   filter(!is.na(WAE.YOY.CPUE))
 unique(filter_3.6_waeyoy$lake_name) 
 #BAD NEWS FOR THIS ONE
-  
+
+
+#TURBIDITY SOURCE--------------------------------------------------------------------------------
+
+#filter data based on decisions 4/7/26
+data.filter <- data3 %>% 
+  #removes Hill south that does not have zoop data :(
+  filter(!is.na(total_zoop_biomass)) %>% 
+  #no NA values for selected covariates
+  filter(!is.na(secchi.meters.MPCA.Jul.to.Sept) & 
+           !is.na(gdd.year.5c) & 
+           !is.na(precip_5yr_avg_mm) & 
+           !is.na(CDOM.lake.avg) &
+           !is.na(area_ha) & 
+           !is.na(depth.max.m) & 
+           !is.na(photic_prop_secchi.meters.MPCA.Jul.to.Sept) &
+           !is.na(SpinyWaterflea.yn) &
+           !is.na(ZebraMussel.yn)) %>% 
+  #remove trout lakes  
+  filter(!(BKT.CPUE > 0 | LAT.CPUE > 0 | RBT.CPUE > 0)) %>%  
+  #remove walleye yoy column
+  select(-WAE.YOY.CPUE)
+
+CDOM <- data.filter %>% 
+  select(parentdow, lake_name, Year, remote.CDOM, CDOM.lake.avg)
+
+#read in the turbidity source data  
+TS <- read.csv("Data/Input/Turbidity_Source_and_CDOM.csv")
+
+#Create parentdows in TS data
+TS.parentdow <- TS %>% 
+  mutate(parentdow = as.numeric(str_sub(DOW, 1, -3)))
+#apparently Red, Hill, and Vermilion are not in here so don't have to worry about sub-basins
+
+#Join the turbidity source data
+CDOM.TS <- left_join(CDOM, TS.parentdow, by = "parentdow")
+
+#get one row per lake and label lakes with no data
+CDOM.TS <- CDOM.TS %>% 
+  mutate(Source_Type = ifelse(is.na(Source_Type), "No Data", Source_Type)) %>% 
+  group_by(parentdow, lake_name) %>% 
+  summarize(CDOM.lake.avg = mean(CDOM.lake.avg),
+            CDOM = mean(CDOM),
+            Source_Type = first(Source_Type),
+            .groups = 'drop')
+
+table(CDOM.TS$Source_Type)
+
+#plot avg CDOM by turbidity source - recent CDOM
+New.CDOM <- ggplot(data = CDOM.TS, aes(x = Source_Type, y = CDOM.lake.avg))+
+  geom_boxplot()+
+  geom_point(color = "blue")+
+  theme_classic()+
+  scale_y_continuous(limits = c(0, 7))+
+  labs(title = "Updated 2026 CDOM Calculation")
+
+#same thing but with the old CDOM calculations
+Old.CDOM <- ggplot(data = CDOM.TS, aes(x = Source_Type, y = CDOM))+
+  geom_boxplot()+
+  geom_point(color = "blue")+
+  theme_classic()+
+  scale_y_continuous(limits = c(0, 7))+
+  labs(title = "Old CDOM Calculation")
+
+library(patchwork)
+CDOM.plots <- New.CDOM + Old.CDOM
+CDOM.plots
+
+#ggsave("Turbidity_Source_CDOM.png", CDOM.plots, width = 10, height = 5)
+
+#look at all data with the original calculations for comparison
+All.Old.CDOM <- ggplot(data = TS, aes(x = Source_Type, y = CDOM))+
+  geom_boxplot()+
+  #geom_point(color = "blue")+
+  theme_classic()+
+  scale_y_continuous(limits = c(0, 7))+
+  labs(title = "Old CDOM Calculation - All Lakes")
+All.Old.CDOM
+
+#read in all my updated CDOM calcs and join
+CDOM_2026 <- read.csv("Data/Input/Lake_Avg_CDOM.csv")
+
+CDOM.old.new <- full_join(CDOM_2026, TS.parentdow, by = "parentdow") %>% 
+  mutate(Source_Type = ifelse(is.na(Source_Type), "No Data", Source_Type))
+
+table(CDOM.old.new$Source_Type)
+
+All.New.CDOM <- ggplot(data = CDOM.old.new, aes(x = Source_Type, y = CDOM.lake.avg))+
+  geom_boxplot()+
+  #geom_point(color = "blue")+
+  theme_classic()+
+  scale_y_continuous(limits = c(0, 7))+
+  labs(title = "Updated 2026 Calculation - All Lakes")
+All.New.CDOM
+
+All.Lake.CDOM.Plots <-  All.New.CDOM + All.Old.CDOM
+All.Lake.CDOM.Plots
+
+#ggsave("Turbidity_Source_CDOM_All_Lakes.png", All.Lake.CDOM.Plots, width = 10, height = 5)
+
+
+
+
