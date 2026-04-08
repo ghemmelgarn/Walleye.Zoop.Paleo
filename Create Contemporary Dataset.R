@@ -346,6 +346,9 @@ stain.mean <- stain.parentdow %>%
             CDOM.lake.avg = mean(CDOM.lake.avg),
             .groups = 'drop')
 
+#save this stain mean file
+#write.csv(stain.mean, file = "Data/Output/Lake_Avg_CDOM.csv", row.names = FALSE)
+
 #Rename lake name to show where it came from to check matches later
 #also rename secchi to show this column is for exact year matches
 RS.final <- RS.mean %>%
