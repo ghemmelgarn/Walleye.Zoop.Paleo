@@ -10,7 +10,7 @@ library(corrplot)
 library(gclus)
 
 #read in data
-data <- read.csv("C:/Users/hemme129/Documents/Temp R Script and Data/Contemporary_Dataset_2026_04_06.csv")
+data <- read.csv("Data/Input/Contemporary_Dataset_2026_04_06.csv")
 
 #set seed to keep results consistent
 set.seed(13453)
