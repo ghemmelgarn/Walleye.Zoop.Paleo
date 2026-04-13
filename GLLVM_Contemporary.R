@@ -10,7 +10,7 @@ library(corrplot)
 library(gclus)
 
 #read in data
-data <- read.csv("Data/Input/Contemporary_Dataset_2026_04_06.csv")
+data <- read.csv("C:/Users/hemme129/Documents/Temp R Script and Data/Contemporary_Dataset_2026_04_06.csv")
 
 #set seed to keep results consistent
 set.seed(13453)
@@ -148,6 +148,7 @@ rownames(studyDesignData) <- paste0(data.filter$lake_name, data.filter$Year)
 
 #correlations between covariates (I have looked at this before but just confirming again)
 ggpairs(x)
+ggpairs(x_scale)
 #all looks good
 
 #percentages of zeroes in fish and zoops, vertical lines at 95% and 90%
@@ -745,6 +746,15 @@ gllvm::ordiplot(model1)
 plot(model1)
 #check power
 model1$Power
+#get residual correlations
+Theta <- getResidualCor(model1)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
 
 #extract tweedie power that the model estimated:
 m2$params$Power
@@ -759,7 +769,7 @@ m2$call
 #This assumes that random effect estimates are the same for all species
 #species-specific intercepts and slopes
 #no latent variables
-model2 <- gllvm(y = y, x = x, studyDesign = studyDesignData, row.eff = ~(1|lake), num.lv = 0, family = "tweedie", Power = NULL, 
+model2 <- gllvm(y = y, studyDesign = studyDesignData, row.eff = ~(1|lake), num.lv = 0, family = "tweedie", Power = NULL, 
             control.start = (n.init = 5), jitter.var = 0.1)
 beep()
 #summary and model performance plots
@@ -772,7 +782,7 @@ model2$Power
 
 
 #same as model2 but now there is one latent variable
-model3 <- gllvm(y = y, x = x, studyDesign = studyDesignData, row.eff = ~(1|lake), num.lv = 1, family = "tweedie", Power = NULL, 
+model3 <- gllvm(y = y, studyDesign = studyDesignData, row.eff = ~(1|lake), num.lv = 1, family = "tweedie", Power = NULL, 
                 control.start = (n.init = 5), jitter.var = 0.1)
 beep()
 #check power
@@ -811,7 +821,7 @@ model3$params$sigma
 
 
 #same as model2 but now there are 2 latent variables
-model4 <- gllvm(y = y, x = x, studyDesign = studyDesignData, row.eff = ~(1|lake), num.lv = 2, family = "tweedie", Power = NULL, 
+model4 <- gllvm(y = y, studyDesign = studyDesignData, row.eff = ~(1|lake), num.lv = 2, family = "tweedie", Power = NULL, 
                 control.start = (n.init = 5), jitter.var = 0.1)
 beep()
 #check power
@@ -831,29 +841,87 @@ corrplot(Theta[order.single(Theta), order.single(Theta)],
          tl.col = "red")
 #looking better!
 
+#same as model4 but now we have random lake and random year effect
+model4.1 <- gllvm(y = y, studyDesign = studyDesignData, row.eff = ~(1|lake) + (1|year), num.lv = 2, family = "tweedie", Power = NULL, 
+                control.start = (n.init = 5), jitter.var = 0.1)
+beep()
+#check power
+model4.1$Power
+#summary and model performance plots
+summary(model4.1)
+gllvm::ordiplot(model4.1)
+plot(model4.1)
+#get residual correlations
+Theta <- getResidualCor(model4.1)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
 
+#same as model4 but now we have NESTED random lake and random year effect - but I don't think we actually want these to be nested
+model4.2 <- gllvm(y = y, studyDesign = studyDesignData, row.eff = ~(1|lake/year), num.lv = 2, family = "tweedie", Power = NULL, 
+                  control.start = (n.init = 5), jitter.var = 0.1)
+beep()
+#check power
+model4.2$Power
+#summary and model performance plots
+summary(model4.2)
+gllvm::ordiplot(model4.2)
+plot(model4.2)
+#get residual correlations
+Theta <- getResidualCor(model4.2)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#negligible difference from nesting
 
 
 
 #Let's jump off the deep end and try to code the whole model, but without latent variables
 #the random effects here are NOT species-specific
-model5 <- gllvm(y = y, x = x, studyDesign = studyDesignData, 
+model5 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
                 formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
                 row.eff = ~(1|lake) + (1|year), 
                 num.lv = 0, family = "tweedie", Power = NULL, 
-                sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
                 control.start = (n.init = 5), jitter.var = 0.1)
 beep()
+#save output so I don't always have to rerun it
+#saveRDS(model5, file = "model5.rds")
 #check power
 model5$Power
 #summary and model performance plots
 summary(model5)
 plot(model5)
+#can't get residual correlations because no latent variables
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model5, "row.params.random"), Lake = names(coef(model5, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model5$params$sigma
+#look at coefficient effects
+coefplot(model5,
+         #which.Xcoef = "CDOM",
+         cex.ylab = 1,
+         order = TRUE)
+
 
 
 #make the random effects species-specific
 #diag argument keeps the species-specific random effects from being correlated with each other (completeley independent) - also helps model converge
-model6 <- gllvm(y = y, x = x, studyDesign = studyDesignData, 
+model6 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
                 formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + diag((1|lake)) + diag((1|year)),
                 num.lv = 0, family = "tweedie", Power = NULL, 
                 sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
@@ -867,21 +935,234 @@ plot(model6)
 
 
 #random effects are NOT species-specific but now we have 1 latent variable
-model7 <- gllvm(y = y, x = x, studyDesign = studyDesignData, 
+model7 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
                 formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
                 row.eff = ~(1|lake) + (1|year), 
                 num.lv = 1, family = "tweedie", Power = NULL, 
-                sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
                 control.start = (n.init = 5), jitter.var = 0.1)
 beep()
+#save output so I don't always have to rerun it
+#saveRDS(model7, file = "model7.rds")
+#check power
+model7$Power
+#summary and model performance plots
+summary(model7)
+par(mfrow = c(1, 1))
+plot(model7)
+#can't get residual correlations because no latent variables
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model7, "row.params.random"), Lake = names(coef(model7, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model7$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model7)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#look at coefficient effects
+coefplot(model7,
+         cex.ylab = 1,
+         order = TRUE)
+#ordination
+gllvm::ordiplot(model7)
+#THIS IS BAD, ONE LATENT VARIABLE DOES NOT WORK - caused overfitting and math collapsed
+
+
 
 
 #random effects are NOT species-specific but now we have 2 latent variables
-model8 <- gllvm(y = y, x = x, studyDesign = studyDesignData, 
+model8 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
                 formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
                 row.eff = ~(1|lake) + (1|year), 
                 num.lv = 2, family = "tweedie", Power = NULL, 
-                sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
                 control.start = (n.init = 5), jitter.var = 0.1)
 beep()
+#save output so I don't always have to rerun it
+#saveRDS(model8, file = "model8.rds")
+#check power
+model8$Power
+#summary and model performance plots
+summary(model8)
+par(mfrow = c(1, 1))
+plot(model8)
+#can't get residual correlations because no latent variables
+#ordination
+gllvm::ordiplot(model8)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model8, "row.params.random"), Lake = names(coef(model8, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model8$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model8)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#look at coefficient effects
+coefplot(model8,
+         cex.ylab = 1,
+         order = TRUE)
 
+
+
+#random effects are NOT species-specific but now we have 3 latent variables
+model9 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
+                formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
+                row.eff = ~(1|lake) + (1|year), 
+                num.lv = 3, family = "tweedie", Power = NULL, 
+                #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                control.start = (n.init = 5), jitter.var = 0.1)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model9, file = "model9.rds")
+#check power
+model9$Power
+#summary and model performance plots
+summary(model9)
+par(mfrow = c(1, 1))
+plot(model9)
+#ordination
+gllvm::ordiplot(model9)
+#can't get residual correlations because no latent variables
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model9, "row.params.random"), Lake = names(coef(model9, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model9$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model9)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#look at coefficient effects
+coefplot(model9,
+         cex.ylab = 1,
+         order = TRUE)
+
+
+
+#Same as model 9, keeps random structure but no environmental predictors
+model10 <- gllvm(y = y, studyDesign = studyDesignData,
+                 row.eff = ~(1|lake) + (1|year), 
+                 num.lv = 3, family = "tweedie", Power = NULL, 
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 5), jitter.var = 0.1)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model10, file = "model10.rds")
+#check power
+model10$Power
+#summary and model performance plots
+summary(model10)
+par(mfrow = c(1, 1))
+plot(model10)
+gllvm::ordiplot(model10)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model10, "row.params.random"), Lake = names(coef(model10, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model10$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model10)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+
+
+
+#let's try out the concurrent ordination with two latent variables, study design incorporated, no latent variable correlations yet
+model11 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
+                 row.eff = ~(1|lake) + (1|year), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 5), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8) #this changes the optimization criteria to be stricter for convergence (added in reponse to a warning message I got)
+                 )
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model11, file = "model11.rds")
+#check power
+model11$Power
+#summary and model performance plots
+summary(model11)
+par(mfrow = c(1, 1))
+plot(model11)
+gllvm::ordiplot(model11)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model11, "row.params.random"), Lake = names(coef(model11, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model11$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model11)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+# Env <- getEnvironCor(model11)
+# corrplot(Theta[order.single(Env), order.single(Env)],
+#          diag = FALSE,
+#          type = "lower",
+#          method = "square",
+#          tl.cex = 0.5,
+#          t.srt = 45,
+#          tl.col = "red")
+
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+
+#look at coefficient effects
+coefplot(model11,
+         cex.ylab = 1,
+         order = FALSE)
