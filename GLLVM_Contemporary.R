@@ -41,15 +41,21 @@ data.filter <- data %>%
   #remove trout lakes  
   filter(!(BKT.CPUE > 0 | LAT.CPUE > 0 | RBT.CPUE > 0)) %>%  
   #remove walleye yoy column
-  select(-WAE.YOY.CPUE)
+  select(-WAE.YOY.CPUE) %>% 
+  #make rainbow smelt and and common carp into yes/no covariates like bytho and zebra mussels, then remove their CPUE columns
+  mutate(RBS.yn = ifelse(RBS.CPUE > 0, "yes", "no"),
+         CAP.yn = ifelse(CAP.CPUE > 0, "yes", "no")) %>% 
+  select(-RBS.CPUE, -CAP.CPUE)
 
 #make covariate dataframe
 x <- data.filter %>% 
   select(secchi.meters.MPCA.Jul.to.Sept, gdd.year.5c, precip_5yr_avg_mm, CDOM.lake.avg, area_ha, depth.max.m, photic_prop_secchi.meters.MPCA.Jul.to.Sept, 
-         SpinyWaterflea.yn, ZebraMussel.yn) %>% 
+         SpinyWaterflea.yn, ZebraMussel.yn, RBS.yn, CAP.yn) %>% 
   #set categorical variables as factors
   mutate(SpinyWaterflea.yn = as.factor(SpinyWaterflea.yn),
-         ZebraMussel.yn = as.factor(ZebraMussel.yn)) %>% 
+         ZebraMussel.yn = as.factor(ZebraMussel.yn),
+         RBS.yn = as.factor(RBS.yn),
+         CAP.yn = as.factor(CAP.yn)) %>% 
   #rename everything shorter
   rename(Secchi = secchi.meters.MPCA.Jul.to.Sept,
          GDD = gdd.year.5c,
@@ -76,36 +82,76 @@ x_scale <- as.data.frame(x_scale)
 
 #make a species abundance dataframe
 #calculate relative abundance within fish and within zoops, then cbind them together
+#now to be included, a taxa group must be present in at least 95% of samples (lake-years), be present in more than two lakes, and have passed an ecological gut check by Grace (is this species usually found in lakes?)
+
+#INVESTIGATING RARE SPECIES
+#First question: are there any species only present in one lake?
+#regroup the daphnia how we discussed in committee meeting
+data.daphnia <- data.filter %>% 
+  mutate(Daphnia.small.rare = rowSums(across(c(Daphnia.rosea, Daphnia.ambigua, Daphnia.sp.)))) %>% 
+  select(-Daphnia.rosea, -Daphnia.ambigua, -Daphnia.sp.) %>% 
+  relocate(Daphnia.small.rare, .after = Daphnia.retrocurva)
+
+#get the max value for each species in each lake (will be 0 if never present)
+lake.spp <- data.daphnia %>% 
+  group_by(lake_name) %>% 
+  summarize(across(BIB.CPUE:nauplii, max),
+            .groups = 'drop')
+#for each species, count the number of lakes where it has a value greater than 0 in at least one year
+spp.lake.count <- colSums(lake.spp > 0)
+spp.lake.count
+#make a list of species present in two or fewer lakes
+spp.drop.lake <- names(spp.lake.count[spp.lake.count < 3])
+spp.drop.lake
+
+#calculate species present in less than 95% of lake-year samples
+#isolate species
+spp <- data.daphnia %>% 
+  select(BIB.CPUE:nauplii)
+#proportion of zeroes in species data
+spp_prop_0 <- colSums(spp == 0, na.rm = TRUE)/nrow(spp)
+#isolate proportions of zeroes over 95%
+spp_prop_0_0.95 <- spp_prop_0[spp_prop_0 > 0.95]
+#make this a vector of names
+spp_names_rare <- names(spp_prop_0_0.95)
+
+#combine the list of names for the two reasons to be dropped, only keep one if repeated in both lists
+spp.drop <- unique(c(spp.drop.lake, spp_names_rare))
+spp.drop
+
+#remove columns for the species to drop
+spp.filter <- spp %>% 
+  select(-all_of(spp.drop))
+#what's left?
+names(spp.filter)
+
+#look at magnitude of fish vs. zoop data
+mag.plot.data <- spp.filter %>% 
+  pivot_longer(cols = everything(), names_to = "species", values_to = "abundance") %>% 
+  mutate(group = ifelse(str_ends(species, "CPUE"), "fish", "zoop"))
+mag.plot.raw <- ggplot(data = mag.plot.data, aes(x = species, y = abundance, color = group))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+mag.plot.raw
+#plot again but limit y axis to not include outliers
+mag.plot.raw.zoom <- ggplot(data = mag.plot.data, aes(x = species, y = abundance, color = group))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  scale_y_continuous(limits = c(0,5))
+mag.plot.raw.zoom
+#actually looks okay, not transforming at all
 
 #isolate fish data
-fish <- data.filter %>% 
-  select(BIB.CPUE:YEP.CPUE)
-#proportion of zeroes in fish data
-fish_prop_0 <- colSums(fish == 0, na.rm = TRUE)/nrow(fish)
-#isolate proportions of zeroes over 95%
-fish_prop_0_0.95 <- fish_prop_0[fish_prop_0 > 0.95]
-#make this a vector of names
-fish_names_rare <- names(fish_prop_0_0.95)
-#make a version of fish that does not have rare species (occurs in at least 5% of lake-years)
-fish_no_rare <- fish %>% 
-  select(-all_of(fish_names_rare))
+fish <- spp.filter %>% 
+  select(BLC.CPUE:YEP.CPUE)
 #relative abundance
-fish_rel_abun <- fish_no_rare / rowSums(fish_no_rare)
+fish_rel_abun <- fish / rowSums(fish)
 
 #isolate zoop data
-zoop <- data.filter %>% 
-  select(Acroperus.harpae:nauplii)
-#proportion of zeroes in zoop data
-zoop_prop_0 <- colSums(zoop == 0, na.rm = TRUE)/nrow(zoop)
-#isolate proportions of zeroes over 95%
-zoop_prop_0_0.95 <- zoop_prop_0[zoop_prop_0 > 0.95]
-#make this a vector of names
-zoop_names_rare <- names(zoop_prop_0_0.95)
-#make a version of zoop that does not have rare species (occurs in at least 5% of lake-years)
-zoop_no_rare <- zoop %>% 
-  select(-all_of(zoop_names_rare))
+zoop <- spp.filter %>% 
+  select(Alona.sp.:nauplii)
 #relative abundance
-zoop_rel_abun <- zoop_no_rare / rowSums(zoop_no_rare)
+zoop_rel_abun <- zoop / rowSums(zoop)
 
 #isolate zoop summary metrics (may or may not include them)
 zoop_sum <- data.filter %>% 
@@ -118,21 +164,22 @@ zoop_sum_filter <- zoop_sum %>%
   select(-mean_length_all_zoop)
 
 #create the fish and zoop abundance matrix together
-y <- cbind(fish_rel_abun, zoop_rel_abun)
+y_rel_abun <- cbind(fish_rel_abun, zoop_rel_abun)
+y_raw <- cbind(fish, zoop)
 
 #set N as number of lake-years and N.taxa as number of taxa in response matrix
 N <- nrow(x)
-N.taxa <- ncol(y)
+N.taxa <- ncol(y_rel_abun)
 
 #set rownames to be the same in both matrices
 rownames(x) <- paste0(data.filter$lake_name, data.filter$Year)
 rownames(x_scale) <- paste0(data.filter$lake_name, data.filter$Year) #note that these rownames are there, just not visible in viewer
-rownames(y) <- paste0(data.filter$lake_name, data.filter$Year)
+rownames(y_rel_abun) <- paste0(data.filter$lake_name, data.filter$Year)
+rownames(y_raw) <- paste0(data.filter$lake_name, data.filter$Year)
  
-
-
-#create a version with the zoop summary stats too
-y_zoop_sum <- cbind(y, zoop_sum_filter)
+# #create a version with the zoop summary stats too
+# y_zoop_sum <- cbind(y, zoop_sum_filter)
+#NOT DOING THIS
 
 
 #create study design matrix
@@ -145,6 +192,7 @@ rownames(studyDesignData) <- paste0(data.filter$lake_name, data.filter$Year)
 
 
 #SOME DATA EXPLORATION, GUIDED BY ZURR & IENO BOOK--------------------------------------------
+#I CHANGED SOME OF THE CALCULATIONS PREVIOUS TO THIS SECTION AND DID NOT UPDATE THIS SECTION
 
 #correlations between covariates (I have looked at this before but just confirming again)
 ggpairs(x)
@@ -1111,7 +1159,7 @@ corrplot(Theta[order.single(Theta), order.single(Theta)],
 
 
 
-#let's try out the concurrent ordination with two latent variables, study design incorporated, no latent variable correlations yet
+#let's try out the concurrent ordination with two latent variables, study design incorporated
 model11 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
                  lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
                  row.eff = ~(1|lake) + (1|year), 
@@ -1166,3 +1214,122 @@ corrplot(Theta[order.single(Theta), order.single(Theta)],
 coefplot(model11,
          cex.ylab = 1,
          order = FALSE)
+
+
+#MODELS AFTER COMMITTEE MEETING----------------------------------------------------------------------
+#overall changes:
+  #no more random year effect
+  #be more restrictive on species included in the model
+      #lumping small rare daphnia
+      
+
+
+
+            
+            
+            
+            
+            
+
+#env outside ordination with 3 lvs
+#random effects are NOT species-specific but now we have 3 latent variables
+model12 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
+                formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
+                row.eff = ~(1|lake), 
+                num.lv = 3, family = "tweedie", Power = NULL, 
+                #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                control.start = (n.init = 5), jitter.var = 0.1)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model12, file = "model12.rds")
+#check power
+model12$Power
+#summary and model performance plots
+summary(model12)
+par(mfrow = c(1, 1))
+plot(model12)
+#ordination
+gllvm::ordiplot(model12)
+#can't get residual correlations because no latent variables
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model12, "row.params.random"), Lake = names(coef(model12, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model12$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model12)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#look at coefficient effects
+coefplot(model12,
+         cex.ylab = 1,
+         order = TRUE)
+
+
+
+#concurrent ordination with 3 concurrent lvs
+model13 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 5), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8) #this changes the optimization criteria to be stricter for convergence (added in reponse to a warning message I got)
+)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model13, file = "model13.rds")
+#check power
+model13$Power
+#summary and model performance plots
+summary(model13)
+par(mfrow = c(1, 1))
+plot(model13)
+gllvm::ordiplot(model13)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model13, "row.params.random"), Lake = names(coef(model13, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model13$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model13)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+# Env <- getEnvironCor(model13)
+# corrplot(Theta[order.single(Env), order.single(Env)],
+#          diag = FALSE,
+#          type = "lower",
+#          method = "square",
+#          tl.cex = 0.5,
+#          t.srt = 45,
+#          tl.col = "red")
+
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+
+#look at coefficient effects
+coefplot(model13,
+         cex.ylab = 1,
+         order = FALSE)
+
