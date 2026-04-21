@@ -65,7 +65,9 @@ x <- data.filter %>%
          Max_Depth = depth.max.m,
          Photic = photic_prop_secchi.meters.MPCA.Jul.to.Sept,
          SWF = SpinyWaterflea.yn,
-         ZM = ZebraMussel.yn)
+         ZM = ZebraMussel.yn,
+         RBS = RBS.yn,
+         CAP = CAP.yn)
 
   #standardize all quantitative variables (except the proportion) with scale function
 x_scale <- x  %>% 
@@ -1221,20 +1223,202 @@ coefplot(model11,
   #no more random year effect
   #be more restrictive on species included in the model
       #lumping small rare daphnia
-      
+
+#super basic with the new response matrices
+#model with no covariates on relative abundance data
+model.nocov.rel <- gllvm(y = y_rel_abun, num.lv = 3, family = "tweedie", Power = NULL,
+                control.start = (n.init = 3))
+#power argument tells R to find the tweedie coefficient that best fits my data
+beep()
+#summary and model performance plots
+summary(model.nocov.rel)
+gllvm::ordiplot(model.nocov.rel)
+plot(model.nocov.rel)
+#check power
+model.nocov.rel$Power
+#get residual correlations
+Theta <- getResidualCor(model.nocov.rel)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
 
 
 
-            
-            
-            
-            
-            
+#model with no covariates on raw data
+model.nocov.raw <- gllvm(y = y_raw, num.lv = 3, family = "tweedie", Power = NULL,
+                         control.start = (n.init = 3))
+#power argument tells R to find the tweedie coefficient that best fits my data
+beep()
+#summary and model performance plots
+summary(model.nocov.raw)
+gllvm::ordiplot(model.nocov.raw)
+plot(model.nocov.raw)
+#check power
+model.nocov.raw$Power
+#get residual correlations
+Theta <- getResidualCor(model.nocov.raw)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+#random effects of lake but still no covariates
+#model with no covariates on relative abundance data
+model.lake.rel <- gllvm(y = y_rel_abun, studyDesign = studyDesignData, num.lv = 3, family = "tweedie", Power = NULL,
+                        row.eff = ~(1|lake), control.start = (n.init = 3))
+#power argument tells R to find the tweedie coefficient that best fits my data
+beep()
+#summary and model performance plots
+summary(model.lake.rel)
+gllvm::ordiplot(model.lake.rel)
+plot(model.lake.rel)
+#check power
+model.lake.rel$Power
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model.lake.rel, "row.params.random"), Lake = names(coef(model.lake.rel, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model.lake.rel$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model.lake.rel)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+
+#model with no covariates on raw data
+model.lake.raw <- gllvm(y = y_raw, studyDesign = studyDesignData, num.lv = 3, family = "tweedie", Power = NULL,
+                        row.eff = ~(1|lake), control.start = (n.init = 3))
+#power argument tells R to find the tweedie coefficient that best fits my data
+beep()
+#summary and model performance plots
+summary(model.lake.raw)
+gllvm::ordiplot(model.lake.raw)
+plot(model.lake.raw)
+#check power
+model.lake.raw$Power
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model.lake.raw, "row.params.random"), Lake = names(coef(model.lake.raw, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model.lake.raw$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model.lake.raw)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+#try species-specific random effects on raw data (not relative abundance)
+model.lake.raw.spp <- gllvm(y = y_raw, studyDesign = studyDesignData, num.lv = 3, family = "tweedie", Power = NULL,
+                        formula = ~diag((1|lake)), 
+                        sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                        control.start = (n.init = 10), jitter.var = 0.1)
+#power argument tells R to find the tweedie coefficient that best fits my data
+beep()
+#save output so I don't always have to rerun it
+saveRDS(model.lake.raw.spp, file = "model_lake_raw_spp.rds")
+#summary and model performance plots
+summary(model.lake.raw.spp)
+gllvm::ordiplot(model.lake.raw.spp)
+plot(model.lake.raw.spp)
+#check power
+model.lake.raw.spp$Power
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model.lake.raw.spp, "row.params.random"), Lake = names(coef(model.lake.raw.spp, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model.lake.raw.spp$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model.lake.raw.spp)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+
+
 
 #env outside ordination with 3 lvs
 #random effects are NOT species-specific but now we have 3 latent variables
-model12 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
-                formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
+model12 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
                 row.eff = ~(1|lake), 
                 num.lv = 3, family = "tweedie", Power = NULL, 
                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
