@@ -8,6 +8,7 @@ library(GGally) #for ggpairs function
 library(beepr)
 library(corrplot)
 library(gclus)
+library(gridExtra)
 
 #read in data
 data <- read.csv("Data/Input/Contemporary_Dataset_2026_04_06.csv")
@@ -76,7 +77,8 @@ x_scale <- x  %>%
          Precip = scale(Precip),
          CDOM = scale(CDOM),
          Area = scale(Area),
-         Max_Depth = scale(Max_Depth))
+         Max_Depth = scale(Max_Depth),
+         Photic = scale(Photic, center = FALSE, scale = TRUE)) #SCALE BUT NOT CENTER FOR MODEL PERFORMANCE REASONS
 #set x as a dataframe for rownames later
 x_scale <- as.data.frame(x_scale)
   
@@ -199,7 +201,7 @@ rownames(studyDesignData) <- paste0(data.filter$lake_name, data.filter$Year)
 #correlations between covariates (I have looked at this before but just confirming again)
 ggpairs(x)
 ggpairs(x_scale)
-#all looks good
+v#all looks good
 
 #percentages of zeroes in fish and zoops, vertical lines at 95% and 90%
 #before removing rare species
@@ -273,7 +275,7 @@ MyVar <- c("secchi.meters.MPCA.Jul.to.Sept", "gdd.year.5c", "precip_5yr_avg_mm",
 #' First create the row number:
 data.filter$RowNum <- 1:nrow(data.filter)  #' nrow is the number of rows
 #' Convert from wide to long format.
-data.filter_long_quant <- pivot_longer(data.filter, 
+data.filter_long_quant <- pivot_longer(data.daphnia, 
                           cols = all_of(MyVar), 
                           names_to = "ID2", 
                           values_to = "AllY")
@@ -293,8 +295,8 @@ p
 
 #scatterplots of each species vs. each covariate
 #' Convert the data from wide to long format.
-SpecNames <- colnames(y)
-data.filter_long <- pivot_longer(data.filter, 
+SpecNames <- colnames(data.daphnia[47:118])
+data.filter_long <- pivot_longer(data.daphnia, 
                          cols = all_of(SpecNames), 
                          names_to = "ID2", 
                          values_to = "AllY")
@@ -410,6 +412,137 @@ zm.plot <- ggplot(data = data.filter_long,
   theme_minimal() +
   facet_wrap(~ID2, scales = "free_y")
 zm.plot       
+
+
+
+#Look at walleye responses to each covariate
+walleye <- data.daphnia %>% 
+  select(lake_name, Year, WAE.CPUE, secchi.meters.MPCA.Jul.to.Sept, gdd.year.5c, precip_5yr_avg_mm, photic_prop_secchi.meters.MPCA.Jul.to.Sept,
+         CDOM.lake.avg, area_ha, depth.max.m, SpinyWaterflea.yn, ZebraMussel.yn, RBS.yn, CAP.yn)
+wae.secchi <- ggplot(data = walleye, aes(x = secchi.meters.MPCA.Jul.to.Sept, y = WAE.CPUE))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Secchi")+
+  theme_classic()
+wae.gdd <- ggplot(data = walleye, aes(x = gdd.year.5c, y = WAE.CPUE))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "GDD")+
+  theme_classic()
+wae.precip <- ggplot(data = walleye, aes(x = precip_5yr_avg_mm, y = WAE.CPUE))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Precip")+
+  theme_classic()
+wae.no.outlier <- walleye %>% 
+  filter(precip_5yr_avg_mm < 1000)
+wae.precip.no.outlier <- ggplot(data = wae.no.outlier, aes(x = precip_5yr_avg_mm, y = WAE.CPUE))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Precip No Outlier")+
+  theme_classic()
+wae.photic <- ggplot(data = walleye, aes(x = photic_prop_secchi.meters.MPCA.Jul.to.Sept, y = WAE.CPUE))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Photic Proportion")+
+  theme_classic()
+wae.cdom <- ggplot(data = walleye, aes(x = CDOM.lake.avg, y = WAE.CPUE))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "CDOM")+
+  theme_classic()
+wae.area <- ggplot(data = walleye, aes(x = area_ha, y = WAE.CPUE))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Area")+
+  theme_classic()
+wae.depth <- ggplot(data = walleye, aes(x = depth.max.m, y = WAE.CPUE))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Max Depth")+
+  theme_classic()
+wae.swf <- ggplot(data = walleye, aes(x = SpinyWaterflea.yn, y = WAE.CPUE))+
+  geom_boxplot()+
+  labs(title = "Spiny Water Flea")+
+  theme_classic()
+wae.zm <- ggplot(data = walleye, aes(x = ZebraMussel.yn, y = WAE.CPUE))+
+  geom_boxplot()+
+  labs(title = "Zebra Mussel")+
+  theme_classic()
+wae.rbs <- ggplot(data = walleye, aes(x = RBS.yn, y = WAE.CPUE))+
+  geom_boxplot()+
+  labs(title = "Rainbow Smelt")+
+  theme_classic()
+wae.cap <- ggplot(data = walleye, aes(x = CAP.yn, y = WAE.CPUE))+
+  geom_boxplot()+
+  labs(title = "Common Carp")+
+  theme_classic()
+wae.plots <- grid.arrange(wae.secchi, wae.gdd, wae.precip, wae.precip.no.outlier, wae.photic, wae.cdom, wae.area, wae.depth, wae.swf, wae.zm, wae.rbs, wae.cap, ncol = 4)
+#ggsave(filename = "Wae_covariates_cpue.png", plot = wae.plots, width = 8, height = 6, units = "in", dpi = 300)
+
+#look at the walleye but with relative abundance now
+wae.rel.abun <- y_rel_abun[,"WAE.CPUE"]
+walleye.rel.abun <- cbind(walleye, wae.rel.abun)
+wae.secchi <- ggplot(data = walleye.rel.abun, aes(x = secchi.meters.MPCA.Jul.to.Sept, y = wae.rel.abun))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Secchi")+
+  theme_classic()
+wae.gdd <- ggplot(data = walleye.rel.abun, aes(x = gdd.year.5c, y = wae.rel.abun))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "GDD")+
+  theme_classic()
+wae.precip <- ggplot(data = walleye.rel.abun, aes(x = precip_5yr_avg_mm, y = wae.rel.abun))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Precip")+
+  theme_classic()
+wae.no.outlier.rel <- walleye.rel.abun %>% 
+  filter(precip_5yr_avg_mm < 1000)
+wae.precip.no.outlier <- ggplot(data = wae.no.outlier.rel, aes(x = precip_5yr_avg_mm, y = wae.rel.abun))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Precip No Outlier")+
+  theme_classic()
+wae.photic <- ggplot(data = walleye.rel.abun, aes(x = photic_prop_secchi.meters.MPCA.Jul.to.Sept, y = wae.rel.abun))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Photic Proportion")+
+  theme_classic()
+wae.cdom <- ggplot(data = walleye.rel.abun, aes(x = CDOM.lake.avg, y = wae.rel.abun))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "CDOM")+
+  theme_classic()
+wae.area <- ggplot(data = walleye.rel.abun, aes(x = area_ha, y = wae.rel.abun))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Area")+
+  theme_classic()
+wae.depth <- ggplot(data = walleye.rel.abun, aes(x = depth.max.m, y = wae.rel.abun))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  labs(title = "Max Depth")+
+  theme_classic()
+wae.swf <- ggplot(data = walleye.rel.abun, aes(x = SpinyWaterflea.yn, y = wae.rel.abun))+
+  geom_boxplot()+
+  labs(title = "Spiny Water Flea")+
+  theme_classic()
+wae.zm <- ggplot(data = walleye.rel.abun, aes(x = ZebraMussel.yn, y = wae.rel.abun))+
+  geom_boxplot()+
+  labs(title = "Zebra Mussel")+
+  theme_classic()
+wae.rbs <- ggplot(data = walleye.rel.abun, aes(x = RBS.yn, y = wae.rel.abun))+
+  geom_boxplot()+
+  labs(title = "Rainbow Smelt")+
+  theme_classic()
+wae.cap <- ggplot(data = walleye.rel.abun, aes(x = CAP.yn, y = wae.rel.abun))+
+  geom_boxplot()+
+  labs(title = "Common Carp")+
+  theme_classic()
+wae.plots <- grid.arrange(wae.secchi, wae.gdd, wae.precip, wae.precip.no.outlier, wae.photic, wae.cdom, wae.area, wae.depth, wae.swf, wae.zm, wae.rbs, wae.cap, ncol = 4)
+#ggsave(filename = "Wae_covariates_rel_abundance.png", plot = wae.plots, width = 8, height = 6, units = "in", dpi = 300)
 
 #Total CPUE of fish and biomass of zoops by year and lake
 data.filter$lake_name <- as.factor(data.filter$lake_name)
@@ -1415,9 +1548,9 @@ corrplot(Theta,
 
 
 
-#env outside ordination with 3 lvs
-#random effects are NOT species-specific but now we have 3 latent variables
-model12 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+#env outside ordination with 3 lvs, raw response data
+#random effects are NOT species-specific
+model12_raw <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
                 formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
                 row.eff = ~(1|lake), 
                 num.lv = 3, family = "tweedie", Power = NULL, 
@@ -1425,18 +1558,18 @@ model12 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
                 control.start = (n.init = 5), jitter.var = 0.1)
 beep()
 #save output so I don't always have to rerun it
-#saveRDS(model12, file = "model12.rds")
+#saveRDS(model12_raw, file = "model12_raw.rds")
 #check power
-model12$Power
+model12_raw$Power
 #summary and model performance plots
-summary(model12)
+summary(model12_raw)
 par(mfrow = c(1, 1))
-plot(model12)
+plot(model12_raw)
 #ordination
-gllvm::ordiplot(model12)
+gllvm::ordiplot(model12_raw)
 #can't get residual correlations because no latent variables
 #collect and plot random effects
-rand.lake <- data.frame(Rand_Effect_Value = coef(model12, "row.params.random"), Lake = names(coef(model12, "row.params.random")))
+rand.lake <- data.frame(Rand_Effect_Value = coef(model12_raw, "row.params.random"), Lake = names(coef(model12_raw, "row.params.random")))
 ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
   geom_point()+
   theme_classic()+
@@ -1444,10 +1577,18 @@ ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
     axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
   )
 #look at sigma of random effects
-model12$params$sigma
+model12_raw$params$sigma
 #get residual correlations
-Theta <- getResidualCor(model12)
+Theta <- getResidualCor(model12_raw)
 corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
          diag = FALSE,
          type = "lower",
          method = "square",
@@ -1455,33 +1596,33 @@ corrplot(Theta[order.single(Theta), order.single(Theta)],
          t.srt = 45,
          tl.col = "red")
 #look at coefficient effects
-coefplot(model12,
+coefplot(model12_raw,
          cex.ylab = 1,
          order = TRUE)
 
-
-
-#concurrent ordination with 3 concurrent lvs
-model13 <- gllvm(y = y, X = x_scale, studyDesign = studyDesignData, 
-                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM,
-                 row.eff = ~(1|lake), 
-                 num.lv.c = 3, family = "tweedie", Power = NULL, 
-                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
-                 control.start = (n.init = 5), jitter.var = 0.1,
-                 control = list(reltol.c = 1e-8) #this changes the optimization criteria to be stricter for convergence (added in reponse to a warning message I got)
-)
+#env outside ordination with 3 lvs, relative abundance response data
+#random effects are NOT species-specific
+#had a hard time getting this one to converge
+model12_rel <- gllvm(y = y_rel_abun, X = x_scale, studyDesign = studyDesignData, 
+                     formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake), 
+                     num.lv = 3, family = "tweedie", Power = NULL, 
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 10), jitter.var = 0.1)
 beep()
 #save output so I don't always have to rerun it
-#saveRDS(model13, file = "model13.rds")
+#saveRDS(model12_rel, file = "model12_rel.rds")
 #check power
-model13$Power
+model12_rel$Power
 #summary and model performance plots
-summary(model13)
+summary(model12_rel)
 par(mfrow = c(1, 1))
-plot(model13)
-gllvm::ordiplot(model13)
+plot(model12_rel)
+#ordination
+gllvm::ordiplot(model12_rel)
+#can't get residual correlations because no latent variables
 #collect and plot random effects
-rand.lake <- data.frame(Rand_Effect_Value = coef(model13, "row.params.random"), Lake = names(coef(model13, "row.params.random")))
+rand.lake <- data.frame(Rand_Effect_Value = coef(model12_rel, "row.params.random"), Lake = names(coef(model12_rel, "row.params.random")))
 ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
   geom_point()+
   theme_classic()+
@@ -1489,9 +1630,9 @@ ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
     axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
   )
 #look at sigma of random effects
-model13$params$sigma
+model12_rel$params$sigma
 #get residual correlations
-Theta <- getResidualCor(model13)
+Theta <- getResidualCor(model12_rel)
 corrplot(Theta[order.single(Theta), order.single(Theta)],
          diag = FALSE,
          type = "lower",
@@ -1499,8 +1640,67 @@ corrplot(Theta[order.single(Theta), order.single(Theta)],
          tl.cex = 0.5,
          t.srt = 45,
          tl.col = "red")
-#get correlations due to environment/covariates
-# Env <- getEnvironCor(model13)
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#look at coefficient effects
+coefplot(model12_rel,
+         cex.ylab = 1,
+         order = TRUE)
+
+
+#concurrent ordination with 3 concurrent lvs, random lake effect, no random cv effect
+model13_raw <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 5), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model13_raw, file = "model13_raw.rds")
+#check power
+model13_raw$Power
+#summary and model performance plots
+summary(model13_raw)
+par(mfrow = c(1, 1))
+plot(model13_raw)
+gllvm::ordiplot(model13_raw)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model13_raw, "row.params.random"), Lake = names(coef(model13_raw, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model13_raw$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model13_raw)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+# Env <- getEnvironCor(model13_raw)
 # corrplot(Theta[order.single(Env), order.single(Env)],
 #          diag = FALSE,
 #          type = "lower",
@@ -1513,7 +1713,1071 @@ corrplot(Theta[order.single(Theta), order.single(Theta)],
 #run ?getEnvironCor for details!
 
 #look at coefficient effects
-coefplot(model13,
+coefplot(model13_raw,
          cex.ylab = 1,
          order = FALSE)
 
+
+
+#concurrent ordination with 3 concurrent lvs, random lake effect, no random cv effect
+model13_rel <- gllvm(y = y_rel_abun, X = x_scale, studyDesign = studyDesignData, 
+                     lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake), 
+                     num.lv.c = 3, family = "tweedie", Power = NULL, 
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 5), jitter.var = 0.1,
+                     control = list(reltol.c = 1e-5)) #this changes the optimization criteria for convergence (In this model I changed it from 1e-8 to 1e-5 due to a warning message)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model13_rel, file = "model13_rel.rds")
+#check power
+model13_rel$Power
+#summary and model performance plots
+summary(model13_rel)
+par(mfrow = c(1, 1))
+plot(model13_rel)
+gllvm::ordiplot(model13_rel)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model13_rel, "row.params.random"), Lake = names(coef(model13_rel, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model13_rel$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model13_rel)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+# Env <- getEnvironCor(model13_rel)
+# corrplot(Theta[order.single(Env), order.single(Env)],
+#          diag = FALSE,
+#          type = "lower",
+#          method = "square",
+#          tl.cex = 0.5,
+#          t.srt = 45,
+#          tl.col = "red")
+
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+
+#look at coefficient effects
+coefplot(model13_rel,
+         cex.ylab = 1,
+         order = FALSE)
+
+
+
+#env outside ordination with 3 lvs, raw response data, UNIMODAL RESPONSE WITH COMMON TOLERANCES AMONG ALL SPECIES
+#random effects are NOT species-specific
+model14 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                     formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake), 
+                     quadratic = "LV",
+                     num.lv = 3, family = "tweedie", Power = NULL, 
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model14, file = "model14.rds")
+#check power
+model14$Power
+#summary and model performance plots
+summary(model14)
+par(mfrow = c(1, 1))
+plot(model14)
+#ordination
+gllvm::ordiplot(model14, symbols = T, biplot = T, spp.arrows=FALSE)
+#inspect the optima
+optima(model14, sd.errors = FALSE)
+#inspect the tolerances
+tolerances(model14, sd.errors = FALSE)
+#visualize species tolerances
+LVs = getLV(model14)
+newLV = cbind(LV1 = seq(min(LVs[,1]), max(LVs[,1]), length.out=137), LV2 = 0, LV3 = 0)
+preds <- predict(model14, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model14))), ylab  = "Predicted response", xlab = "LV1")
+segments(x0=optima(model14, sd.errors = FALSE)[,1],x1 = optima(model14, sd.errors = FALSE)[,1], y0 = rep(0, ncol(model14$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model14)[,1])
+sapply(1:ncol(model14$y), function(j)lines(sort(newLV[,1]), preds[order(newLV[,1]),j], lwd = 2))
+
+newLV = cbind(LV1 = 0, LV3 = 0, LV2 =  seq(min(LVs[,2]), max(LVs[,2]), length.out=137))
+preds <- predict(model14, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model14))), ylab  = "Predicted response", xlab = "LV2")
+segments(x0=optima(model14, sd.errors = FALSE)[,2],x1 = optima(model14, sd.errors = FALSE)[,2], y0 = rep(0, ncol(model14$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model14)[,2])
+sapply(1:ncol(model14$y), function(j)lines(sort(newLV[,2]), preds[order(newLV[,2]),j], lwd = 2))
+
+newLV = cbind(LV1 = 0, LV2 = 0, LV3 =  seq(min(LVs[,3]), max(LVs[,3]), length.out=137))
+preds <- predict(model14, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model14))), ylab  = "Predicted response", xlab = "LV3")
+segments(x0=optima(model14, sd.errors = FALSE)[,3],x1 = optima(model14, sd.errors = FALSE)[,3], y0 = rep(0, ncol(model14$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model14)[,3])
+sapply(1:ncol(model14$y), function(j)lines(sort(newLV[,3]), preds[order(newLV[,3]),j], lwd = 2))
+
+#can't get residual correlations because no latent variables
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model14, "row.params.random"), Lake = names(coef(model14, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model14$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model14)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#look at coefficient effects
+coefplot(model14,
+         cex.ylab = 1,
+         order = TRUE)
+
+
+#env outside ordination with 3 lvs, raw response data, UNIMODAL RESPONSE WITH UNIQUE TOLERANCE FOR EACH SPECIES - see if it can fit
+#random effects are NOT species-specific
+# model15 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+#                      formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
+#                      row.eff = ~(1|lake), 
+#                      quadratic = TRUE,
+#                      num.lv = 3, family = "tweedie", Power = NULL, 
+#                      #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+#                      control.start = (n.init = 10), jitter.var = 0.1)
+# beep()
+model15 <- readRDS("model15.rds")
+#save output so I don't always have to rerun it
+#saveRDS(model15, file = "model15.rds")
+#check power
+model15$Power
+#summary and model performance plots
+summary(model15)
+par(mfrow = c(1, 1))
+#save residuals - this had to run overnight so saving as a csv
+res_model15 <- residuals(model15)
+res_model15_res <- as.data.frame(res_model15$residuals)
+res_model15_lin <- as.data.frame(res_model15$linpred) #these are the linear predictors
+# write.csv(res_model15_res, file = "C:/Users/HP/Documents/model15_residuals.csv", row.names = TRUE)
+# write.csv(res_model15_lin, file = "C:/Users/HP/Documents/model15_linpred.csv", row.names = TRUE)
+
+#then plot them manually - regular plot doesn't work because it takes so long to get residuals
+res_long <- res_model15_res %>%
+  pivot_longer(cols = everything(), 
+               names_to = "Species", 
+               values_to = "ResidualValue")
+ggplot(res_long, aes(sample = ResidualValue)) +
+  stat_qq(alpha = 0.3) + # alpha helps see density if you have many points
+  stat_qq_line(color = "blue") +
+  theme_minimal() +
+  labs(title = "Combined Q-Q Plot for All Species",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles")
+#color by species to see if a certain speciesis the problem
+ggplot(res_long, aes(sample = ResidualValue, color = Species)) +
+  stat_qq(alpha = 0.3) + # alpha helps see density if you have many points
+  stat_qq_line(color = "blue") +
+  theme_minimal() +
+  labs(title = "Combined Q-Q Plot for All Species",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles")
+#copepodites are a problem, try making a qqplot without them
+res_long_nocop <- res_long %>% 
+  filter(Species != "copepodites")
+ggplot(res_long_nocop, aes(sample = ResidualValue)) +
+  stat_qq(alpha = 0.3) + # alpha helps see density if you have many points
+  stat_qq_line(color = "blue") +
+  theme_minimal() +
+  labs(title = "Combined Q-Q Plot for All Species",
+       x = "Theoretical Quantiles",
+       y = "Sample Quantiles")
+#residuals vs. fitted values
+linpred_long <- res_model15_lin %>%
+  pivot_longer(cols = everything(), 
+               names_to = "Species", 
+               values_to = "LinearPredictor")
+res.fv <- cbind(res_long, linpred_long) %>% 
+  select(-3)
+ggplot(res.fv, aes(x = LinearPredictor, y = ResidualValue)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  theme_minimal() +
+  labs(
+    title = "Residuals vs. Linear Predictor",
+    x = "Linear Predictor (from residuals list)",
+    y = "Randomized Quantile Residuals"
+  )
+#color by species
+ggplot(res.fv, aes(x = LinearPredictor, y = ResidualValue, color = Species)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  theme_minimal() +
+  labs(
+    title = "Residuals vs. Linear Predictor",
+    x = "Linear Predictor (from residuals list)",
+    y = "Randomized Quantile Residuals"
+  )
+#without copepodites
+res.fv_nocop <- res.fv %>% 
+  filter(Species != "copepodites")
+ggplot(res.fv_nocop, aes(x = LinearPredictor, y = ResidualValue)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  theme_minimal() +
+  labs(
+    title = "Residuals vs. Linear Predictor",
+    x = "Linear Predictor (from residuals list)",
+    y = "Randomized Quantile Residuals"
+  )
+
+
+#ordination
+gllvm::ordiplot(model15, symbols = T, biplot = T)
+#inspect the optima
+optima(model15, sd.errors = FALSE)
+plot(optima(model15, sd.errors = FALSE))
+#inspect the tolerances
+tolerances(model15, sd.errors = FALSE)
+plot(tolerances(model15, sd.errors = FALSE))
+#visualize species tolerances
+LVs = getLV(model15)
+newLV = cbind(LV1 = seq(min(LVs[,1]), max(LVs[,1]), length.out=137), LV2 = 0, LV3 = 0)
+preds <- predict(model15, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model15))), ylab  = "Predicted response", xlab = "LV1")
+segments(x0=optima(model15, sd.errors = FALSE)[,1],x1 = optima(model15, sd.errors = FALSE)[,1], y0 = rep(0, ncol(model15$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model15)[,1])
+sapply(1:ncol(model15$y), function(j)lines(sort(newLV[,1]), preds[order(newLV[,1]),j], lwd = 2))
+
+newLV = cbind(LV1 = 0, LV3 = 0, LV2 =  seq(min(LVs[,2]), max(LVs[,2]), length.out=137))
+preds <- predict(model15, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model15))), ylab  = "Predicted response", xlab = "LV2")
+segments(x0=optima(model15, sd.errors = FALSE)[,2],x1 = optima(model15, sd.errors = FALSE)[,2], y0 = rep(0, ncol(model15$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model15)[,2])
+sapply(1:ncol(model15$y), function(j)lines(sort(newLV[,2]), preds[order(newLV[,2]),j], lwd = 2))
+
+newLV = cbind(LV1 = 0, LV2 = 0, LV3 =  seq(min(LVs[,3]), max(LVs[,3]), length.out=137))
+preds <- predict(model15, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model15))), ylab  = "Predicted response", xlab = "LV3")
+segments(x0=optima(model15, sd.errors = FALSE)[,3],x1 = optima(model15, sd.errors = FALSE)[,3], y0 = rep(0, ncol(model15$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model15)[,3])
+sapply(1:ncol(model15$y), function(j)lines(sort(newLV[,3]), preds[order(newLV[,3]),j], lwd = 2))
+
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model15, "row.params.random"), Lake = names(coef(model15, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model15$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model15)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#look at coefficient effects
+coefplot(model15,
+         cex.ylab = 1,
+         order = TRUE)
+
+
+#concurrent ordination with 3 concurrent lvs, random lake effect, random cv effect = LV - same variance within a latent variable
+model16 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                     lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake), 
+                     num.lv.c = 3, family = "tweedie", Power = NULL, 
+                     randomB = "LV",
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 10), jitter.var = 0.1,
+                     control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model16, file = "model16.rds")
+#check power
+model16$Power
+#summary and model performance plots
+summary(model16)
+par(mfrow = c(1, 1))
+plot(model16)
+gllvm::ordiplot(model16)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model16, "row.params.random"), Lake = names(coef(model16, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model16$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model16)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model16)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#look at coefficient effects
+gllvm::randomCoefplot(model16)
+
+
+
+
+#concurrent ordination with 3 concurrent lvs, random lake effect, random cv effect = LV - same variance within a latent variable
+model16_noprecip <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 randomB = "LV",
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 10), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model16_noprecip, file = "model16_noprecip.rds")
+#check power
+model16_noprecip$Power
+#summary and model performance plots
+summary(model16_noprecip)
+par(mfrow = c(1, 1))
+plot(model16_noprecip)
+gllvm::ordiplot(model16_noprecip)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model16_noprecip, "row.params.random"), Lake = names(coef(model16_noprecip, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model16_noprecip$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model16_noprecip)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model16_noprecip)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#look at coefficient effects
+gllvm::randomCoefplot(model16_noprecip)
+
+
+#Do I need to specify each predictor as random? - seeing if I get different result from model 16
+model16_test <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ (0+CDOM|1) + (0+Area|1) + (0+Max_Depth|1) + (0+Secchi|1) + (0+GDD|1) + (0+Precip|1) + (0+Photic|1) + (0+SWF|1) + (0+ZM|1) + (0+RBS|1) + (0+CAP|1),
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 randomB = "LV",
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 10), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model16_test, file = "model16_test.rds")
+#check power
+model16_test$Power
+#summary and model performance plots
+summary(model16_test)
+par(mfrow = c(1, 1))
+plot(model16_test)
+gllvm::ordiplot(model16_test)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model16_test, "row.params.random"), Lake = names(coef(model16_test, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model16_test$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model16_test)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model16_test)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#look at coefficient effects
+gllvm::randomCoefplot(model16_test)
+
+
+#concurrent ordination with 3 concurrent lvs, random lake effect, random cv effect = P - same variance within each predictor
+# model17 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+#                  lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
+#                  row.eff = ~(1|lake), 
+#                  num.lv.c = 3, family = "tweedie", Power = NULL, 
+#                  randomB = "P",
+#                  #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+#                  control.start = (n.init = 10), jitter.var = 0.1,
+#                  control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+# beep()
+model17 <- readRDS("model17.rds")
+#save output so I don't always have to rerun it
+#saveRDS(model17, file = "model17.rds")
+#check power
+model17$Power
+#summary and model performance plots
+summary(model17)
+par(mfrow = c(1, 1))
+plot(model17)
+gllvm::ordiplot(model17)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model17, "row.params.random"), Lake = names(coef(model17, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model17$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model17)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model17)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#look at coefficient effects
+gllvm::randomCoefplot(model17)
+
+
+
+#concurrent ordination with 3 concurrent lvs, random lake effect, random cv effect = LV - same variance within a latent variable
+model18 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Precip + Photic + SWF + ZM + RBS + CAP,
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 randomB = "single",
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 10), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model18, file = "model18.rds")
+#check power
+model18$Power
+#summary and model performance plots
+summary(model18)
+par(mfrow = c(1, 1))
+plot(model18)
+gllvm::ordiplot(model18)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model18, "row.params.random"), Lake = names(coef(model18, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model18$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model18)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model18)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#look at coefficient effects
+coefplot(model18,
+         cex.ylab = 1,
+         order = FALSE)
+
+
+
+#CAN I GET QUADRATIC RESPONSES IN THE CONCURRENT ORDINATION??? - start simple... will it converge?
+# model19 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+#                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+#                           row.eff = ~(1|lake), 
+#                           num.lv.c = 3, family = "tweedie", Power = NULL, 
+#                           randomB = "LV", quadratic = "LV",
+#                           #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+#                           control.start = (n.init = 10), jitter.var = 0.1,
+#                           control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+# beep()
+model19 <- readRDS("model19.rds")
+#save output so I don't always have to rerun it
+#saveRDS(model19, file = "model19.rds")
+#check power
+model19$Power
+#summary and model performance plots
+summary(model19)
+par(mfrow = c(1, 1))
+plot(model19)
+gllvm::ordiplot(model19, symbol = T)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model19, "row.params.random"), Lake = names(coef(model19, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model19$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model19)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model19)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#inspect the optima
+optima(model19, sd.errors = FALSE)
+plot(optima(model19, sd.errors = FALSE))
+#inspect the tolerances
+tolerances(model19, sd.errors = FALSE)
+plot(tolerances(model19, sd.errors = FALSE)) #right, I specified this to be the same for all species
+#visualize species tolerances
+LVs = getLV(model19)
+newLV = cbind(LV1 = seq(min(LVs[,1]), max(LVs[,1]), length.out=137), LV2 = 0, LV3 = 0)
+preds <- predict(model19, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model19))), ylab  = "Predicted response", xlab = "LV1")
+segments(x0=optima(model19, sd.errors = FALSE)[,1],x1 = optima(model19, sd.errors = FALSE)[,1], y0 = rep(0, ncol(model19$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model19)[,1])
+sapply(1:ncol(model19$y), function(j)lines(sort(newLV[,1]), preds[order(newLV[,1]),j], lwd = 2))
+
+newLV = cbind(LV1 = 0, LV3 = 0, LV2 =  seq(min(LVs[,2]), max(LVs[,2]), length.out=137))
+preds <- predict(model19, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model19))), ylab  = "Predicted response", xlab = "LV2")
+segments(x0=optima(model19, sd.errors = FALSE)[,2],x1 = optima(model19, sd.errors = FALSE)[,2], y0 = rep(0, ncol(model19$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model19)[,2])
+sapply(1:ncol(model19$y), function(j)lines(sort(newLV[,2]), preds[order(newLV[,2]),j], lwd = 2))
+
+newLV = cbind(LV1 = 0, LV2 = 0, LV3 =  seq(min(LVs[,3]), max(LVs[,3]), length.out=137))
+preds <- predict(model19, type = "response", newLV = newLV)
+plot(NA, ylim = range(preds), xlim = c(range(getLV(model19))), ylab  = "Predicted response", xlab = "LV3")
+segments(x0=optima(model19, sd.errors = FALSE)[,3],x1 = optima(model19, sd.errors = FALSE)[,3], y0 = rep(0, ncol(model19$y)), y1 = apply(preds,2,max), col = "red", lty = "dashed", lwd = 2)
+rug(getLV(model19)[,3])
+sapply(1:ncol(model19$y), function(j)lines(sort(newLV[,3]), preds[order(newLV[,3]),j], lwd = 2))
+
+
+
+
+#TRY CHANGING THE RANDOM CANONICAL COEFFICIENT STRUCTURE AND LETTING SPECIES TOLERANCES VARY 
+model21 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 randomB = "P", quadratic = TRUE,
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 10), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+saveRDS(model21, file = "model21.rds")
+#check power
+model21$Power
+#summary and model performance plots
+summary(model21)
+par(mfrow = c(1, 1))
+plot(model21)
+gllvm::ordiplot(model21, symbol = T)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model21, "row.params.random"), Lake = names(coef(model21, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model21$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model20)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model20)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#inspect the optima
+optima(model20, sd.errors = FALSE)
+plot(optima(model20, sd.errors = FALSE))
+#inspect the tolerances
+tolerances(model20, sd.errors = FALSE)
+plot(tolerances(model20, sd.errors = FALSE)) 
+
+#TRY LETTING SPECIES TOLERANCES VARY NOW
+model20 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 randomB = "LV", quadratic = TRUE,
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 10), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model20, file = "model20.rds")
+#check power
+model20$Power
+#summary and model performance plots
+summary(model20)
+par(mfrow = c(1, 1))
+plot(model20)
+gllvm::ordiplot(model20, symbol = T)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model20, "row.params.random"), Lake = names(coef(model20, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model20$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model20)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model20)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#inspect the optima
+optima(model20, sd.errors = FALSE)
+plot(optima(model20, sd.errors = FALSE))
+#inspect the tolerances
+tolerances(model20, sd.errors = FALSE)
+plot(tolerances(model20, sd.errors = FALSE))
+
+
+
+
+
+#TRY CHANGING THE CANONICAL COEFFICIENT RANDOM STRUCTURE TO P AND LETTING TOLERANCE VARY BY SPECIES
+model21 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 randomB = "P", quadratic = TRUE,
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 10), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model21, file = "model21.rds")
+#check power
+model21$Power
+#summary and model performance plots
+summary(model21)
+par(mfrow = c(1, 1))
+plot(model21)
+gllvm::ordiplot(model21, symbol = T)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model21, "row.params.random"), Lake = names(coef(model21, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model21$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model21)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model21)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#inspect the optima
+optima(model21, sd.errors = FALSE)
+plot(optima(model21, sd.errors = FALSE))
+#inspect the tolerances
+tolerances(model21, sd.errors = FALSE)
+plot(tolerances(model21, sd.errors = FALSE))
+
+
+
+
+#KEEP THE CANONICAL COEFFICIENT RANDOM STRUCTURE AS P BUT NO LONGER LET TOLERANCE VARY BY SPECIES
+model22 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData, 
+                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                 row.eff = ~(1|lake), 
+                 num.lv.c = 3, family = "tweedie", Power = NULL, 
+                 randomB = "P", quadratic = "LV",
+                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                 control.start = (n.init = 10), jitter.var = 0.1,
+                 control = list(reltol.c = 1e-8)) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+beep()
+#save output so I don't always have to rerun it
+#saveRDS(model22, file = "model22.rds")
+#check power
+model22$Power
+#summary and model performance plots
+summary(model22)
+par(mfrow = c(1, 1))
+plot(model22)
+gllvm::ordiplot(model22, symbol = T)
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model22, "row.params.random"), Lake = names(coef(model22, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model22$params$sigma
+#get residual correlations
+Theta <- getResidualCor(model22)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates - CAN'T DO THIS WITHOUT A RANDOM COVARIATE STRUCTURE
+Env <- getEnvironCor(model22)
+corrplot(Theta[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#trying to get the environment correlations requires a random effect somewhere within the ordination, so I can't do this here
+#run ?getEnvironCor for details!
+#inspect the optima
+optima(model22, sd.errors = FALSE)
+plot(optima(model22, sd.errors = FALSE))
+#inspect the tolerances
+tolerances(model22, sd.errors = FALSE)
+plot(tolerances(model22, sd.errors = FALSE))
+
+
+
+#CODE EXAMPLE FROM VIGNETTE TO TEST NUMBER OF LATENT VARIABLES NEEDED:
+# criteria <- NULL
+# for(i in 1:5){
+#   fiti <- gllvm(y, X, family = "negative.binomial", num.lv = i, sd.errors = FALSE,
+#                 formula = ~ Bare.ground + Canopy.cover + Volume.lying.CWD, seed = 1234)
+#   criteria[i] <- summary(fiti)$AICc
+#   names(criteria)[i] = i
+# }
+# # Compare AICc values
+# criteria
+# #>        1        2        3        4        5 
+# #> 4163.565 4215.446 4311.091 4462.069 4612.805
+
+
+
+#TESTING MY LATENT VARIABLES ON MODEL 19
+# criteria <- NULL
+# for(i in 1:5){
+#   fiti <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
+#                 lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+#                 row.eff = ~(1|lake),
+#                 num.lv.c = i, family = "tweedie", Power = NULL,
+#                 randomB = "LV", quadratic = "LV",
+#                 #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+#                 control.start = (n.init = 10), jitter.var = 0.1,
+#                 control = list(reltol.c = 1e-8), seed = 13453) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+#   criteria[i] <- summary(fiti)$AICc
+#   names(criteria)[i] = i
+# }
+# # Compare AICc values
+# criteria
+#IF I HAVE CONVERGENCE ISSUES ON ONE MODEL HERE THEN I THE WHOLE LOOP STOPS: DO THEM INDIVIDUALLY INSTEAD:
+
+model19.1LV <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
+              lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+              row.eff = ~(1|lake),
+              num.lv.c = 1, family = "tweedie", Power = NULL,
+              randomB = "LV", quadratic = "LV",
+              #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+              control.start = (n.init = 10), jitter.var = 0.1,
+              control = list(reltol.c = 1e-8), seed = 13453) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+#saveRDS(model19.1LV, file = "model19.1LV.rds")
+model19.2LV <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
+                     lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake),
+                     num.lv.c = 2, family = "tweedie", Power = NULL,
+                     randomB = "LV", quadratic = "LV",
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 10), jitter.var = 0.1,
+                     control = list(reltol.c = 1e-8), seed = 13453) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+#saveRDS(model19.2LV, file = "model19.2LV.rds")
+model19.3LV <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
+                     lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake),
+                     num.lv.c = 3, family = "tweedie", Power = NULL,
+                     randomB = "LV", quadratic = "LV",
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 10), jitter.var = 0.1,
+                     control = list(reltol.c = 1e-8), seed = 13453) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+#saveRDS(model19.3LV, file = "model19.3LV.rds")
+model19.4LV <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
+                     lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake),
+                     num.lv.c = 4, family = "tweedie", Power = 1.6, #I SET THE POWER TO HELP WITH CONVERGENCE
+                     randomB = "LV", quadratic = "LV",
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 10), jitter.var = 0.1,
+                     control = list(reltol.c = 1e-8), seed = 13453) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+saveRDS(model19.4LV, file = "model19.4LV.rds")
+model19.5LV <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
+                     lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake),
+                     num.lv.c = 5, family = "tweedie", Power = NULL,
+                     randomB = "LV", quadratic = "LV",
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 10), jitter.var = 0.1,
+                     control = list(reltol.c = 1e-8), seed = 13453) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+saveRDS(model19.5LV, file = "model19.5LV.rds")
+model19.6LV <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
+                     lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM + RBS + CAP,
+                     row.eff = ~(1|lake),
+                     num.lv.c = 6, family = "tweedie", Power = NULL,
+                     randomB = "LV", quadratic = "LV",
+                     #sd.errors = FALSE, #this speeds up the model and be removed once I have my final model structure
+                     control.start = (n.init = 10), jitter.var = 0.1,
+                     control = list(reltol.c = 1e-8), seed = 13453) #this changes the optimization criteria to be stricter for convergence (added in response to a warning message I got)
+saveRDS(model19.6LV, file = "model19.6LV.rds")
