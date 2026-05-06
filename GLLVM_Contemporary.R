@@ -3680,7 +3680,7 @@ model36_moreLV <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
                  num.RR = 3, num.lv = 3, family = "tweedie", Power = NULL,
                  randomB = "LV", quadratic = "LV",
                  control.start = (n.init = 10), jitter.var = 0.1)
-saveRDS(model36_moreLV, file = "Models/model36_moreLV.rds")
+#saveRDS(model36_moreLV, file = "Models/model36_moreLV.rds")
 model36_moreLV <- readRDS("Models/model36_moreLV.rds")
 plot(model36_moreLV)
 summary(model36_moreLV)
@@ -5348,7 +5348,7 @@ model36_moreLV_trout <- gllvm(y = y_raw_trout, X = x_scale_trout, studyDesign = 
                         control.start = (n.init = 10), jitter.var = 0.1)
 beep()
 #saveRDS(model36_moreLV_trout, file = "Models/model36_moreLV_trout.rds")
-model36_moreLV_trout <- readRDS("Models/model36_moreLV_trout.rds")
+model36_moreLV_trout <- readRDS("Models/model36_moreLV_trout.rds")1
 plot(model36_moreLV_trout)
 summary(model36_moreLV_trout)
 #get residual correlations
