@@ -5338,6 +5338,13 @@ y_raw_trout_nocopepod <- y_raw_trout %>%
 y_raw_trout_nocopepodite <- y_raw_trout %>% 
   select(-copepodites)
 
+#save the x matrix with only the desired coefficients for use later
+x_save <- x_scale_trout %>% 
+  select(CDOM, Area, Max_Depth, Secchi, GDD, Photic, SWF, ZM) %>% 
+  mutate(SWF = ifelse(SWF == "yes", 1, 0),
+         ZM = ifelse(ZM == "yes", 1, 0))
+#write.csv(x_save, "Data/Input/gllvm_x_matrix.csv", row.names = FALSE)
+
 #The ASLO model with trout lakes---------------
 #Note that the trout themselves got dropped for being too rare but now we have lakes with no walleye
 model36_moreLV_trout <- gllvm(y = y_raw_trout, X = x_scale_trout, studyDesign = studyDesignData_trout,
