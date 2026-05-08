@@ -156,6 +156,16 @@ spec_df$Species_label <- ifelse((spec_df$Species == "Black Crappie" | spec_df$Sp
                                    spec_df$Species == "Daphnia galeata mendotae" | spec_df$Species == "Daphnia pulicaria" | spec_df$Species == "Daphnia longiremis" | 
                                    spec_df$Species == "Daphnia parvula" | spec_df$Species == "Daphnia retrocurva" | 
                                    spec_df$Species == "Daphnia small rare"), spec_df$Species, NA)
+#create a dataframe with just species I want to point out in my ASLO talk
+spec_df_no_other <- filter(spec_df, spec_df$Species == "Black Crappie" | spec_df$Species == "Bluegill" | spec_df$Species == "Hybrid Sunfish" | 
+                                  spec_df$Species == "Largemouth Bass" | spec_df$Species == "Pumpkinseed" | spec_df$Species == "Rock Bass" | 
+                                  spec_df$Species == "Smallmouth Bass" | spec_df$Species == "Walleye" | 
+                                  spec_df$Species == "Bosmina longirostris" | spec_df$Species == "Eubosmina coregoni" | 
+                                  spec_df$Species == "Chydorus sphaericus" | spec_df$Species == "Alona spp." | spec_df$Species == "Ceriodaphnia spp." |
+                                  spec_df$Species == "Daphnia galeata mendotae" | spec_df$Species == "Daphnia pulicaria" | spec_df$Species == "Daphnia longiremis" | 
+                                  spec_df$Species == "Daphnia parvula" | spec_df$Species == "Daphnia retrocurva" | 
+                                  spec_df$Species == "Daphnia small rare")
+
 
 # Highlight your important species
 spec_df$Group <- ifelse(spec_df$Species == "Walleye", "Walleye", 
@@ -164,6 +174,13 @@ spec_df$Group <- ifelse(spec_df$Species == "Walleye", "Walleye",
                                                spec_df$Species == "Daphnia galeata mendotae" | spec_df$Species == "Daphnia pulicaria" | spec_df$Species == "Daphnia longiremis" | spec_df$Species == "Daphnia parvula" | spec_df$Species == "Daphnia retrocurva" | 
                                                spec_df$Species == "Daphnia small rare"),"Preserved Zooplankton","Other")))
 spec_df$Group <- factor(spec_df$Group, levels = c("Walleye", "Centrarchid", "Preserved Zooplankton", "Other"))
+spec_df_no_other$Group <- ifelse(spec_df_no_other$Species == "Walleye", "Walleye", 
+                        ifelse((spec_df_no_other$Species == "Black Crappie" | spec_df_no_other$Species == "Bluegill" | spec_df_no_other$Species == "Hybrid Sunfish" | spec_df_no_other$Species == "Largemouth Bass" | spec_df_no_other$Species == "Pumpkinseed" | spec_df_no_other$Species == "Rock Bass" | spec_df_no_other$Species == "Smallmouth Bass"), "Centrarchid",
+                               ifelse((spec_df_no_other$Species == "Bosmina longirostris" | spec_df_no_other$Species == "Eubosmina coregoni" | spec_df_no_other$Species == "Chydorus sphaericus" | spec_df_no_other$Species == "Alona spp." | spec_df_no_other$Species == "Ceriodaphnia spp." | 
+                                         spec_df_no_other$Species == "Daphnia galeata mendotae" | spec_df_no_other$Species == "Daphnia pulicaria" | spec_df_no_other$Species == "Daphnia longiremis" | spec_df_no_other$Species == "Daphnia parvula" | spec_df_no_other$Species == "Daphnia retrocurva" | 
+                                         spec_df_no_other$Species == "Daphnia small rare"),"Zooplankton","Error")))
+spec_df_no_other$Group <- factor(spec_df_no_other$Group, levels = c("Walleye", "Centrarchid", "Zooplankton", "Error"))
+
 # Plotting CLV1 vs CLV2 (The first two Environmental Axes)
 env_biplot <- ggplot() +
   # Draw the Sites as small light-grey dots
@@ -266,6 +283,28 @@ env_biplot3 <- ggplot() +
   theme(legend.position = "none") #don't include legend, I will include this separately
 #ggsave(filename = "Environmental_Biplot3.png", plot = env_biplot3, width = 9, height = 5, units = "in", dpi = 150)
 
+
+env_biplot3_no_other <- ggplot() +
+  # Draw the Sites as small light-grey dots
+  geom_point(data = as.data.frame(site_scores_all), aes(x = CLV1, y = CLV2), color = "darkgray", alpha = 0.5) +
+  # Draw the Species as colored points
+  geom_point(data = spec_df_no_other, aes(x = CLV1, y = CLV2, color = Group), size = 3,  alpha = 0.7) +
+  # Add Species Labels
+  #geom_text_repel(data = spec_df, aes(x = CLV1, y = CLV2, label = Species)) +
+  # Add the Environmental Arrows
+  geom_segment(data = as.data.frame(env_arrows), 
+               aes(x = 0, y = 0, xend = CLV1*4, yend = CLV2*4), # Multiplied by 2 to make arrows visible
+               arrow = arrow(length = unit(0.2, "cm")), color = "blue") +
+  geom_text(data = as.data.frame(env_arrows), 
+            aes(x = CLV1*4.4, y = CLV2*4.4, label = rownames(env_arrows)), color = "blue") +
+  theme_classic()+
+  scale_color_manual(values = c("Walleye" = "orange", "Centrarchid" = "purple3", "Zooplankton" = "black")) +
+  labs(x = "Environmental Axis 1", y = "Environmental Axis 2")+
+  scale_x_continuous(limits = c(-6,5))+
+  scale_y_continuous(limits = c(-6,4))+
+  theme(legend.position = "none") #don't include legend, I will include this separately
+#ggsave(filename = "Environmental_Biplot3_no_other.png", plot = env_biplot3_no_other, width = 9, height = 5, units = "in", dpi = 150)
+
 env_biplot4 <- ggplot() +
   # Draw the Sites as small light-grey dots
   geom_point(data = as.data.frame(site_scores_all), aes(x = CLV1, y = CLV2), color = "darkgray", alpha = 0.5) +
@@ -286,6 +325,27 @@ env_biplot4 <- ggplot() +
   scale_y_continuous(limits = c(-6,4))+
   theme(legend.position = "none") #don't include legend, I will include this separately
 #ggsave(filename = "Environmental_Biplot4.png", plot = env_biplot4, width = 9, height = 5, units = "in", dpi = 150)
+
+env_biplot4_no_other <- ggplot() +
+  # Draw the Sites as small light-grey dots
+  geom_point(data = as.data.frame(site_scores_all), aes(x = CLV1, y = CLV2), color = "darkgray", alpha = 0.5) +
+  # Draw the Species as colored points
+  geom_point(data = spec_df_no_other, aes(x = CLV1, y = CLV2, color = Group), size = 3,  alpha = 0.7) +
+  # Add Species Labels
+  geom_text_repel(data = spec_df_no_other, aes(x = CLV1, y = CLV2, label = Species_label_fish), size = 4, max.overlaps = Inf) +
+  # Add the Environmental Arrows
+  geom_segment(data = as.data.frame(env_arrows), 
+               aes(x = 0, y = 0, xend = CLV1*4, yend = CLV2*4), # Multiplied by 2 to make arrows visible
+               arrow = arrow(length = unit(0.2, "cm")), color = "blue", alpha = 0.5) +
+  #geom_text(data = as.data.frame(env_arrows), 
+  #aes(x = CLV1*4.4, y = CLV2*4.4, label = rownames(env_arrows)), color = "blue") +
+  theme_classic()+
+  scale_color_manual(values = c("Walleye" = "orange", "Centrarchid" = "purple3", "Zooplankton" = "black")) +
+  labs(x = "Environmental Axis 1", y = "Environmental Axis 2")+
+  scale_x_continuous(limits = c(-6,5))+
+  scale_y_continuous(limits = c(-6,4))+
+  theme(legend.position = "none") #don't include legend, I will include this separately
+#ggsave(filename = "Environmental_Biplot4_no_other.png", plot = env_biplot4_no_other, width = 9, height = 5, units = "in", dpi = 150)
 
 
 env_biplot5 <- ggplot() +
@@ -308,6 +368,27 @@ env_biplot5 <- ggplot() +
   scale_y_continuous(limits = c(-6,4))+
   theme(legend.position = "none") #don't include legend, I will include this separately
 #ggsave(filename = "Environmental_Biplot5.png", plot = env_biplot5, width = 9, height = 5, units = "in", dpi = 150)
+
+env_biplot5_no_other <- ggplot() +
+  # Draw the Sites as small light-grey dots
+  geom_point(data = as.data.frame(site_scores_all), aes(x = CLV1, y = CLV2), color = "darkgray", alpha = 0.5) +
+  # Draw the Species as colored points
+  geom_point(data = spec_df_no_other, aes(x = CLV1, y = CLV2, color = Group), size = 3,  alpha = 0.7) +
+  # Add Species Labels
+  geom_text_repel(data = spec_df_no_other, aes(x = CLV1, y = CLV2, label = Species_label_zoop), size = 4, max.overlaps = Inf) +
+  # Add the Environmental Arrows
+  geom_segment(data = as.data.frame(env_arrows), 
+               aes(x = 0, y = 0, xend = CLV1*4, yend = CLV2*4), # Multiplied by 2 to make arrows visible
+               arrow = arrow(length = unit(0.2, "cm")), color = "blue", alpha = 0.5) +
+  #geom_text(data = as.data.frame(env_arrows), 
+  #aes(x = CLV1*4.4, y = CLV2*4.4, label = rownames(env_arrows)), color = "blue") +
+  theme_classic()+
+  scale_color_manual(values = c("Walleye" = "orange", "Centrarchid" = "purple3", "Zooplankton" = "black")) +
+  labs(x = "Environmental Axis 1", y = "Environmental Axis 2")+
+  scale_x_continuous(limits = c(-6,5))+
+  scale_y_continuous(limits = c(-6,4))+
+  theme(legend.position = "none") #don't include legend, I will include this separately
+#ggsave(filename = "Environmental_Biplot5_no_other.png", plot = env_biplot5_no_other, width = 9, height = 5, units = "in", dpi = 150)
 
 
 #Corrplot legend------------------------
