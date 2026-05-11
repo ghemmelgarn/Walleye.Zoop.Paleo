@@ -677,13 +677,14 @@ net_test <- zoop_parentdow %>%
 test <- net_test %>% 
   group_by(lake_name, sample_date, dowlknum) %>% 
   summarize(net_sizes = n_distinct(net_mouth_diameter_cm),
+            tow_depths = n_distinct(haul_depth_m),
             .groups = 'drop')
 #Bearhead August does not, so remove that one
 net_test_paired <- net_test %>% 
   filter(sample_id != 2467)
 
 
-
+#LOOK AT THE TOW DEPTH DIFFERENCE ISSUE
 
 #START AGAIN HERE--------------------
 
