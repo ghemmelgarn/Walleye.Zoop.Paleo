@@ -36,7 +36,7 @@ zoop_parentdow <- zoop_months %>%
 #make parentdow.year column to join to other data
 zoop_parentdow$parentdow.year = paste(zoop_parentdow$parentdow, zoop_parentdow$year)
 
-#Read in the zoop survey inclusion table with vetted good surveys
+#Read in the zoop survey inclusion table with vetted good surveys - THIS IS FOR GRACE'S THESIS WORK
 zoop_incl <- read.csv("Data/Input/Zoop_Survey_Pelagic_Inclusion_Table.csv")
 
 #get just the zoop surveys in the inclusion table
@@ -329,7 +329,7 @@ zoop.join <- zoop3 %>%
 
 
 
-#EXPLORE NET MOUTH SIZE-------------------------------------
+#EXPLORE NET MOUTH SIZE (Lakes in Grace's Dataset) -------------------------------------
 
 #Investigate the 13 cm vs 30 cm net mouth - does it make a difference?
 #Isolate samples that Jodie took for comparison (Sentinel lakes 2013)
@@ -663,7 +663,47 @@ NMDS_biom_all
 #    month_corrected, NMDS_biom, NMDS_biom_all, NMDS_biom_corrected, NMDS_count, NMDS_dens, NMDS_dens_corrected,
 #    size.fill, size.fill_corrected, size.shape)
 
-#CONCLUSION OF ALL THIS: NO NEED TO CORRECT FOR THE 13cm NETS
+#CONCLUSION OF ALL THIS: NO NEED TO CORRECT FOR THE 13cm NETS FOR GRACE'S THESIS PROJECT
+
+
+#EXPLORE NET MOUTH SIZE (ALL LAKES WITH BOTH SAMPLES) -------------------------------------
+#This version uses ALL the tows that were taken with both a 13 and 30 cm net, including the ones that Grace will not be using
+
+#Isolate samples that Jodie took for comparison (Sentinel lakes 2013)
+net_test <- zoop_parentdow %>% 
+  filter(year == 2013 & is_slice_lake == "True" & (net_mouth_diameter_cm == 13 | net_mouth_diameter_cm == 30)) %>%
+  mutate(net_mouth_diameter_cm = as.factor(net_mouth_diameter_cm))
+#does every sample have a 13 and a 30?
+test <- net_test %>% 
+  group_by(lake_name, sample_date, dowlknum) %>% 
+  summarize(net_sizes = n_distinct(net_mouth_diameter_cm),
+            .groups = 'drop')
+#Bearhead August does not, so remove that one
+net_test_paired <- net_test %>% 
+  filter(sample_id != 2467)
+
+
+
+
+#START AGAIN HERE--------------------
+
+
+#Check normality assumption for t-test
+ggplot(zoop_13, aes(x = biomass, fill = net_mouth_diameter_cm, alpha = 0.4))+
+  geom_density()+
+  facet_wrap(~species, scales = "free")+
+  theme_classic()
+#so.... biomass is not normal
+ggplot(zoop_13, aes(x = count, fill = net_mouth_diameter_cm, alpha = 0.4))+
+  geom_density()+
+  facet_wrap(~species, scales = "free")+
+  theme_classic()
+#neither is count
+ggplot(zoop_13, aes(x = density, fill = net_mouth_diameter_cm, alpha = 0.4))+
+  geom_density()+
+  facet_wrap(~species, scales = "free")+
+  theme_classic()
+#tampoco density
 
 
 #EXPLORE ANALYST-------------------------------------------------
