@@ -6210,3 +6210,98 @@ BIC(model36_moreLV_trout_nocopepod3RR4LV)
 #WE FOUND THE WINNER!!!!!!!!!!
 
 
+#+1 GAMMA model--------------------------------------------------------------------------------
+#Here I add 1 to the entire fish and zoop matrix so that 0 = 1 and we can use gamma distribution
+
+y_raw_gamma_nocopepod <- y_raw_trout_nocopepod + 1
+
+#run model with gamma distribution
+model_gamma_nocopepod <- gllvm(y = y_raw_gamma_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                              lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                                              row.eff = ~(1|lake),
+                                              num.RR = 3, num.lv = 4, family = "gamma",
+                                              randomB = "LV", quadratic = "LV",
+                                              control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_gamma_nocopepod, file = "Models/model_gamma_nocopepod.rds")
+
+model36_gamma_nocopepod <- readRDS("Models/model_gamma_nocopepod.rds")
+plot(model_gamma_nocopepod)
+summary(model_gamma_nocopepod)
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_gamma_nocopepod)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_gamma_nocopepod)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#not going any further, performance is clearly shit on this model
+
+
+
+
+#let's do this model again but with copepods this time. probably won't work, but tbh this is what I meant to do to begin with
+
+y_raw_gamma <- y_raw_trout + 1
+
+#run model with gamma distribution
+model_gamma <- gllvm(y = y_raw_gamma, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                               lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                               row.eff = ~(1|lake),
+                               num.RR = 3, num.lv = 4, family = "gamma",
+                               randomB = "LV", quadratic = "LV",
+                               control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_gamma, file = "Models/model_gamma.rds")
+
+model_gamma <- readRDS("Models/model_gamma.rds")
+plot(model_gamma)
+summary(model_gamma)
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_gamma)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_gamma)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#performance is still terrible here. This is not a solution to get copepods back in the model :(
