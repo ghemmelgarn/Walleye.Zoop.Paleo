@@ -6305,3 +6305,185 @@ corrplot(Env[order.single(Env), order.single(Env)],
          t.srt = 45,
          tl.col = "red")
 #performance is still terrible here. This is not a solution to get copepods back in the model :(
+
+
+
+
+
+
+
+#DATA PREP WITH COPEPOD DETAILS----------------------
+#This still includes trout lakes too
+
+#read in data
+data.cop <- read.csv("Data/Input/Contemporary_Dataset_Copepod_Detail_2026_05_26.csv")
+
+#set seed to keep results consistent
+set.seed(13453)
+#use all computer cores - except 1 to do other things
+TMB::openmp(parallel::detectCores()-1, DLL = "gllvm", autopar = TRUE)
+
+#COVARIATES TO USE
+# secchi.meters.MPCA.Jul.to.Sept, gdd.year.5c, precip_5yr_avg_mm, area_ha, CDOM.lake.avg, depth.max.m, photic_prop_secchi.meters.MPCA.Jul.to.Sept, 
+# SpinyWaterflea.yn, ZebraMussel.yn
+
+#filter data
+data.filter.cop <- data.cop %>% 
+  #removes Hill south that does not have zoop data :(
+  filter(!is.na(total_zoop_biomass)) %>% 
+  #no NA values for selected covariates
+  filter(!is.na(secchi.meters.MPCA.Jul.to.Sept) & 
+           !is.na(gdd.year.5c) & 
+           !is.na(precip_5yr_avg_mm) & 
+           !is.na(CDOM.lake.avg) &
+           !is.na(area_ha) & 
+           !is.na(depth.max.m) & 
+           !is.na(photic_prop_secchi.meters.MPCA.Jul.to.Sept) &
+           !is.na(SpinyWaterflea.yn) &
+           !is.na(ZebraMussel.yn)) %>% 
+  #remove trout lakes  
+  #filter(!(BKT.CPUE > 0 | LAT.CPUE > 0 | RBT.CPUE > 0)) %>%  
+  #remove walleye yoy column
+  select(-WAE.YOY.CPUE) %>% 
+  #make rainbow smelt and and common carp into yes/no covariates like bytho and zebra mussels, then remove their CPUE columns
+  mutate(RBS.yn = ifelse(RBS.CPUE > 0, "yes", "no"),
+         CAP.yn = ifelse(CAP.CPUE > 0, "yes", "no")) %>% 
+  #make all teh VNP lakes say yes for RBS
+  mutate(RBS.yn = ifelse(lake_name == "Kabetogama" | lake_name == "Sand Point" | lake_name == "Namakan", "yes", "no")) %>% 
+  #make all the carp lakes say yes after initial detection year
+  mutate(CAP.yn = ifelse((lake_name == "Artichoke" & Year >= 2008)|(lake_name == "Peltier" & Year >= 2021)|(lake_name == "Belle" & Year >= 2008)|(lake_name == "Carlos" & Year >= 2008)|(lake_name == "Green" & Year >= 2018)|(lake_name == "Madison" & Year >= 2008)|(lake_name == "Mille Lacs" & Year >= 2015), "yes", "no")) %>% 
+  #add analyst column
+  mutate(analyst = ifelse(Year < 2020, "A", "B"))
+
+
+#make covariate dataframe
+x_trout.cop <- data.filter.cop %>% 
+  select(secchi.meters.MPCA.Jul.to.Sept, gdd.year.5c, precip_5yr_avg_mm, CDOM.lake.avg, area_ha, depth.max.m, photic_prop_secchi.meters.MPCA.Jul.to.Sept, 
+         SpinyWaterflea.yn, ZebraMussel.yn, RBS.yn, CAP.yn, analyst) %>% 
+  #set categorical variables as factors
+  mutate(SpinyWaterflea.yn = as.factor(SpinyWaterflea.yn),
+         ZebraMussel.yn = as.factor(ZebraMussel.yn),
+         RBS.yn = as.factor(RBS.yn),
+         CAP.yn = as.factor(CAP.yn),
+         analyst = as.factor(analyst)) %>% 
+  #rename everything shorter
+  rename(Secchi = secchi.meters.MPCA.Jul.to.Sept,
+         GDD = gdd.year.5c,
+         Precip = precip_5yr_avg_mm,
+         CDOM = CDOM.lake.avg,
+         Area = area_ha,
+         Max_Depth = depth.max.m,
+         Photic = photic_prop_secchi.meters.MPCA.Jul.to.Sept,
+         SWF = SpinyWaterflea.yn,
+         ZM = ZebraMussel.yn,
+         RBS = RBS.yn,
+         CAP = CAP.yn)
+
+#standardize all quantitative variables (except the proportion) with scale function
+x_scale_trout.cop <- x_trout.cop  %>% 
+  mutate(Secchi = scale(Secchi),
+         GDD = scale(GDD),
+         Precip = scale(Precip),
+         CDOM = scale(CDOM),
+         Area = scale(Area),
+         Max_Depth = scale(Max_Depth),
+         Photic = scale(Photic, center = FALSE, scale = TRUE)) #SCALE BUT NOT CENTER FOR MODEL PERFORMANCE REASONS
+#set x as a dataframe for rownames later
+x_scale_trout.cop <- as.data.frame(x_scale_trout.cop)
+
+
+
+#make a species abundance dataframe
+#calculate relative abundance within fish and within zoops, then cbind them together
+#now to be included, a taxa group must be present in at least 95% of samples (lake-years), be present in more than two lakes, and have passed an ecological gut check by Grace (is this species usually found in lakes?)
+
+#INVESTIGATING RARE SPECIES
+#First question: are there any species only present in one lake?
+#regroup the daphnia how we discussed in committee meeting
+data.daphnia.cop <- data.filter.cop %>% 
+  mutate(Daphnia.small.rare = rowSums(across(c(Daphnia.rosea, Daphnia.ambigua, Daphnia.sp.)))) %>% 
+  select(-Daphnia.rosea, -Daphnia.ambigua, -Daphnia.sp.) %>% 
+  relocate(Daphnia.small.rare, .after = Daphnia.retrocurva)
+
+#get the max value for each species in each lake (will be 0 if never present)
+lake.spp.cop <- data.daphnia.cop %>% 
+  group_by(lake_name) %>% 
+  summarize(across(BIB.CPUE:nauplii, max),
+            .groups = 'drop')
+#for each species, count the number of lakes where it has a value greater than 0 in at least one year
+spp.lake.count.cop <- colSums(lake.spp.cop > 0)
+spp.lake.count.cop
+#make a list of species present in two or fewer lakes
+spp.drop.lake.cop <- names(spp.lake.count.cop[spp.lake.count.cop < 3])
+spp.drop.lake.cop
+
+#calculate species present in less than 95% of lake-year samples
+#isolate species
+spp.cop <- data.daphnia.cop %>% 
+  select(BIB.CPUE:nauplii)
+#proportion of zeroes in species data
+spp_prop_0.cop <- colSums(spp.cop == 0, na.rm = TRUE)/nrow(spp.cop)
+#isolate proportions of zeroes over 95%
+spp_prop_0_0.95.cop <- spp_prop_0.cop[spp_prop_0.cop > 0.95]
+#make this a vector of names
+spp_names_rare.cop <- names(spp_prop_0_0.95.cop)
+
+#combine the list of names for the two reasons to be dropped, only keep one if repeated in both lists
+spp.drop.cop <- unique(c(spp.drop.lake.cop, spp_names_rare.cop))
+spp.drop.cop
+
+#remove columns for the species to drop
+spp.filter.cop <- spp.cop %>% 
+  select(-all_of(spp.drop.cop))
+#what's left?
+names(spp.filter.cop)
+
+#look at magnitude of fish vs. zoop data
+mag.plot.data.cop <- spp.filter.cop %>% 
+  pivot_longer(cols = everything(), names_to = "species", values_to = "abundance") %>% 
+  mutate(group = ifelse(str_ends(species, "CPUE"), "fish", "zoop"))
+mag.plot.raw.cop <- ggplot(data = mag.plot.data.cop, aes(x = species, y = abundance, color = group))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+mag.plot.raw.cop
+#plot again but limit y axis to not include outliers
+mag.plot.raw.zoom.cop <- ggplot(data = mag.plot.data.cop, aes(x = species, y = abundance, color = group))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  scale_y_continuous(limits = c(0,5))
+mag.plot.raw.zoom.cop
+#actually looks okay, not transforming at all
+
+#not calculating relative abundance within fish and zoops because not using that data format
+
+#Not isolating zoop summary metrics because did not use them
+
+y_raw_trout.cop <- spp.filter.cop
+
+#set N as number of lake-years and N.taxa as number of taxa in response matrix
+N.cop <- nrow(x_trout.cop)
+N.taxa.cop <- ncol(y_raw_trout.cop)
+
+#set rownames to be the same in both matrices
+rownames(x_trout.cop) <- paste0(data.filter.cop$lake_name, data.filter.cop$Year)
+rownames(x_scale_trout.cop) <- paste0(data.filter.cop$lake_name, data.filter.cop$Year) #note that these rownames are there, just not visible in viewer
+rownames(y_raw_trout.cop) <- paste0(data.filter.cop$lake_name, data.filter.cop$Year)
+
+
+
+#create study design matrix
+studyDesignData_trout.cop <- data.frame(lake = as.factor(data.filter.cop$lake_name),
+                                    year = as.factor(data.filter.cop$Year))
+rownames(studyDesignData_trout.cop) <- paste0(data.filter.cop$lake_name, data.filter.cop$Year)
+
+
+#with trout and WITHOUT immature zoops
+y_raw_trout.cop.noimmature <- y_raw_trout.cop %>% 
+  select(-copepodites, -nauplii)
+
+# #save the x matrix with only the desired coefficients for use later
+# x_save <- x_scale_trout %>% 
+#   select(CDOM, Area, Max_Depth, Secchi, GDD, Photic, SWF, ZM) %>% 
+#   mutate(SWF = ifelse(SWF == "yes", 1, 0),
+#          ZM = ifelse(ZM == "yes", 1, 0))
+# #write.csv(x_save, "Data/Input/gllvm_x_matrix.csv", row.names = FALSE)
