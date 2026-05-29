@@ -6487,3 +6487,456 @@ y_raw_trout.cop.noimmature <- y_raw_trout.cop %>%
 #   mutate(SWF = ifelse(SWF == "yes", 1, 0),
 #          ZM = ifelse(ZM == "yes", 1, 0))
 # #write.csv(x_save, "Data/Input/gllvm_x_matrix.csv", row.names = FALSE)
+
+
+#how many lake-years?
+#81 lake-years
+
+#how many unique lakes?
+unique(studyDesignData_trout.cop$lake)
+#17 lakes
+
+
+#COPEPOD DETAIL MODELS----------------------------------
+
+#Here I run the aslo model but with fewer lake-years to only include lake-years with detailed copepod ID
+
+model_copepod <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                                              lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                                              row.eff = ~(1|lake),
+                                              num.RR = 3, num.lv = 4, family = "tweedie", Power = NULL,
+                                              randomB = "LV", quadratic = "LV",
+                                              control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod, file = "Models/model_copepod.rds")
+model_copepod <- readRDS("Models/model_copepod.rds")
+plot(model_copepod)
+summary(model_copepod)
+#check tweedie power
+model_copepod$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model_copepod, "row.params.random"), Lake = names(coef(model_copepod, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#look at sigma of random effects
+model_copepod$params$sigma
+
+#okay so the performance on this model is good but the blockiness suggests not enough latent variables
+#however this took 3 tries to converge so I am hesitant to add more...
+
+#try 3 RR and 4 LV (aslo model) WIHTOUT COPEPODITES OR NAUPLII
+model_copepod_noimmature <- gllvm(y = y_raw_trout.cop.noimmature, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                                      lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                                      row.eff = ~(1|lake),
+                                      num.RR = 3, num.lv = 4, family = "tweedie", Power = NULL,
+                                      randomB = "LV", quadratic = "LV",
+                                      control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_noimmature, file = "Models/model_copepod_noimmature.rds")
+model_copepod_noimmature <- readRDS("Models/model_copepod_noimmature.rds")
+plot(model_copepod_noimmature)
+summary(model_copepod_noimmature)
+#check tweedie power
+model_copepod_noimmature$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_noimmature)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_noimmature)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+#try 3 RR and 3 LV - does it get better or worse?
+model_copepod_3_3 <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                       lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                       row.eff = ~(1|lake),
+                       num.RR = 3, num.lv = 3, family = "tweedie", Power = NULL,
+                       randomB = "LV", quadratic = "LV",
+                       control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_3_3, file = "Models/model_copepod_3_3.rds")
+model_copepod_3_3 <- readRDS("Models/model_copepod_3_3.rds")
+plot(model_copepod_3_3)
+summary(model_copepod_3_3)
+#check tweedie power
+model_copepod_3_3$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_3_3)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_3_3)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#somewhat better corrplots but worse performance
+
+#try forcing tweedie power to 1.5 - THIS WON'T CONVERGE
+#try 3 RR and 3 LV - does it get better or worse?
+model_copepod_3_3_tweedie1.5 <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 3, num.lv = 3, family = "tweedie", Power = 1.5,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_3_3_tweedie1.5, file = "Models/model_copepod_3_3_tweedie1.5.rds")
+model_copepod_3_3_tweedie1.5 <- readRDS("Models/model_copepod_3_3_tweedie1.5.rds")
+plot(model_copepod_3_3_tweedie1.5)
+summary(model_copepod_3_3_tweedie1.5)
+#check tweedie power
+model_copepod_3_3_tweedie1.5$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_3_3_tweedie1.5)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_3_3_tweedie1.5)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+
+#try 4 RR and 3 LV
+model_copepod_4_3 <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 4, num.lv = 3, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_4_3, file = "Models/model_copepod_4_3.rds")
+model_copepod_4_3 <- readRDS("Models/model_copepod_4_3.rds")
+plot(model_copepod_4_3)
+summary(model_copepod_4_3)
+#check tweedie power
+model_copepod_4_3$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_4_3)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_4_3)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+#try 4 RR and 3 LV WIHTOUT COPEPODITES OR NAUPLII
+model_copepod_4_3_noimmature <- gllvm(y = y_raw_trout.cop.noimmature, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 4, num.lv = 3, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_4_3_noimmature, file = "Models/model_copepod_4_3_noimmature.rds")
+model_copepod_4_3_noimmature <- readRDS("Models/model_copepod_4_3_noimmature.rds")
+plot(model_copepod_4_3_noimmature)
+summary(model_copepod_4_3_noimmature)
+#check tweedie power
+model_copepod_4_3_noimmature$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_4_3_noimmature)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_4_3_noimmature)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+#try 4 RR and 3 LV WIHTOUT COPEPODITES OR NAUPLII and forcing tweedie to 1.5
+model_copepod_4_3_noimmature_tweedie1.5 <- gllvm(y = y_raw_trout.cop.noimmature, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                                      lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                                      row.eff = ~(1|lake),
+                                      num.RR = 4, num.lv = 3, family = "tweedie", Power = 1.5,
+                                      randomB = "LV", quadratic = "LV",
+                                      control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_4_3_noimmature_tweedie1.5, file = "Models/model_copepod_4_3_noimmature_tweedie1.5.rds")
+model_copepod_4_3_noimmature_tweedie1.5 <- readRDS("Models/model_copepod_4_3_noimmature_tweedie1.5.rds")
+plot(model_copepod_4_3_noimmature_tweedie1.5)
+summary(model_copepod_4_3_noimmature_tweedie1.5)
+#check tweedie power
+model_copepod_4_3_noimmature_tweedie1.5$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_4_3_noimmature_tweedie1.5)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_4_3_noimmature_tweedie1.5)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+
+
+
+
+#try 2 RR and 0 LV - really simplify things
+model_copepod_2_0 <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 2, num.lv = 0, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_2_0, file = "Models/model_copepod_2_0.rds")
+model_copepod_2_0 <- readRDS("Models/model_copepod_2_0.rds")
+plot(model_copepod_2_0)
+summary(model_copepod_2_0)
+#check tweedie power
+model_copepod_2_0$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_2_0)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_2_0)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+#try 2 RR and 1 LV
+model_copepod_2_1 <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 2, num.lv = 1, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_2_1, file = "Models/model_copepod_2_1.rds")
+model_copepod_2_1 <- readRDS("Models/model_copepod_2_1.rds")
+plot(model_copepod_2_1)
+summary(model_copepod_2_1)
+#check tweedie power
+model_copepod_2_1$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_2_1)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_2_1)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+#try 2 RR and 2 LV
+model_copepod_2_2 <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 2, num.lv = 2, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_2_2, file = "Models/model_copepod_2_2.rds")
+model_copepod_2_2<- readRDS("Models/model_copepod_2_2.rds")
+plot(model_copepod_2_2)
+summary(model_copepod_2_2)
+#check tweedie power
+model_copepod_2_2$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_2_2)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_2_2)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+#try 2 RR and 3 LV
+model_copepod_2_3 <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 2, num.lv = 3, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_2_3, file = "Models/model_copepod_2_3.rds")
+model_copepod_2_3<- readRDS("Models/model_copepod_2_3.rds")
+plot(model_copepod_2_3)
+summary(model_copepod_2_3)
+#check tweedie power
+model_copepod_2_3$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_2_3)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_2_3)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+
+#try 3 RR and 2 LV
+model_copepod_3_2 <- gllvm(y = y_raw_trout.cop, X = x_scale_trout.cop, studyDesign = studyDesignData_trout.cop,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 3, num.lv = 2, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_copepod_3_2, file = "Models/model_copepod_3_2.rds")
+model_copepod_3_2<- readRDS("Models/model_copepod_3_2.rds")
+plot(model_copepod_3_2)
+summary(model_copepod_3_2)
+#check tweedie power
+model_copepod_3_2$Power
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_copepod_3_2)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_copepod_3_2)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+
+AICc(model_copepod_noimmature)
+AICc(model_copepod_4_3_noimmature)
