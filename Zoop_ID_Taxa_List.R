@@ -65,3 +65,24 @@ Elephant.spp <- unique(Elephant$species)
 # 
 # spp.df <- data.frame(Green = Green.spp.pad, Pelican = Pelican.spp.pad, Elephant = Elephant.spp.pad)
 # write.csv(spp.df, "Zoop_Taxa_In_Study_Lakes.csv")
+
+
+#--------------------------------------------------------------------------------------------
+#ALL LAKES in DNR zoop dataset AS OF Oct 2025
+
+zoop.oct.2025 <- read.csv("Data/Input/ZoopDB_data_20251016.csv")
+
+#get list of all species
+all.species <- as.data.frame(unique(zoop.oct.2025$species)) %>% 
+  rename(species = `unique(zoop.oct.2025$species)`)
+
+#view list in alphabetical order
+sort(all.species$species)
+
+#get list of all species and their frequencies
+species.table <- as.data.frame(table(zoop.oct.2025$species)) %>% 
+  rename(species = Var1,
+         frequency = Freq)
+
+#save as .csv
+#write.csv(species.table, file = "Data/Output/MNDNR_Zoop_Species_List.csv")
