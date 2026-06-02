@@ -5225,7 +5225,7 @@ x_scale_trout <- as.data.frame(x_scale_trout)
 
 #make a species abundance dataframe
 #calculate relative abundance within fish and within zoops, then cbind them together
-#now to be included, a taxa group must be present in at least 95% of samples (lake-years), be present in more than two lakes, and have passed an ecological gut check by Grace (is this species usually found in lakes?)
+#now to be included, a taxa group must be present in at least 95% of samples (lake-years), be present in more than two lakes
 
 #INVESTIGATING RARE SPECIES
 #First question: are there any species only present in one lake?
