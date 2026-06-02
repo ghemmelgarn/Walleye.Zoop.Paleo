@@ -35,6 +35,15 @@ VP(model)
 plot(VP(model))
 #GET MORE INTO THIS IN YOUR THESIS - LOOK AT VARIANCE PARTITIONING FOR EACH SPECIES
 
+#goodness of fit metrics
+goodnessOfFit(model)
+#make these species-specific
+goodnessOfFit(model, species = TRUE)
+GOF.spp <- as.data.frame(goodnessOfFit(model, species = TRUE))
+rownames(GOF.spp) <- new_names
+#save this
+#write.csv(GOF.spp, file = "Data/Output/gllvm_GOF_by_species.csv")
+
 
 #EVERYTHING BELOW THIS IN THIS SECTION IS WRONG SOMEHOW (but leaving code because I worked hard on it):
 # #residual covariance matrix
