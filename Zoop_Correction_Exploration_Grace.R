@@ -684,27 +684,201 @@ net_test_paired <- net_test %>%
   filter(sample_id != 2467)
 
 
-#LOOK AT THE TOW DEPTH DIFFERENCE ISSUE
+#Sometimes the "paired" 13 and 30 cm tows have different depths
+#get a dataset with one row for each sample
+sample_rows <- net_test_paired %>% 
+  group_by(sample_id, sample_date, haul_depth_m, net_mouth_diameter_cm, dowlknum, lake_name) %>% 
+  summarize(spp_rich = n_distinct(species),
+            .groups = 'drop')
+#pivot wider so we have a column for each net size and the data inside is the haul depth
+sample_wide <- sample_rows %>% 
+  select(-sample_id, - spp_rich) %>% 
+  pivot_wider(names_from = net_mouth_diameter_cm, values_from = haul_depth_m)
+#calculate difference between haul depths and isolate differences that aren't zero
+depth_test <- sample_wide %>% 
+  mutate(depth_diff = `13` - `30`) %>% 
+  filter(depth_diff != 0)
+#presenting this table to the group to see if we care about these differences...  
 
-#START AGAIN HERE--------------------
+#not going to worry about any taxonomic corrections or anything here - these were IDed at the same time so it should all match to each other
 
+#pivot wider so we have a 30 and a 13 cm column for density, count, biomass, and mean length
+#if none present in other corresponding sample, fills value with 0
+net_test_paired_wide <- net_test_paired %>%
+  pivot_wider(names_from = net_mouth_diameter_cm,
+              values_from = c(density, biomass, count, mean_length),
+              id_cols = c(parentdow.year, sample_date, lake_name, species, year, parentdow),
+              values_fill = 0) %>% 
+  #don't want zeroes for missing data for lengths
+  mutate(mean_length_13 = ifelse(mean_length_13 == 0, NA, mean_length_13),
+         mean_length_30 = ifelse(mean_length_30 == 0, NA, mean_length_30))
 
-#Check normality assumption for t-test
-ggplot(zoop_13, aes(x = biomass, fill = net_mouth_diameter_cm, alpha = 0.4))+
-  geom_density()+
+#make the plots of biomass, density, and count from the two net sizes by species for this dataset
+biomass <- ggplot(net_test_paired_wide, aes(x = biomass_13, y = biomass_30))+
+  geom_point()+
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed")+ #add a 1:1 line
+  geom_smooth(method = "lm")+
+  scale_y_continuous(limits = c(0,NA))+
+  scale_x_continuous(limits = c(0,NA))+
   facet_wrap(~species, scales = "free")+
   theme_classic()
-#so.... biomass is not normal
-ggplot(zoop_13, aes(x = count, fill = net_mouth_diameter_cm, alpha = 0.4))+
-  geom_density()+
+density <- ggplot(net_test_paired_wide, aes(x = density_13, y = density_30))+
+  geom_point()+
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed")+ #add a 1:1 line
+  geom_smooth(method = "lm")+
+  scale_y_continuous(limits = c(0,NA))+
+  scale_x_continuous(limits = c(0,NA))+
   facet_wrap(~species, scales = "free")+
   theme_classic()
-#neither is count
-ggplot(zoop_13, aes(x = density, fill = net_mouth_diameter_cm, alpha = 0.4))+
-  geom_density()+
+count <- ggplot(net_test_paired_wide, aes(x = count_13, y = count_30))+
+  geom_point()+
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed")+ #add a 1:1 line
+  geom_smooth(method = "lm")+
+  scale_y_continuous(limits = c(0,NA))+
+  scale_x_continuous(limits = c(0,NA))+
   facet_wrap(~species, scales = "free")+
   theme_classic()
-#tampoco density
+mean_length <- ggplot(net_test_paired_wide, aes(x = mean_length_13, y = mean_length_30))+
+  geom_point()+
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed")+ #add a 1:1 line
+  geom_smooth(method = "lm")+
+  scale_y_continuous(limits = c(0,NA))+
+  scale_x_continuous(limits = c(0,NA))+
+  facet_wrap(~species, scales = "free")+
+  theme_classic()
+
+#look at these plots
+biomass
+density
+count
+mean_length
+
+#how does the variation between net mouth samples from same sampling event compare to variation between lakes and between dates in multivariate space?
+#and how does the correction change this?
+#CHANGE FROM PREVIOUS ANALYSIS: NO HELLINGER TRANSFORMATION - actually I am still doing it for a comparison
+#Made a version with relative abundance (community composition only) and a raw data version (biomass and density are already in either ug or # per liter) which shows productivity AND community composition
+
+
+
+#calculate my own correction factors with the same method Kylie used but on my subset of data
+summary(lm_dens <- lm(density_30~density_13, net_test_paired_wide))
+#intercept = 0.40703     slope = 1.82940      adjusted R2 = 0.718 
+
+summary(lm_biom <- lm(biomass_30 ~ biomass_13, net_test_paired_wide))
+#intercept = -10.7645     slope = 3.4686     adjusted R2 = 0.6785
+
+#try the mean weight thing
+net_test_paired_wide$mw13 <- net_test_paired_wide$biomass_13/net_test_paired_wide$density_13
+net_test_paired_wide$mw30 <- net_test_paired_wide$biomass_30/net_test_paired_wide$density_30
+summary(lm_mw <- lm(mw30 ~ mw13, net_test_paired_wide))
+#intercept = 0.85033     slope = 0.73051     adjusted R2 = 0.6543
+
+#Apply my these correction factors
+net_test_corrected <- net_test_paired %>%
+  mutate(density2 = ifelse(net_mouth_diameter_cm == "13" & density != 0, (1.82940*density)+0.40703, density),  #save as density 2 but keep original density for mean weight calculation
+         biomass = ifelse(net_mouth_diameter_cm == "13" & biomass != 0, density2*((0.73051*(biomass/density))+0.85033), biomass),  #calculate mean weight with original density but multiply by new density
+         density = density2,  #make the new density the main density column
+         remarks = ifelse(net_mouth_diameter_cm == "13" & (biomass != 0 | density != 0), "net diff correction applied to density and biomass", "")) %>%
+  select(-density2) #get rid of temporary density column
+
+
+#START HERE: Need to combine corrected data with uncorrected data and make the NMDS plots that show all three with 3 versions:-------
+#1) hellinger transformation = community composition that downweights rare species
+#2) relative abundance = community composition
+#3) no transformation = community compositon AND productivity (how much total biomass is there?)
+
+#do this for density and biomass
+
+
+#Create wide format biomass dataframe
+net_test_wide_biom <- net_test_paired %>%
+  pivot_wider(names_from = species,
+              values_from = biomass,
+              id_cols = c(sample_date, lake_name, net_mouth_diameter_cm), #don't need year because all 2013
+              values_fill = 0)
+
+#Create wide format density dataframe
+net_test_wide_dens <- net_test_paired %>%
+  pivot_wider(names_from = species,
+              values_from = density,
+              id_cols = c(sample_date, lake_name, net_mouth_diameter_cm), #don't need year because all 2013
+              values_fill = 0)
+
+#Create vectors for color by lake and fill by net mouth size, also sample month
+lake.color <- net_test_wide_biom$lake_name
+size.fill <- net_test_wide_biom$net_mouth_diameter_cm
+month <- substr(net_test_wide_biom$sample_date, 6, 7)
+
+#Calculate relative abundance and remove the identifier columns
+biom_rel_abun <- net_test_wide_biom[,4:28] / rowSums(net_test_wide_biom[,4:28])
+dens_rel_abun <- net_test_wide_dens[,4:28] / rowSums(net_test_wide_dens[,4:28])
+
+#square root transform to do Hellinger transformation to downweight rare species and deal with the many zeroes
+biom_rel_abun_Holl <- sqrt(biom_rel_abun)
+dens_rel_abun_Holl <- sqrt(dens_rel_abun)
+
+
+#Make an NMDS with euclidean distance on relative abundance biomass data
+biom_euclidean_dist <- metaMDS(biom_rel_abun, distance = "euclidean")
+#extract axis scores for the sites (samples) only
+Plot.Data.biom <- as.data.frame(scores(biom_euclidean_dist, display = "sites"))
+#add LakeName and net size to the Plot.Data as a column
+Plot.Data.biom$lake_name <- as.factor(lake.color)
+Plot.Data.biom$size <- as.factor(size.fill)
+Plot.Data.biom$month <- as.factor(month)
+
+#plot with color by lake and fill by net mouth size
+NMDS_biom <- ggplot(data = Plot.Data.biom, aes(x = NMDS1, y = NMDS2, color = lake_name, alpha = size, shape = month)) +
+  geom_point(size = 3)+
+  labs(title = "Biomass Relative Abundance", y = "NMDS2", x = "NMDS1") +
+  scale_alpha_manual(values = c("30" = 1.0, "13" = 0.4))+
+  theme_classic()
+NMDS_biom
+
+#This generally looks really good - I'll look again after transforming to see if it improved
+
+#Make an NMDS with euclidean distance on Hellinger-transformed density data
+dens_euclidean_dist <- metaMDS(dens_rel_abun_Holl, distance = "euclidean")
+#extract axis scores for the sites (samples) only
+Plot.Data.dens <- as.data.frame(scores(dens_euclidean_dist, display = "sites"))
+#add LakeName and net size to the Plot.Data as a column
+Plot.Data.dens$lake_name <- as.factor(lake.color)
+Plot.Data.dens$size <- as.factor(size.fill)
+Plot.Data.dens$month <- as.factor(month)
+
+#plot with color by lake and fill by net mouth size
+NMDS_dens <- ggplot(data = Plot.Data.dens, aes(x = NMDS1, y = NMDS2, color = lake_name, alpha = size, shape = month)) +
+  geom_point(size = 3)+
+  labs(title = "Density", y = "NMDS2", x = "NMDS1") +
+  scale_alpha_manual(values = c("30" = 1.0, "13" = 0.4))+
+  theme_classic()
+NMDS_dens
+#density also looks decent
+
+#Make an NMDS with euclidean distance on Hellinger-transformed count data
+count_euclidean_dist <- metaMDS(count_rel_abun_Holl, distance = "euclidean")
+#extract axis scores for the sites (samples) only
+Plot.Data.count <- as.data.frame(scores(count_euclidean_dist, display = "sites"))
+#add LakeName and net size to the Plot.Data as a column
+Plot.Data.count$lake_name <- as.factor(lake.color)
+Plot.Data.count$size <- as.factor(size.fill)
+Plot.Data.count$month <- as.factor(month)
+
+#plot with color by lake and fill by net mouth size
+NMDS_count <- ggplot(data = Plot.Data.count, aes(x = NMDS1, y = NMDS2, color = lake_name, alpha = size, shape = month)) +
+  geom_point(size = 3)+
+  labs(title = "Count", y = "NMDS2", x = "NMDS1") +
+  scale_alpha_manual(values = c("30" = 1.0, "13" = 0.4))+
+  theme_classic()
+NMDS_count
+#count looks pretty much the same as density
+
+
+
+
+
+
+
 
 
 #EXPLORE ANALYST-------------------------------------------------
