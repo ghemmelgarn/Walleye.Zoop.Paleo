@@ -5345,6 +5345,13 @@ x_save <- x_scale_trout %>%
          ZM = ifelse(ZM == "yes", 1, 0))
 #write.csv(x_save, "Data/Input/gllvm_x_matrix.csv", row.names = FALSE)
 
+#save a version with precipitation in it as well for the final model
+x_save_precip <- x_scale_trout %>% 
+  select(CDOM, Area, Max_Depth, Secchi, GDD, Photic, Precip, SWF, ZM) %>% 
+  mutate(SWF = ifelse(SWF == "yes", 1, 0),
+         ZM = ifelse(ZM == "yes", 1, 0))
+#write.csv(x_save_precip, "Data/Input/gllvm_x_matrix_precip.csv", row.names = FALSE)
+
 #The ASLO model with trout lakes---------------
 #Note that the trout themselves got dropped for being too rare but now we have lakes with no walleye
 model36_moreLV_trout <- gllvm(y = y_raw_trout, X = x_scale_trout, studyDesign = studyDesignData_trout,
@@ -5747,7 +5754,7 @@ ggplot() +
 
 
 
-#THIS IS THE ONE--------------------------------------------------------------
+#ASLO MODEL - I presented it at aslo--------------------------------------------------------------
 #make it 4 LVs
 model36_moreLV_trout_nocopepod3RR4LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
                                         lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + SWF + ZM,
@@ -5877,6 +5884,84 @@ ggplot() +
   labs(title = "Concurrent GLLVM Biplot", x = "Environmental Axis 1", y = "Environmental Axis 2")
 
 
+#THIS IS THE ONE: ASLO MODEL WITH PRECIP ADDED ------------------------------------------------
+#somehow in copying and pasting I lost precip as a predictor, seeing if I can add it back into my functioning model structure
+model_aslo_precip <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                              lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                              row.eff = ~(1|lake),
+                                              num.RR = 3, num.lv = 4, family = "tweedie", Power = NULL,
+                                              randomB = "LV", quadratic = "LV",
+                                              control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_aslo_precip, file = "Models/model_aslo_precip.rds")
+model_aslo_precip <- readRDS("Models/model_aslo_precip.rds")
+plot(model_aslo_precip)
+summary(model_aslo_precip)
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_aslo_precip)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Env,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model_aslo_precip, "row.params.random"), Lake = names(coef(model_aslo_precip, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#extract canonical coefficients
+coef(model_aslo_precip, parm="Cancoef")
+
+
+
+
+
+
+#what happens if I drop the quadratic effect??
+model_aslo_precip_noquad <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 3, num.lv = 4, family = "tweedie", Power = NULL,
+                           randomB = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+#saveRDS(model_aslo_precip_noquad, file = "Models/model_aslo_precip_noquad.rds")
+model_aslo_precip_noquad <- readRDS("Models/model_aslo_precip_noquad.rds")
+plot(model_aslo_precip_noquad)
+#performance suffers, don't do this
+
+#-----------------------------------------------------------------------------------------------------
 
 
 #make it 5 LVs
