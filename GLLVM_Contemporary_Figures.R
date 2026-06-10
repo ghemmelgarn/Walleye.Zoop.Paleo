@@ -1,5 +1,7 @@
 #This script makes figures from the GLLVM model for ASLO presentation
 
+#THIS IS NOT THE FINAL MODEL I USED FOR MY THESIS - SEE MASTERS THESIS FIGURE SCRIPT FOR THAT
+
 library(ggplot2)
 library(corrplot)
 library(gclus)
