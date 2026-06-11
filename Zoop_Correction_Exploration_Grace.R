@@ -830,7 +830,7 @@ net_test_wide_dens <- net_test_all %>%
 #BIOMASS NMDS PLOTS
 
 #1) biomass no transformation
-#Make an NMDS with euclidean distance for each net size - need to calculate each NMDS separately
+#Make an NMDS with bray-curtis distance for each net size - need to calculate each NMDS separately
 NMDS_data <- net_test_wide_biom
 datatype = "Biomass"
 transformation = "no_transformation"
@@ -914,8 +914,95 @@ transformation = "no_transformation"
       ggsave(filename = paste("Shaokotan", datatype, transformation, "NMDS.png", sep = "_"), plot = plot_current_Shaokotan, width = 8, height = 6, units = "in", dpi = 300)
       
 
-#2) biomass relative abundance
+      
+#1.5) biomass no transformation - WITH EUCLIDEAN DISTANCE
 #Make an NMDS with euclidean distance for each net size - need to calculate each NMDS separately
+NMDS_data <- net_test_wide_biom
+datatype = "Biomass"
+transformation = "no_transformation"
+      #filter out for each net size
+      NMDS_13 <- NMDS_data %>% 
+        filter(net_mouth_diameter_cm == "13")
+      NMDS_13_corr <- NMDS_data %>% 
+        filter(net_mouth_diameter_cm == "13_corrected")
+      NMDS_30 <- NMDS_13_corr <- NMDS_data %>% 
+        filter(net_mouth_diameter_cm == "30")
+      #isolate the species data
+      spp_13 <- NMDS_13[,4:28]
+      spp_13_corr <- NMDS_13_corr[,4:28]
+      spp_30 <- NMDS_30[,4:28]
+      #make the NMDS files
+      bray_dist_13 <- metaMDS(spp_13, distance = "euclidean", trymax = 1000)
+      bray_dist_13_corr <- metaMDS(spp_13_corr, distance = "euclidean", trymax = 1000)
+      bray_dist_30 <- metaMDS(spp_30, distance = "euclidean", trymax = 1000)
+      #extract axis scores for the sites (samples) only
+      scores_13 <- as.data.frame(scores(bray_dist_13, display = "sites")) %>% 
+        mutate(net_size = "13",
+               lake_name = NMDS_13$lake_name,
+               month = substr(NMDS_13$sample_date, 6, 7))
+      scores_13_corr <- as.data.frame(scores(bray_dist_13_corr, display = "sites")) %>% 
+        mutate(net_size = "13_corrected",
+               lake_name = NMDS_13_corr$lake_name,
+               month = substr(NMDS_13_corr$sample_date, 6, 7))
+      scores_30 <- as.data.frame(scores(bray_dist_30, display = "sites")) %>% 
+        mutate(net_size = "30",
+               lake_name = NMDS_30$lake_name,
+               month = substr(NMDS_30$sample_date, 6, 7))
+      #rowbind them all and make factors for plot variables
+      plot_scores <- rbind(scores_13, scores_13_corr, scores_30) %>% 
+        mutate(net_size = as.factor(net_size),
+               lake_name = as.factor(lake_name),
+               month = as.factor(month)
+        )
+      #plot
+      plot_current <- ggplot(data = plot_scores, aes(x = NMDS1, y = NMDS2, color = lake_name, alpha = net_size, shape = month)) +
+        geom_point(size = 3)+
+        labs(title = paste(datatype, transformation, "NMDS Euclidean Distance"), y = "NMDS2", x = "NMDS1") +
+        scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+        theme_classic()
+      plot_current
+      ggsave(filename = paste(datatype, transformation, "NMDS_euclidean.png", sep = "_"), plot = plot_current, width = 10, height = 8, units = "in", dpi = 300)
+      
+      #that's a lot to look at, we could facet wrap by lake and make month the color
+      plot_current_panels <- ggplot(data = plot_scores, aes(x = NMDS1, y = NMDS2, shape = net_size, color = month)) +
+        geom_point(size = 3, alpha = 0.6)+
+        facet_wrap(~lake_name)+
+        labs(title = paste(datatype, transformation, "NMDS Euclidean Distance"), y = "NMDS2", x = "NMDS1") +
+        scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+        theme_classic()
+      plot_current_panels
+      ggsave(filename = paste(datatype, transformation, "by_lake_NMDS_euclidean.png", sep = "_"), plot = plot_current_panels, width = 10, height = 9, units = "in", dpi = 300)
+      
+      #enlarge three lakes as case studies: the least clustered (St James), most clustered (Greenwood), and intermediate (Shaokotan)
+      plot_scores_stJames <- plot_scores %>% 
+        filter(lake_name == "St. James")
+      plot_scores_Greenwood <- plot_scores %>% 
+        filter(lake_name == "Greenwood")
+      plot_scores_Shaokotan <- plot_scores %>% 
+        filter(lake_name == "Shaokotan")
+      plot_current_stJames <- ggplot(data = plot_scores_stJames, aes(x = NMDS1, y = NMDS2, shape = net_size, color = month)) +
+        geom_point(size = 3, alpha = 0.6)+
+        labs(title = paste("St. James", datatype, transformation, "NMDS Euclidean Distance"), y = "NMDS2", x = "NMDS1") +
+        scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+        theme_classic()
+      ggsave(filename = paste("StJames", datatype, transformation, "NMDS_euclidean.png", sep = "_"), plot = plot_current_stJames, width = 8, height = 6, units = "in", dpi = 300)
+      plot_current_Greenwood <- ggplot(data = plot_scores_Greenwood, aes(x = NMDS1, y = NMDS2, shape = net_size, color = month)) +
+        geom_point(size = 3, alpha = 0.6)+
+        labs(title = paste("Greenwood", datatype, transformation, "NMDS Euclidean Distance"), y = "NMDS2", x = "NMDS1") +
+        scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+        theme_classic()
+      ggsave(filename = paste("Greenwood", datatype, transformation, "NMDS_euclidean.png", sep = "_"), plot = plot_current_Greenwood, width = 8, height = 6, units = "in", dpi = 300)
+      plot_current_Shaokotan <- ggplot(data = plot_scores_Shaokotan, aes(x = NMDS1, y = NMDS2, shape = net_size, color = month)) +
+        geom_point(size = 3, alpha = 0.6)+
+        labs(title = paste("Shaokotan", datatype, transformation, "NMDS Euclidean Distance"), y = "NMDS2", x = "NMDS1") +
+        scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+        theme_classic()
+      ggsave(filename = paste("Shaokotan", datatype, transformation, "NMDS_euclidean.png", sep = "_"), plot = plot_current_Shaokotan, width = 8, height = 6, units = "in", dpi = 300)      
+      
+      
+      
+#2) biomass relative abundance
+#Make an NMDS with bray-curtis distance for each net size - need to calculate each NMDS separately
 NMDS_data <- net_test_wide_biom
 datatype = "Biomass"
 transformation = "relative_abundance"
@@ -999,7 +1086,7 @@ transformation = "relative_abundance"
       ggsave(filename = paste("Shaokotan", datatype, transformation, "NMDS.png", sep = "_"), plot = plot_current_Shaokotan, width = 8, height = 6, units = "in", dpi = 300)
 
 #3) biomass Hellinger transformation
-#Make an NMDS with euclidean distance for each net size - need to calculate each NMDS separately
+#Make an NMDS with bray-curtis distance for each net size - need to calculate each NMDS separately
 NMDS_data <- net_test_wide_biom
 datatype = "Biomass"
 transformation = "Hellinger"
@@ -1086,7 +1173,7 @@ transformation = "Hellinger"
 #Density NMDS PLOTS
       
 #4) density no transformation
-#Make an NMDS with euclidean distance for each net size - need to calculate each NMDS separately
+#Make an NMDS with bray-curtis distance for each net size - need to calculate each NMDS separately
 NMDS_data <- net_test_wide_dens
 datatype = "Density"
 transformation = "no_transformation"
@@ -1171,7 +1258,7 @@ transformation = "no_transformation"
       
       
 #5) density relative abundance
-#Make an NMDS with euclidean distance for each net size - need to calculate each NMDS separately
+#Make an NMDS with bray-curtis distance for each net size - need to calculate each NMDS separately
 NMDS_data <- net_test_wide_dens
 datatype = "Density"
 transformation = "relative_abundance"
@@ -1255,7 +1342,7 @@ transformation = "relative_abundance"
       ggsave(filename = paste("Shaokotan", datatype, transformation, "NMDS.png", sep = "_"), plot = plot_current_Shaokotan, width = 8, height = 6, units = "in", dpi = 300)
       
 #6) density Hellinger transformation
-#Make an NMDS with euclidean distance for each net size - need to calculate each NMDS separately
+#Make an NMDS with bray-curtis distance for each net size - need to calculate each NMDS separately
 NMDS_data <- net_test_wide_dens
 datatype = "Density"
 transformation = "Hellinger"
