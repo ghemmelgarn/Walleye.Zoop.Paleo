@@ -1,5 +1,9 @@
 #This R script counts the number of individuals identified for each slide and sediment sample
 
+
+#IMPORTANT
+#6/12/2026 I added a column called "Number of Antennules" to the datasheet- when it's time to count make sure this doesn't mess up this script
+
 #packages
 library(tidyverse)
 library(ggplot2)
@@ -1824,7 +1828,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
 unique(Sed_Data_Reassigned$Taxa)
                         
 #ONE CLADOCERA = 1 Headshield + 2 Shell Valves ( = 1 Carapace) + 1 Postabdomen + 2 Postabdominal claws
-                        
+#NOT USING ANTENNULES TO COUNT BOSMINIDS - too variable and did not keep track                        
                         
 #Get counts by taxa AND remain type for each sample
 #make a frequency table that gets saved as a data frame
@@ -1840,6 +1844,7 @@ Specimen_Count <- Specimen_Count %>%
 
 #Now take the most frequent remain type for each taxa and use it as the individual count
 Individual_Count_by_Taxa <- Specimen_Count %>% 
+  filter(Remain.Type != "Antennal Segment") %>% #I added this line without trying to run the code so if you have problems, troubleshoot here
   group_by(LakeName, Taxa) %>% 
   summarise(Count = max(Freq))
 
