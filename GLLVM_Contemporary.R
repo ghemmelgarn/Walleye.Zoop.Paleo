@@ -5209,6 +5209,7 @@ x_trout <- data.filter %>%
          RBS = RBS.yn,
          CAP = CAP.yn)
 
+
 #standardize all quantitative variables (except the proportion) with scale function
 x_scale_trout <- x_trout  %>% 
   mutate(Secchi = scale(Secchi),
@@ -5351,6 +5352,15 @@ x_save_precip <- x_scale_trout %>%
   mutate(SWF = ifelse(SWF == "yes", 1, 0),
          ZM = ifelse(ZM == "yes", 1, 0))
 #write.csv(x_save_precip, "Data/Input/gllvm_x_matrix_precip.csv", row.names = FALSE)
+
+#save a version that is NOT standardized
+x_save_raw <- x_trout %>% 
+  select(CDOM, Area, Max_Depth, Secchi, GDD, Photic, Precip, SWF, ZM) %>% 
+  mutate(SWF = ifelse(SWF == "yes", 1, 0),
+         ZM = ifelse(ZM == "yes", 1, 0),
+         lake_name = data.filter$lake_name,
+         year = data.filter$Year)
+#write.csv(x_save_raw, "Data/Input/gllvm_x_matrix_raw.csv", row.names = FALSE)
 
 #The ASLO model with trout lakes---------------
 #Note that the trout themselves got dropped for being too rare but now we have lakes with no walleye
