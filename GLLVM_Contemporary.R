@@ -4090,6 +4090,7 @@ model40 <- gllvm(y = y_raw, X = x_scale, studyDesign = studyDesignData,
                             randomB = "LV", quadratic = "LV",
                             control.start = (n.init = 10), jitter.var = 0.1)
 #saveRDS(model40, file = "Models/model40.rds")
+model40 <- readRDS("Models/model40.rds")
 plot(model40)
 summary(model40)
 #get residual correlations
@@ -5953,6 +5954,66 @@ ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
 #extract canonical coefficients
 coef(model_aslo_precip, parm="Cancoef")
 
+
+
+#Try with 2RR and 5 LV because the second RR is on a weird scale
+#somehow in copying and pasting I lost precip as a predictor, seeing if I can add it back into my functioning model structure
+model_aslo_precip_2_5 <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                           lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 2, num.lv = 5, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = (n.init = 10), jitter.var = 0.1)
+beep()
+saveRDS(model_aslo_precip_2_5, file = "Models/model_aslo_precip_2_5.rds")
+model_aslo_precip_2_5 <- readRDS("Models/model_aslo_precip_2_5.rds")
+plot(model_aslo_precip_2_5)
+summary(model_aslo_precip_2_5)
+#get residual correlations
+par(mfrow = c(1, 1))
+Theta <- getResidualCor(model_aslo_precip_2_5)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Theta,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip_2_5)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#standardized order for comparison
+corrplot(Env,
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#collect and plot random effects
+rand.lake <- data.frame(Rand_Effect_Value = coef(model_aslo_precip_2_5, "row.params.random"), Lake = names(coef(model_aslo_precip_2_5, "row.params.random")))
+ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
+  geom_point()+
+  theme_classic()+
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+  )
+#extract canonical coefficients
+coef(model_aslo_precip_2_5, parm="Cancoef")
 
 
 
