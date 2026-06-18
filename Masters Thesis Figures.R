@@ -64,16 +64,18 @@ vp_colors <- c(
 
 
 
-#MODEL PERFORMANCE----------------------------------------------------------
+#DIAGNOSTIC PLOTS----------------------------------------------------------
 #look at all
 plot(model)
+#look at all without color
+plot(model, var.color = "black")
 
 #make and save a layout
 #png("performance_layout.png", width = 7, height = 6, units = "in", res = 300)
 #set up 2x2 grid
-par(mfrow = c(2,2))
+par(mfrow = c(3,2))
 #first plot
-plot(model, which = 1, cex = 0.7, lwd = 0.5, ann = FALSE)
+plot(model, which = 1, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
 #custom titles to make things capitalized
 title(xlab = "Linear Predictors", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Linear Predictors")   
 #annotate letter label
@@ -84,7 +86,7 @@ mtext("A",
       cex = 1.1, #text size
       font = 2) #2 = bold
 #same thing for the rest of the plots  
-plot(model, which = 2, cex = 0.7, lwd = 0.5, ann = FALSE)
+plot(model, which = 2, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
 title(xlab = "Theoretical Quantiles", ylab = "Dunn-Smyth-Residuals", main = "Normal Q-Q")
 mtext("B", 
       side = 3, #3 for the top margin
@@ -93,7 +95,7 @@ mtext("B",
       cex = 1.1, #text size
       font = 2) #2 = bold
 
-plot(model, which = 3, cex = 0.7, lwd = 0.5, ann = FALSE)
+plot(model, which = 3, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
 title(xlab = "Site Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Row")
 mtext("C", 
       side = 3, #3 for the top margin
@@ -102,9 +104,17 @@ mtext("C",
       cex = 1.1, #text size
       font = 2) #2 = bold
 
-plot(model, which = 4, cex = 0.7, lwd = 0.5, ann = FALSE) 
+plot(model, which = 4, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
 title(xlab = "Species Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Column")
 mtext("D", 
+      side = 3, #3 for the top margin
+      line = 1, #bigger number here moves it further up in plot space
+      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+      cex = 1.1, #text size
+      font = 2) #2 = bold
+plot(model, which = 5, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
+title(xlab = "Linear Predictors", ylab = expression(sqrt("Dunn-Smyth-Residuals")), main = "Scale-Location")
+mtext("E", 
       side = 3, #3 for the top margin
       line = 1, #bigger number here moves it further up in plot space
       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
