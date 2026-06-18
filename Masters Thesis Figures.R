@@ -967,6 +967,7 @@ lakeyear_plot <- ggplot(data = x, aes(x = year, y = lake_name))+
   geom_tile(color = "#332288", fill = "#332288", linewidth = 0.5)+
   geom_hline(yintercept = (1:34)-0.5, color = "gray95", linewidth = 0.5)+
   scale_x_continuous(breaks = seq(2000, 2024, by = 5), minor_breaks = 1999:2024, guide = guide_axis_base(key = key_minor()), expand = c(0,0))+
+  scale_y_discrete(limits = rev)+
   labs(x = "Year", y = "Lake")+
   theme_classic(base_size = 11)
 lakeyear_plot
