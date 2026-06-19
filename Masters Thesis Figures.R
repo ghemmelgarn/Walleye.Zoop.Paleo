@@ -618,7 +618,7 @@ CLV2_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reord
   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
   labs(x = "CLV2 Linear Coefficient", y = "Taxon", fill = "")+
-  scale_x_continuous(limits = c(-19, 5))+
+  scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)+
   theme(legend.position = "right")
 CLV2_plot_forlayout
@@ -626,7 +626,8 @@ clv2_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV2))+
   geom_col()+
   labs(x = "Environmental Variable", y = "CLV2 Canonical Coefficient")+
   theme_classic(base_size = 11)+
-  coord_flip()
+  coord_flip()+
+  scale_y_continuous(limits = c(-1, 0.5))
 clv2_loadings
 
 CLV2_layout <- CLV2_plot_forlayout / plot_spacer() / clv2_loadings +
@@ -634,9 +635,73 @@ CLV2_layout <- CLV2_plot_forlayout / plot_spacer() / clv2_loadings +
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.3, 0.99)) 
+        plot.tag.position = c(0.33, 1))
 CLV2_layout
-#ggsave("clv2_layout.png", plot = CLV2_layout, width = 7, height = 9, units = "in", dpi = 300)
+#ggsave("clv2_layout.png", plot = CLV2_layout, width = 6.5, height = 7.5, units = "in", dpi = 300)
+
+#Make similar layouts for CLV1 and 3 with their optima
+CLV1_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = reorder(taxon, CLV1_opt)))+
+  #vertical line at 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = CLV1_opt-(1.96*CLV1_opt_se), xmax = CLV1_opt+(1.96*CLV1_opt_se)), width = 0.2, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  labs(x = "CLV1 Optimum", y = "Taxon", fill = "")+
+  scale_x_continuous(limits = c(-19, 22))+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "right")
+CLV1_plot_forlayout
+clv1_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV1))+
+  geom_col()+
+  labs(x = "Environmental Variable", y = "CLV1 Canonical Coefficient")+
+  theme_classic(base_size = 11)+
+  coord_flip()+
+  scale_y_continuous(limits = c(-1, 0.5))
+clv1_loadings
+
+CLV1_layout <- CLV1_plot_forlayout / plot_spacer() / clv1_loadings +
+  plot_layout(height = c(3, 0.1, 1))+ 
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
+        plot.tag = element_text(size = 12, face = "bold"),
+        plot.tag.position = c(0.33, 1)) 
+CLV1_layout
+#ggsave("clv1_layout.png", plot = CLV1_layout, width = 6.5, height = 7.5, units = "in", dpi = 300)
+
+
+CLV3_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV3_opt, y = reorder(taxon, CLV3_opt)))+
+  #vertical line at 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = CLV3_opt-(1.96*CLV3_opt_se), xmax = CLV3_opt+(1.96*CLV3_opt_se)), width = 0.2, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  labs(x = "CLV3 Optimum", y = "Taxon", fill = "")+
+  scale_x_continuous(limits = c(-19, 22))+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "right")
+CLV3_plot_forlayout
+clv3_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV3))+
+  geom_col()+
+  labs(x = "Environmental Variable", y = "CLV3 Canonical Coefficient")+
+  theme_classic(base_size = 11)+
+  coord_flip()+
+  scale_y_continuous(limits = c(-1, 0.5))
+clv3_loadings
+
+CLV3_layout <- CLV3_plot_forlayout / plot_spacer() / clv3_loadings +
+  plot_layout(height = c(3, 0.1, 1))+ 
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
+        plot.tag = element_text(size = 12, face = "bold"),
+        plot.tag.position = c(0.33, 1)) 
+CLV3_layout
+#ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 7.5, units = "in", dpi = 300)
+
+
 
 
 #make caterpillar plots for the other two linear predictors too
@@ -667,6 +732,13 @@ CLV1_plot <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, 
   theme_classic(base_size = 11)
 CLV1_plot
 #ggsave("clv1_coef_95CI.png", plot = CLV1_plot, width = 7, height = 7, units = "in", dpi = 300)
+
+
+
+
+
+
+
 
 
 #make a version with all three plots together
