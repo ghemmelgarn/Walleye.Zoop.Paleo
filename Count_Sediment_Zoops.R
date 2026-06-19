@@ -15,7 +15,7 @@ library(stringr)
 
 #read in data and make N/A, NA, or an empty cell all read in as NA
 #update file with new data as needed
-Sed_Data <- read.csv("Data/Input/Sediment_Zoop_ID_20250829.csv", na.strings = c("N/A", "NA", ""))
+Sed_Data <- read.csv("Data/Input/Sediment_Zoop_ID_20260619.csv", na.strings = c("N/A", "NA", ""))
 
 #Fix spelling errors and rename columns
 Sed_Data <- Sed_Data %>% 
@@ -147,7 +147,8 @@ ID_QAQC2 <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
                           arrange(Remain.Number)
 
 
-#We have to deal with things that are IDed to different levels by different structures
+
+                        #We have to deal with things that are IDed to different levels by different structures
     #when we can identify to more detail with one structure than another, we will take the proportion of species from the detailed structure and apply that proportion to the more ambiguous structure
           #If we have multiple structures we can ID to same detailed taxonomic resolution and one that is more ambiguous: use most frequent remain types to get an individual count out of these detailed structures and use that for proportion
     #when we can't fully ID something due to to poor preservation or gunk on the slide - use proportion derived from OTHER SPECIMENS OF THAT SAME STRUCTURE that you can ID all the way
@@ -1863,8 +1864,8 @@ Sample_summary <- Slide_Count %>%
           #turn NA values into 0
           Individual_Count_by_Taxa_Wide[is.na(Individual_Count_by_Taxa_Wide)] <- 0 
 
-#write.csv(Individual_Count_by_Taxa_Wide, file = paste0("Data/Output/Sediment_Zoop_Taxa_Count", Sys.Date(), ".csv"))
-#write.csv(Sample_summary, file = paste0("Data/Output/Sediment_Zoop_Sample_Summary", Sys.Date(), ".csv"))
+#write.csv(Individual_Count_by_Taxa_Wide, file = paste0("Data/Output/Sediment_Zoop_Taxa_Count", Sys.Date(), ".csv"), row.names = FALSE)
+#write.csv(Sample_summary, file = paste0("Data/Output/Sediment_Zoop_Sample_Summary", Sys.Date(), ".csv"), row.names = FALSE)
           
 
           
