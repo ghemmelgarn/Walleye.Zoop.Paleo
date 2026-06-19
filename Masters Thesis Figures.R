@@ -71,7 +71,7 @@ plot(model)
 plot(model, var.color = "black")
 
 #make and save a layout
-#png("performance_layout.png", width = 7, height = 6, units = "in", res = 300)
+#png("performance_layout.png", width = 6.5, height = 6, units = "in", res = 300)
 #set up 2x2 grid
 par(mfrow = c(3,2))
 #first plot
@@ -143,7 +143,8 @@ VP.df <- as.data.frame(VP[["PropExplainedVarSp"]]) %>%
          "LV3+LV3^2" = "LV3/LV3^2",
          "LV4+LV4^2" = "LV4/LV4^2",
          "Random Lake Effect" = "Row random effect: lake"
-         ) %>% 
+         )
+VP.df <- VP.df %>% 
   mutate(Species = rownames(VP.df))
 #pivot longer
 VP.df.long <- pivot_longer(VP.df, cols = "CLV1+CLV1^2":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
@@ -164,11 +165,74 @@ VP_plot
 #save plot
 #ggsave("VP_plot_top_legend.png", plot = VP_plot, width = 7, height = 6, units = "in", dpi = 300)
 
+#make a version with the legend on the right
+VP_plot_r <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
+  geom_col()+
+  scale_fill_manual(values = vp_colors)+
+  labs(x = "Taxon", y = "Variance Proportion", fill = "")+
+  theme_classic(base_size = 11)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.text = element_text(size = 8),
+        legend.box.margin = margin(0,0,0,-10))
+VP_plot_r
+#save plot
+#ggsave("VP_plot.png", plot = VP_plot_r, width = 7, height = 6, units = "in", dpi = 300)
 
 
+#try swapping the axes
+VP_plot_coordflip <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
+  geom_col()+
+  scale_fill_manual(values = vp_colors)+
+  labs(x = "Taxon", y = "Variance Proportion", fill = "")+
+  theme_classic(base_size = 11)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "right",
+        legend.box.margin = margin(0,0,0,-10))+
+  coord_flip()+
+  scale_x_discrete(limits = rev)
+VP_plot_coordflip
+#save plot
+ggsave("VP_plot_coordflip.png", plot = VP_plot_coordflip, width = 6.5, height = 6.5, units = "in", dpi = 300)
+
+#percentages split by fish and zoops
+VP.df$type <- c(rep("Fish", 22), rep("Zooplankton", 15))
+VP.fish.zoop <- VP.df %>% 
+  group_by(type) %>% 
+  summarize(`CLV1+CLV1^2` = mean(`CLV1+CLV1^2`),
+            `CLV2+CLV2^2` = mean(`CLV2+CLV2^2`),
+            `CLV3+CLV3^2` = mean(`CLV3+CLV3^2`),
+            `LV1+LV1^2` = mean(`LV1+LV1^2`),
+            `LV2+LV2^2` = mean(`LV2+LV2^2`),
+            `LV3+LV3^2` = mean(`LV3+LV3^2`),
+            `LV4+LV4^2` = mean(`LV4+LV4^2`),
+            `Random Lake Effect` = mean(`Random Lake Effect`),
+            .groups = 'drop')
+#plot this
+#pivot longer
+VP.fish.zoop.long <- pivot_longer(VP.fish.zoop, cols = "CLV1+CLV1^2":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
+  #change variance component factor levels so I put them in the order I want
+  mutate(`Variance Component` = fct_rev(`Variance Component`))
+VP_fish_zoop <- ggplot(data = VP.fish.zoop.long, aes(x = type, y =Proportion, fill = `Variance Component`))+
+  geom_col()+
+  scale_fill_manual(values = vp_colors)+
+  labs(x = "Trophic Level", y = "Variance Proportion", fill = "")+
+  theme_classic(base_size = 11)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")+
+  coord_flip()+
+  scale_x_discrete(limits = rev)
+VP_fish_zoop
+#save plot
 
 
-
+#make a VP layout
+VP_layout <- VP_fish_zoop / plot_spacer() / VP_plot_coordflip +
+  plot_layout(height = c(1, 0.1, 5))+ 
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.tag = element_text(size = 12, face = "bold"),
+        plot.tag.position = c(0.1, 1)) 
+VP_layout
+#ggsave("VP_layout.png", plot = VP_layout, width = 6.5, height = 7.5, units = "in", dpi = 300)
 
 
 #GOODNESS OF FIT------------------------------------------------------------
@@ -201,7 +265,7 @@ MARNE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MARNE))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 MARNE_plot
 #save plot
-#ggsave("MARNE_plot.png", plot = MARNE_plot, width = 7, height = 5, units = "in", dpi = 300)
+#ggsave("MARNE_plot.png", plot = MARNE_plot, width = 6.5, height = 5, units = "in", dpi = 300)
 
 #make an MAE plot that I probably won't use
 MAE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MAE))+
@@ -211,7 +275,7 @@ MAE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MAE))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 MAE_plot
 #save plot
-#ggsave("MAE_plot.png", plot = MAE_plot, width = 7, height = 5, units = "in", dpi = 300)
+#ggsave("MAE_plot.png", plot = MAE_plot, width = 6.5, height = 5, units = "in", dpi = 300)
 
 
 
@@ -275,7 +339,7 @@ clv_panel_plot_samey_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param)
   coord_flip()
 clv_panel_plot_samey_flip
 #save plot
-#ggsave("clv_panel_yconstant_flip.png", plot = clv_panel_plot_samey_flip, width = 7, height = 8, units = "in", dpi = 300)
+ggsave("clv_panel_yconstant_flip.png", plot = clv_panel_plot_samey_flip, width = 6.5, height = 7, units = "in", dpi = 300)
 
 #one plot with colors for each CLV
 clv_combo_plot <- ggplot(data = clv_load_long, aes(x = Param, y = Loading, fill = CLV))+
@@ -398,7 +462,7 @@ legend_label_sort <- stringr::str_sort(unique(opt_plot_data$legend_label), numer
 opt_plot_data <- opt_plot_data %>% 
   mutate(legend_label = factor(legend_label, levels = legend_label_sort))
 
-#this is the good one  
+#this is the good one but not a biplot - use the next one 
 CLV1_CLV3 <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
   #make colored points for the numbers to print on top of
   geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
@@ -423,7 +487,7 @@ CLV1_CLV3
 #ggsave("clv1v3_optima.png", plot = CLV1_CLV3, width = 7, height = 9, units = "in", dpi = 300)
 
 
-
+#USE THIS ONE
 #turn the good one into a biplot with the environment in there too
 #extract environmental coefficients
 env_arrows <- model$params$LvXcoef
@@ -449,21 +513,22 @@ CLV1_CLV3_biplot <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt)
   #format these large legends
   guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
          color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
-  theme(legend.text = element_text(size = 8.5),
+  theme(legend.text = element_text(size = 9),
         legend.title = element_text(size = 11, face = "bold"),
         legend.position = "bottom",
         legend.box = "vertical", #puts the two legends on top of each other
         legend.box.just = "center", #aligns the two legends to the left
         legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
-        legend.key.spacing.y = unit(0, "cm")) #shrinks the vertical space between legend entries
+        legend.key.spacing.y = unit(0.1, "cm"),  #shrinks the vertical space between legend entries
+        legend.key.size = unit(0.1, "pt")) #make the legend color boxes tiny so they don't take up space
 CLV1_CLV3_biplot
-#ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 7, height = 9, units = "in", dpi = 300)
+#ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 6.5, height = 8, units = "in", dpi = 300)
 
 #add error bars wih 95% confidence intervals based on CONDITIONAL standard errors
 CLV1_CLV3_95CI <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
   #make conditional standard error cross-hairs
-  geom_errorbar(aes(xmin = CLV1_opt-(1.96*CLV1_opt_se), xmax = CLV1_opt+(1.96*CLV1_opt_se)), width = 0, linewidth = 0.2, color = "gray")+
-  geom_errorbar(aes(ymin = CLV3_opt-(1.96*CLV3_opt_se), ymax = CLV3_opt+(1.96*CLV3_opt_se)), width = 0, linewidth = 0.2, color = "gray")+
+  geom_errorbar(aes(xmin = CLV1_opt-(1.96*CLV1_opt_se), xmax = CLV1_opt+(1.96*CLV1_opt_se)), width = 0.1, linewidth = 0.2, color = "gray")+
+  geom_errorbar(aes(ymin = CLV3_opt-(1.96*CLV3_opt_se), ymax = CLV3_opt+(1.96*CLV3_opt_se)), width = 0.1, linewidth = 0.2, color = "gray")+
   #make colored points for the numbers to print on top of
   geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
@@ -493,6 +558,40 @@ CLV1_CLV3_95CI <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
 CLV1_CLV3_95CI
 #ggsave("clv1v3_optima_95CI.png", plot = CLV1_CLV3_95CI, width = 7, height = 9, units = "in", dpi = 300)
 #this is just unreadable
+
+#add error bars with just the CONDITIONAL standard errors
+CLV1_CLV3_SE <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
+  #make conditional standard error cross-hairs
+  geom_errorbar(aes(xmin = CLV1_opt-CLV1_opt_se, xmax = CLV1_opt+CLV1_opt_se), width = 0.1, linewidth = 0.2, color = "gray")+
+  geom_errorbar(aes(ymin = CLV3_opt-CLV3_opt_se, ymax = CLV3_opt+CLV3_opt_se), width = 0.1, linewidth = 0.2, color = "gray")+
+  #make colored points for the numbers to print on top of
+  geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  #plot optima with numbers as species and then have a key!
+  geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
+  #make invisible points with colors as the label to force the number key
+  geom_point(aes(color = legend_label), alpha = 0)+
+  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
+  #add env arrows
+  geom_segment(data = as.data.frame(env_arrows), 
+               aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
+               arrow = arrow(length = unit(0.2, "cm")), color = "black") +
+  geom_text(data = as.data.frame(env_arrows), 
+            aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "black") +
+  theme_classic()+
+  #format these large legends
+  guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
+         color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
+  theme(legend.text = element_text(size = 8.5),
+        legend.title = element_text(size = 11, face = "bold"),
+        legend.position = "bottom",
+        legend.box = "vertical", #puts the two legends on top of each other
+        legend.box.just = "center", #aligns the two legends to the left
+        legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
+        legend.key.spacing.y = unit(0, "cm")) +#shrinks the vertical space between legend entries
+  coord_cartesian(xlim = c(-5, 5.5), ylim = c(-6, 4.5)) #this zooms in on the part of the plot where the points are
+CLV1_CLV3_SE
+#slightly easier to look at but harder for readers to interpret SE than 95CI
 
 #now I need the caterpillar plot for the linear CLV2
 CLV2_plot <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
