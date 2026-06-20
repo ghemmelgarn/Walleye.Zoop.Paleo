@@ -627,11 +627,11 @@ clv2_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV2))+
   labs(x = "Environmental Variable", y = "CLV2 Canonical Coefficient")+
   theme_classic(base_size = 11)+
   coord_flip()+
-  scale_y_continuous(limits = c(-1, 0.5))
+  scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
 clv2_loadings
 
-CLV2_layout <- CLV2_plot_forlayout / plot_spacer() / clv2_loadings +
-  plot_layout(height = c(3, 0.1, 1))+ 
+CLV2_layout <- clv2_loadings / plot_spacer() / CLV2_plot_forlayout +
+  plot_layout(height = c(1, 0.05, 3))+ 
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
@@ -658,11 +658,11 @@ clv1_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV1))+
   labs(x = "Environmental Variable", y = "CLV1 Canonical Coefficient")+
   theme_classic(base_size = 11)+
   coord_flip()+
-  scale_y_continuous(limits = c(-1, 0.5))
+  scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
 clv1_loadings
 
-CLV1_layout <- CLV1_plot_forlayout / plot_spacer() / clv1_loadings +
-  plot_layout(height = c(3, 0.1, 1))+ 
+CLV1_layout <- clv1_loadings / plot_spacer() / CLV1_plot_forlayout +
+  plot_layout(height = c(1, 0.05, 3))+ 
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
@@ -689,11 +689,11 @@ clv3_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV3))+
   labs(x = "Environmental Variable", y = "CLV3 Canonical Coefficient")+
   theme_classic(base_size = 11)+
   coord_flip()+
-  scale_y_continuous(limits = c(-1, 0.5))
+  scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
 clv3_loadings
 
-CLV3_layout <- CLV3_plot_forlayout / plot_spacer() / clv3_loadings +
-  plot_layout(height = c(3, 0.1, 1))+ 
+CLV3_layout <- clv3_loadings / plot_spacer() / CLV3_plot_forlayout +
+  plot_layout(height = c(1, 0.05, 3))+ 
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
