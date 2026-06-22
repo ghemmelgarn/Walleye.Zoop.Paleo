@@ -5186,6 +5186,9 @@ data.filter <- data %>%
   #add analyst column
   mutate(analyst = ifelse(Year < 2020, "A", "B"))
 
+#Save this dataframe for later reference
+#write.csv(data.filter, file = "Data/Input/GLLVM_Complete_Dataset.csv", row.names = FALSE)
+
 
 #make covariate dataframe
 x_trout <- data.filter %>% 
