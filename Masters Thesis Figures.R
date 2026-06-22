@@ -63,6 +63,8 @@ vp_colors <- c(
 )
 
 
+#MODEL POWER-----------------------------------
+model$Power
 
 #DIAGNOSTIC PLOTS----------------------------------------------------------
 #look at all
@@ -71,7 +73,61 @@ plot(model)
 plot(model, var.color = "black")
 
 #make and save a layout
-#png("performance_layout.png", width = 6.5, height = 6, units = "in", res = 300)
+#png("performance_layout.png", width = 6.5, height = 6, units = "in", res = 600)
+#set up 2x2 grid
+par(mfrow = c(3,2))
+#first plot
+plot(model, which = 1, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
+#custom titles to make things capitalized
+title(xlab = "Linear Predictors", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Linear Predictors")   
+#annotate letter label
+mtext("A", 
+      side = 3, #3 for the top margin
+      line = 1, #bigger number here moves it further up in plot space
+      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+      cex = 1.1, #text size
+      font = 2) #2 = bold
+#same thing for the rest of the plots  
+plot(model, which = 2, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
+title(xlab = "Theoretical Quantiles", ylab = "Dunn-Smyth-Residuals", main = "Normal Q-Q")
+mtext("B", 
+      side = 3, #3 for the top margin
+      line = 1, #bigger number here moves it further up in plot space
+      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+      cex = 1.1, #text size
+      font = 2) #2 = bold
+
+plot(model, which = 3, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
+title(xlab = "Site Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Row")
+mtext("C", 
+      side = 3, #3 for the top margin
+      line = 1, #bigger number here moves it further up in plot space
+      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+      cex = 1.1, #text size
+      font = 2) #2 = bold
+
+plot(model, which = 4, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
+title(xlab = "Species Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Column")
+mtext("D", 
+      side = 3, #3 for the top margin
+      line = 1, #bigger number here moves it further up in plot space
+      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+      cex = 1.1, #text size
+      font = 2) #2 = bold
+plot(model, which = 5, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
+title(xlab = "Linear Predictors", ylab = expression(sqrt("Dunn-Smyth-Residuals")), main = "Scale-Location")
+mtext("E", 
+      side = 3, #3 for the top margin
+      line = 1, #bigger number here moves it further up in plot space
+      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+      cex = 1.1, #text size
+      font = 2) #2 = bold
+#reset par
+par(mfrow = c(1,1))
+#dev.off()
+
+#save same layout as an svg
+#svg("performance_layout.svg", width = 6.5, height = 6)
 #set up 2x2 grid
 par(mfrow = c(3,2))
 #first plot
@@ -163,7 +219,7 @@ VP_plot <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Var
   guides(fill = guide_legend(nrow = 2, byrow = TRUE, reverse = TRUE))
 VP_plot
 #save plot
-#ggsave("VP_plot_top_legend.png", plot = VP_plot, width = 7, height = 6, units = "in", dpi = 300)
+#ggsave("VP_plot_top_legend.png", plot = VP_plot, width = 7, height = 6, units = "in", dpi = 600)
 
 #make a version with the legend on the right
 VP_plot_r <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
@@ -176,7 +232,7 @@ VP_plot_r <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `V
         legend.box.margin = margin(0,0,0,-10))
 VP_plot_r
 #save plot
-#ggsave("VP_plot.png", plot = VP_plot_r, width = 7, height = 6, units = "in", dpi = 300)
+#ggsave("VP_plot.png", plot = VP_plot_r, width = 7, height = 6, units = "in", dpi = 600)
 
 
 #try swapping the axes
@@ -192,7 +248,7 @@ VP_plot_coordflip <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, f
   scale_x_discrete(limits = rev)
 VP_plot_coordflip
 #save plot
-ggsave("VP_plot_coordflip.png", plot = VP_plot_coordflip, width = 6.5, height = 6.5, units = "in", dpi = 300)
+#ggsave("VP_plot_coordflip.png", plot = VP_plot_coordflip, width = 6.5, height = 6.5, units = "in", dpi = 600)
 
 #percentages split by fish and zoops
 VP.df$type <- c(rep("Fish", 22), rep("Zooplankton", 15))
@@ -232,7 +288,8 @@ VP_layout <- VP_fish_zoop / plot_spacer() / VP_plot_coordflip +
   theme(plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.1, 1)) 
 VP_layout
-#ggsave("VP_layout.png", plot = VP_layout, width = 6.5, height = 7.5, units = "in", dpi = 300)
+#ggsave("VP_layout.png", plot = VP_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
+#ggsave("VP_layout.svg", plot = VP_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
 
 
 #GOODNESS OF FIT------------------------------------------------------------
@@ -265,7 +322,8 @@ MARNE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MARNE))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 MARNE_plot
 #save plot
-#ggsave("MARNE_plot.png", plot = MARNE_plot, width = 6.5, height = 5, units = "in", dpi = 300)
+#ggsave("MARNE_plot.png", plot = MARNE_plot, width = 6.5, height = 5, units = "in", dpi = 600)
+#ggsave("MARNE_plot.svg", plot = MARNE_plot, width = 6.5, height = 5, units = "in", dpi = 600)
 
 #make an MAE plot that I probably won't use
 MAE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MAE))+
@@ -275,7 +333,7 @@ MAE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MAE))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 MAE_plot
 #save plot
-#ggsave("MAE_plot.png", plot = MAE_plot, width = 6.5, height = 5, units = "in", dpi = 300)
+#ggsave("MAE_plot.png", plot = MAE_plot, width = 6.5, height = 5, units = "in", dpi = 600)
 
 
 
@@ -311,7 +369,7 @@ clv_panel_plot <- ggplot(data = clv_load_long, aes(x = Param, y = Loading))+
         panel.spacing = unit(1.5, "lines"))
 clv_panel_plot
 #save plot
-#ggsave("clv_panel.png", plot = clv_panel_plot, width = 5, height = 10, units = "in", dpi = 300)
+#ggsave("clv_panel.png", plot = clv_panel_plot, width = 5, height = 10, units = "in", dpi = 600)
 
 #make y axis constant across all three panels
 clv_panel_plot_samey <- ggplot(data = clv_load_long, aes(x = Param, y = Loading))+
@@ -325,7 +383,7 @@ clv_panel_plot_samey <- ggplot(data = clv_load_long, aes(x = Param, y = Loading)
         panel.spacing = unit(1.5, "lines"))
 clv_panel_plot_samey
 #save plot
-#ggsave("clv_panel_yconstant.png", plot = clv_panel_plot_samey, width = 5, height = 10, units = "in", dpi = 300)
+#ggsave("clv_panel_yconstant.png", plot = clv_panel_plot_samey, width = 5, height = 10, units = "in", dpi = 600)
 
 #flip x and y axes
 clv_panel_plot_samey_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param), y = Loading))+
@@ -339,7 +397,7 @@ clv_panel_plot_samey_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param)
   coord_flip()
 clv_panel_plot_samey_flip
 #save plot
-ggsave("clv_panel_yconstant_flip.png", plot = clv_panel_plot_samey_flip, width = 6.5, height = 7, units = "in", dpi = 300)
+#ggsave("clv_panel_yconstant_flip.png", plot = clv_panel_plot_samey_flip, width = 6.5, height = 7, units = "in", dpi = 600)
 
 #one plot with colors for each CLV
 clv_combo_plot <- ggplot(data = clv_load_long, aes(x = Param, y = Loading, fill = CLV))+
@@ -352,7 +410,7 @@ clv_combo_plot <- ggplot(data = clv_load_long, aes(x = Param, y = Loading, fill 
         legend.direction = "horizontal")
 clv_combo_plot
 #save plot
-#ggsave("clv_combo.png", plot = clv_combo_plot, width = 6, height = 4, units = "in", dpi = 300)
+#ggsave("clv_combo.png", plot = clv_combo_plot, width = 6, height = 4, units = "in", dpi = 600)
 
 #one plot with colors for each CLV but flip x and y
 clv_combo_plot_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param), y = Loading, fill = CLV))+
@@ -365,7 +423,7 @@ clv_combo_plot_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param), y = 
   coord_flip()
 clv_combo_plot_flip
 #save plot
-#ggsave("clv_combo_flip.png", plot = clv_combo_plot_flip, width = 6, height = 4, units = "in", dpi = 300)
+#ggsave("clv_combo_flip.png", plot = clv_combo_plot_flip, width = 6, height = 4, units = "in", dpi = 600)
 
 
 
@@ -484,7 +542,7 @@ CLV1_CLV3 <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
         legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
         legend.key.spacing.y = unit(0, "cm")) #shrinks the vertical space between legend entries
 CLV1_CLV3
-#ggsave("clv1v3_optima.png", plot = CLV1_CLV3, width = 7, height = 9, units = "in", dpi = 300)
+#ggsave("clv1v3_optima.png", plot = CLV1_CLV3, width = 7, height = 9, units = "in", dpi = 600)
 
 
 #USE THIS ONE
@@ -522,7 +580,7 @@ CLV1_CLV3_biplot <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt)
         legend.key.spacing.y = unit(0.1, "cm"),  #shrinks the vertical space between legend entries
         legend.key.size = unit(0.1, "pt")) #make the legend color boxes tiny so they don't take up space
 CLV1_CLV3_biplot
-#ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 6.5, height = 8, units = "in", dpi = 300)
+#ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 6.5, height = 8, units = "in", dpi = 600)
 
 #add error bars wih 95% confidence intervals based on CONDITIONAL standard errors
 CLV1_CLV3_95CI <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
@@ -556,7 +614,7 @@ CLV1_CLV3_95CI <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
         legend.key.spacing.y = unit(0, "cm")) +#shrinks the vertical space between legend entries
   coord_cartesian(xlim = c(-5, 5.5), ylim = c(-6, 4.5)) #this zooms in on the part of the plot where the points are
 CLV1_CLV3_95CI
-#ggsave("clv1v3_optima_95CI.png", plot = CLV1_CLV3_95CI, width = 7, height = 9, units = "in", dpi = 300)
+#ggsave("clv1v3_optima_95CI.png", plot = CLV1_CLV3_95CI, width = 7, height = 9, units = "in", dpi = 600)
 #this is just unreadable
 
 #add error bars with just the CONDITIONAL standard errors
@@ -606,7 +664,7 @@ CLV2_plot <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, 
   scale_x_continuous(limits = c(-19, 5))+
   theme_classic(base_size = 11)
 CLV2_plot
-#ggsave("clv2_coef_95CI.png", plot = CLV2_plot, width = 7, height = 7, units = "in", dpi = 300)
+#ggsave("clv2_coef_95CI.png", plot = CLV2_plot, width = 7, height = 7, units = "in", dpi = 600)
 
 #a caterpillar plot for CLV2 combined with the canonical coefficient plot for that axis
 CLV2_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
@@ -637,7 +695,8 @@ CLV2_layout <- clv2_loadings / plot_spacer() / CLV2_plot_forlayout +
         plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.33, 1))
 CLV2_layout
-#ggsave("clv2_layout.png", plot = CLV2_layout, width = 6.5, height = 7.5, units = "in", dpi = 300)
+#ggsave("clv2_layout.png", plot = CLV2_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
+#ggsave("clv2_layout.svg", plot = CLV2_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
 
 #Make similar layouts for CLV1 and 3 with their optima
 CLV1_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = reorder(taxon, CLV1_opt)))+
@@ -668,7 +727,8 @@ CLV1_layout <- clv1_loadings / plot_spacer() / CLV1_plot_forlayout +
         plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.33, 1)) 
 CLV1_layout
-#ggsave("clv1_layout.png", plot = CLV1_layout, width = 6.5, height = 7.5, units = "in", dpi = 300)
+#ggsave("clv1_layout.png", plot = CLV1_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
+#ggsave("clv1_layout.svg", plot = CLV1_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
 
 
 CLV3_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV3_opt, y = reorder(taxon, CLV3_opt)))+
@@ -680,7 +740,7 @@ CLV3_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV3_opt, y = reorde
   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
   labs(x = "CLV3 Optimum", y = "Taxon", fill = "")+
-  scale_x_continuous(limits = c(-19, 22))+
+  coord_cartesian(xlim = c(-19, 22))+
   theme_classic(base_size = 11)+
   theme(legend.position = "right")
 CLV3_plot_forlayout
@@ -699,7 +759,8 @@ CLV3_layout <- clv3_loadings / plot_spacer() / CLV3_plot_forlayout +
         plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.33, 1)) 
 CLV3_layout
-#ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 7.5, units = "in", dpi = 300)
+#ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
+#ggsave("clv3_layout.svg", plot = CLV3_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
 
 
 
@@ -717,7 +778,7 @@ CLV3_plot <- ggplot(data = opt_plot_data, aes(x = CLV3_coef, y = reorder(taxon, 
   scale_x_continuous(limits = c(-20.1, 10.1))+
   theme_classic(base_size = 11)
 CLV3_plot
-#ggsave("clv3_coef_95CI.png", plot = CLV3_plot, width = 7, height = 7, units = "in", dpi = 300)
+#ggsave("clv3_coef_95CI.png", plot = CLV3_plot, width = 7, height = 7, units = "in", dpi = 600)
 
 CLV1_plot <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, CLV1_coef)))+
   #vertical line at 0
@@ -731,7 +792,7 @@ CLV1_plot <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, 
   #scale_x_continuous(limits = c(-20.1, 10.1))+
   theme_classic(base_size = 11)
 CLV1_plot
-#ggsave("clv1_coef_95CI.png", plot = CLV1_plot, width = 7, height = 7, units = "in", dpi = 300)
+#ggsave("clv1_coef_95CI.png", plot = CLV1_plot, width = 7, height = 7, units = "in", dpi = 600)
 
 
 
@@ -797,7 +858,164 @@ all_CLV <- (CLV1_combo / CLV2_combo / CLV3_combo) +
         plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.1, 0.99)) 
 all_CLV
-#ggsave("CLV_coef_panel.png", plot = all_CLV, width = 7, height = 10, units = "in", dpi = 300)
+#ggsave("CLV_coef_panel.png", plot = all_CLV, width = 7, height = 10, units = "in", dpi = 600)
+
+
+
+#make a layout with plots for all the LV linear coefficients
+LV1_combo <- ggplot(data = opt_plot_data, aes(x = LV1_coef, y = reorder(taxon, LV1_coef)))+
+  #vertical line at 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = LV1_coef-(1.96*LV1_coef_se), xmax = CLV1_coef+(1.96*LV1_coef_se)), width = 0.2, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  labs(x = "LV1 Linear Coefficient", y = NULL, fill = "")+
+  theme_classic(base_size = 9)+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_flip()
+LV1_combo
+
+LV2_combo <- ggplot(data = opt_plot_data, aes(x = LV2_coef, y = reorder(taxon, LV2_coef)))+
+  #vertical line at 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = LV2_coef-(1.96*LV2_coef_se), xmax = LV2_coef+(1.96*LV2_coef_se)), width = 0.2, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  labs(x = "LV2 Linear Coefficient", y = NULL, fill = "")+
+  theme_classic(base_size = 9)+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_flip()
+LV2_combo
+
+LV3_combo <- ggplot(data = opt_plot_data, aes(x = LV3_coef, y = reorder(taxon, LV3_coef)))+
+  #vertical line at 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = LV3_coef-(1.96*LV3_coef_se), xmax = LV3_coef+(1.96*LV3_coef_se)), width = 0.2, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  labs(x = "LV3 Linear Coefficient", y = NULL, fill = "")+
+  theme_classic(base_size = 9)+
+  theme(legend.position = "right",
+        legend.title = element_blank(),
+        legend.box.margin = margin(t = -120,0,0,-10, unit = "pt"),
+        legend.background = element_rect(color = "gray80", linewidth = 0.5))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_flip()
+LV3_combo
+
+LV4_combo <- ggplot(data = opt_plot_data, aes(x = LV4_coef, y = reorder(taxon, LV4_coef)))+
+  #vertical line at 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = LV4_coef-(1.96*LV4_coef_se), xmax = LV4_coef+(1.96*LV4_coef_se)), width = 0.2, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  labs(x = "LV4 Linear Coefficient", y = "Taxon", fill = "")+
+  theme_classic(base_size = 9)+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_flip()
+LV4_combo
+
+all_LV <- (LV1_combo / LV2_combo / LV3_combo / LV4_combo) +
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.margin = margin(10,5,5,5), #gives extra space on the left for long Eurycercus label
+        plot.tag = element_text(size = 12, face = "bold"),
+        plot.tag.position = c(0.09, 1)) 
+all_LV
+#ggsave("LV_coef_panel.png", plot = all_LV, width = 7, height = 8, units = "in", dpi = 600)
+#ggsave("LV_coef_panel.svg", plot = all_LV, width = 7, height = 8, units = "in", dpi = 600)
+
+
+
+#INTERCEPTS----------------------------------
+#extract species-specific intercepts and their standard errors
+intercept <- as.data.frame(model[["params"]][["beta0"]])
+
+#format, add standard errors, and separate fish vs. zoop groups
+intercept_se <- intercept %>% 
+  rename(beta0 = "model[[\"params\"]][[\"beta0\"]]") %>% 
+  mutate(Taxon = rownames(intercept),
+         beta0_se = model[["sd"]][["beta0"]],
+         group = ifelse((Taxon == "Walleye" | Taxon == "Black Crappie" |
+                           Taxon == "Bluegill" | Taxon == "Hybrid Sunfish" |
+                           Taxon == "Largemouth Bass" | Taxon == "Pumpkinseed" |
+                           Taxon == "Rock Bass" | Taxon == "Smallmouth Bass" |
+                           Taxon == "Bullhead" | Taxon == "Bowfin" |
+                           Taxon == "Burbot"  | Taxon == "Cisco" |
+                           Taxon == "Common Carp" | Taxon == "Golden Shiner" |
+                           Taxon == "Lake Whitefish" | Taxon == "Muskellunge" |
+                           Taxon == "Northern Pike" | Taxon == "Rainbow Smelt"  |
+                           Taxon == "Redhorse"  | Taxon == "Sauger"  |
+                           Taxon == "White Sucker" | Taxon == "Yellow Perch"),
+                        "Fish", "Zooplankton"))
+
+#plot
+intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = reorder(Taxon, beta0)))+
+  #vertical line at 0
+  #geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = beta0-(1.96*beta0_se), xmax = beta0+(1.96*beta0_se)), width = 0.2, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  labs(x = "Intercept", y = "Taxon", fill = "")+
+  #scale_x_continuous(limits = c(-19, 22))+
+  theme_classic(base_size = 11)
+intercept_plot
+#ggsave("intercepts.png", plot = intercept_plot, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave("intercepts.svg", plot = intercept_plot, width = 7, height = 7, units = "in", dpi = 600)
+
+
+
+#PHI------------------------------
+#extract species-specific intercepts and their standard errors
+phi <- as.data.frame(model[["params"]][["phi"]])
+
+#format, add standard errors, and separate fish vs. zoop groups
+phi_se <- phi %>% 
+  rename(phi = "model[[\"params\"]][[\"phi\"]]") %>% 
+  mutate(Taxon = rownames(intercept),
+         phi_se = model[["sd"]][["phi"]],
+         group = ifelse((Taxon == "Walleye" | Taxon == "Black Crappie" |
+                           Taxon == "Bluegill" | Taxon == "Hybrid Sunfish" |
+                           Taxon == "Largemouth Bass" | Taxon == "Pumpkinseed" |
+                           Taxon == "Rock Bass" | Taxon == "Smallmouth Bass" |
+                           Taxon == "Bullhead" | Taxon == "Bowfin" |
+                           Taxon == "Burbot"  | Taxon == "Cisco" |
+                           Taxon == "Common Carp" | Taxon == "Golden Shiner" |
+                           Taxon == "Lake Whitefish" | Taxon == "Muskellunge" |
+                           Taxon == "Northern Pike" | Taxon == "Rainbow Smelt"  |
+                           Taxon == "Redhorse"  | Taxon == "Sauger"  |
+                           Taxon == "White Sucker" | Taxon == "Yellow Perch"),
+                        "Fish", "Zooplankton"))
+
+#plot
+phi_plot <- ggplot(data = phi_se, aes(x = phi, y = reorder(Taxon, phi)))+
+  #vertical line at 0
+  #geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = phi-(1.96*phi_se), xmax = phi+(1.96*phi_se)), width = 0.2, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  labs(x = "Tweedie Dispersion Parameter (\u03d5)", y = "Taxon", fill = "")+
+  #scale_x_continuous(limits = c(-19, 22))+
+  theme_classic(base_size = 11)
+phi_plot
+#ggsave("phi.png", plot = phi_plot, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave("phi.svg", plot = phi_plot, width = 7, height = 7, units = "in", dpi = 600)
+
+
 
 
 
@@ -805,7 +1023,7 @@ all_CLV
 
 #environmental correlations
 Env <- getEnvironCor(model)
-#png("cor_all_env.png", width = 7, height = 6, units = "in", res = 300)
+#png("cor_all_env.png", width = 7, height = 6, units = "in", res = 600)
 corrplot(Env[order.single(Env), order.single(Env)],
          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
          type = "lower", #lower half of diagonal
@@ -819,7 +1037,7 @@ corrplot(Env[order.single(Env), order.single(Env)],
 
 #residual correlations
 Theta <- getResidualCor(model)
-#png("cor_all_res.png", width = 7, height = 6, units = "in", res = 300)
+#png("cor_all_res.png", width = 7, height = 6, units = "in", res = 600)
 corrplot(Theta[order.single(Theta), order.single(Theta)],
          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
          type = "lower", #lower half of diagonal
@@ -833,7 +1051,7 @@ corrplot(Theta[order.single(Theta), order.single(Theta)],
 
 
 #panel plot with both together
-#png("cor_both_panel.png", width = 7, height = 10, units = "in", res = 300)
+#png("cor_both_panel.png", width = 7, height = 10, units = "in", res = 600)
 #set up the two panels
 par(mfrow = c(2,1))
 #shrink plot margins to make them print closer together
@@ -877,7 +1095,72 @@ par(mar = c(5.1, 4.1, 4.1, 2.1))
 #dev.off()
 
 
+#save these as .svg files
+#svg("cor_all_env.svg", width = 7, height = 6)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
+         type = "lower", #lower half of diagonal
+         method = "square",
+         tl.cex = 0.7, #label size
+         tl.srt = 45, #rotate top labels
+         tl.col = "black", #label color
+         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+#dev.off()
 
+#svg("cor_all_res.svg", width = 7, height = 6)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
+         type = "lower", #lower half of diagonal
+         method = "square",
+         tl.cex = 0.7, #label size
+         tl.srt = 45, #rotate top labels
+         tl.col = "black", #label color
+         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+#dev.off()
+
+
+#svg("cor_both_panel.svg", width = 7, height = 10)
+#set up the two panels
+par(mfrow = c(2,1))
+#shrink plot margins to make them print closer together
+par(mar = c(0,0,0,0))
+#make env. plot
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
+         type = "lower", #lower half of diagonal
+         method = "square",
+         tl.cex = 0.65, #label size
+         tl.srt = 45, #rotate top labels
+         tl.col = "black", #label color
+         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+#add annotation
+mtext("A", 
+      side = 3, #3 for the top margin
+      line = -3, #bigger number here moves it further up in plot space
+      adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
+      cex = 1.5, #text size
+      font = 2) #2 = bold
+#make residual plot
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
+         type = "lower", #lower half of diagonal
+         method = "square",
+         tl.cex = 0.65, #label size
+         tl.srt = 45, #rotate top labels
+         tl.col = "black", #label color
+         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+#add annotation
+mtext("B", 
+      side = 3, #3 for the top margin
+      line = -3, #bigger number here moves it further up in plot space
+      adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
+      cex = 1.5, #text size
+      font = 2) #2 = bold
+#reset par
+par(mfrow = c(1,1))
+#reset margins
+par(mar = c(5.1, 4.1, 4.1, 2.1))
+#dev.off()
 
 #SITE MAPS---------------------------------------------------------
 
@@ -926,7 +1209,8 @@ rand_lake_map <- ggplot()+
         legend.text = element_text(size = 12),
         legend.margin = margin(t = 10, r = 15, b = -100, l = -100, unit = "pt"),)
 rand_lake_map
-#ggsave(filename = "random_effect_map.png", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 300)
+#ggsave(filename = "random_effect_map.png", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave(filename = "random_effect_map.svg", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 600)
 
 rand_lake_map_lab <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
@@ -942,7 +1226,8 @@ rand_lake_map_lab <- ggplot()+
         legend.text = element_text(size = 12),
         legend.margin = margin(t = 10, r = 15, b = -100, l = -100, unit = "pt"),)
 rand_lake_map_lab
-#ggsave(filename = "random_effect_map_labeled.png", plot = rand_lake_map_lab, width = 7, height = 7, units = "in", dpi = 300)
+#ggsave(filename = "random_effect_map_labeled.png", plot = rand_lake_map_lab, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave(filename = "random_effect_map_labeled.svg", plot = rand_lake_map_lab, width = 7, height = 7, units = "in", dpi = 600)
 
 
 
@@ -977,7 +1262,8 @@ both_maps <- ggdraw()+
   draw_plot(mn_in_us, x = 0.65, y = 0.18, width = 0.30, height = 0.30)
 both_maps
 #export map
-#ggsave(filename = "map.png", plot = both_maps, width = 7, height = 7, units = "in", dpi = 300)
+#ggsave(filename = "map.png", plot = both_maps, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave(filename = "map.svg", plot = both_maps, width = 7, height = 7, units = "in", dpi = 600)
 
 #again but label the lakes
 sites_in_mn_lab <- ggplot()+
@@ -995,7 +1281,8 @@ both_maps_lab <- ggdraw()+
   draw_plot(mn_in_us, x = 0.65, y = 0.18, width = 0.30, height = 0.30)
 both_maps_lab
 #export map
-#ggsave(filename = "map_labeled.png", plot = both_maps_lab, width = 7, height = 7, units = "in", dpi = 300)
+#ggsave(filename = "map_labeled.png", plot = both_maps_lab, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave(filename = "map_labeled.svg", plot = both_maps_lab, width = 7, height = 7, units = "in", dpi = 600)
 
 
 
@@ -1123,7 +1410,8 @@ cov_maps_legends <- cov_maps_labels &
     plot.tag.position = c(0.12, 0.83)
   )
 cov_maps_legends
-#ggsave(filename = "covariate_maps.png", plot = cov_maps_legends, width = 7, height = 7, units = "in", dpi = 300)
+#ggsave(filename = "covariate_maps.png", plot = cov_maps_legends, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave(filename = "covariate_maps.svg", plot = cov_maps_legends, width = 7, height = 7, units = "in", dpi = 600)
 
 
 
@@ -1142,7 +1430,8 @@ lakeyear_plot <- ggplot(data = x, aes(x = year, y = lake_name))+
   labs(x = "Year", y = "Lake")+
   theme_classic(base_size = 11)
 lakeyear_plot
-#ggsave(filename = "lakeyears.png", plot = lakeyear_plot, width = 7, height = 5, units = "in", dpi = 300)
+#ggsave(filename = "lakeyears.png", plot = lakeyear_plot, width = 7, height = 5, units = "in", dpi = 600)
+#ggsave(filename = "lakeyears.svg", plot = lakeyear_plot, width = 7, height = 5, units = "in", dpi = 600)
 
 
 
@@ -1271,7 +1560,8 @@ wae.lmb.allMN.log <- ggplot(data = MN.plot.data, aes(x = WAE.CPUE, y = LMB.CPUE,
         legend.background = element_rect(fill = "white", color = "black"))
 fish.context.plot <- ggMarginal(wae.lmb.allMN.log, type = "density", groupColor = TRUE, groupFill = TRUE)
 fish.context.plot
-#ggsave(filename = "fish_context.png", plot = fish.context.plot, width = 7, height = 5, units = "in", dpi = 300)
+#ggsave(filename = "fish_context.png", plot = fish.context.plot, width = 7, height = 5, units = "in", dpi = 600)
+#ggsave(filename = "fish_context.svg", plot = fish.context.plot, width = 7, height = 5, units = "in", dpi = 600)
 
 
 
@@ -1421,6 +1711,7 @@ wq.allMN <- ggplot(data = MN_WQ_plot_data, aes(x = GDD, y = Secchi, color = type
         legend.background = element_rect(fill = "white", color = "black"))
 wq.context.plot <- ggMarginal(wq.allMN, type = "density", groupColor = TRUE, groupFill = TRUE)
 wq.context.plot
-#ggsave(filename = "wq_context.png", plot = wq.context.plot, width = 7, height = 5, units = "in", dpi = 300)
+#ggsave(filename = "wq_context.png", plot = wq.context.plot, width = 7, height = 5, units = "in", dpi = 600)
+#ggsave(filename = "wq_context.svg", plot = wq.context.plot, width = 7, height = 5, units = "in", dpi = 600)
   
 
