@@ -1715,3 +1715,14 @@ wq.context.plot
 #ggsave(filename = "wq_context.svg", plot = wq.context.plot, width = 7, height = 5, units = "in", dpi = 600)
   
 
+
+#LAKE TABLE INFO ------------------------------------------
+lakeyears <- read.csv("Data/Input/GLLVM_Complete_Dataset.csv")
+
+#get a mean secchi and lake-year count for each one
+lakes <- lakeyears %>% 
+  group_by(lake_name, parentdow, lake_lat_decdeg, lake_lon_decdeg, depth.max.m, area_ha) %>% 
+  summarize(mean_secchi_m = mean(secchi.meters.MPCA.Jul.to.Sept),
+            lakeyear_n = n(),
+            .groups = "drop")
+  
