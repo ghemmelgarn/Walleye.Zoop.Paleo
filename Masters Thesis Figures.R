@@ -1725,4 +1725,76 @@ lakes <- lakeyears %>%
   summarize(mean_secchi_m = mean(secchi.meters.MPCA.Jul.to.Sept),
             lakeyear_n = n(),
             .groups = "drop")
-  
+
+
+#VARIABLE TABLE INFO------------------------------------
+
+#only making a table with variables I actually used
+#isolate the columns - categorical and quantitative separately
+env.var.quant <- lakeyears %>% 
+  select(secchi.meters.MPCA.Jul.to.Sept, gdd.year.5c, precip_5yr_avg_mm, CDOM.lake.avg, area_ha, depth.max.m, photic_prop_secchi.meters.MPCA.Jul.to.Sept)
+
+env.var.cat <- lakeyears %>% 
+  select(SpinyWaterflea.yn, ZebraMussel.yn)
+
+#calculate stats for the quantitative ones
+env.var.quant.long <- pivot_longer(env.var.quant, cols = everything(), names_to = "variable", values_to = "value")
+env.var.quant.stat <- env.var.quant.long %>% 
+  group_by(variable) %>% 
+  summarize(min = min(value, na.rm = TRUE),
+            max = max(value, na.rm = TRUE),
+            mean = mean(value, na.rm = TRUE),
+            median = median(value, na.rm = TRUE),
+            .groups = "drop")
+
+#round things at the end
+env.var.quant.round <- env.var.quant.stat %>% 
+  mutate(across(where(is.numeric), ~ ifelse((variable == "area_ha" | variable == "depth.max.m" | variable == "precip_5yr_avg_mm" | variable == "gdd.year.5c"), round(.x, digits = 0), round(.x, digits = 2)))) %>% 
+  #add a row with the labels you actually want
+  mutate(name = c("CDOM", "Lake Area", "Maximum Depth", "Degree Days", "Littoral Zone", "Annual Precipitation", "Secchi Depth"))
+
+#How many lakes in each drainage connectivity class?
+con_class <- lakeyears %>% 
+  group_by(lake_name) %>% 
+  summarize(cat = first(lake_connectivity_class))
+
+#how correlated are these?
+library(GGally) #for ggpairs function
+ggpairs(env.var.quant)
+
+
+#SPECIES TABLE---------------------------------
+
+#filter out just species data and remove species that are all zeroes in this dataset
+spp <- lakeyears %>% 
+  select(BIB.CPUE:nauplii) %>% 
+  select(-GOE.CPUE, -QBS.CPUE, -TRP.CPUE) 
+
+#pivot longer
+spp.long <- pivot_longer(spp, cols = everything(), names_to = "species", values_to = "abundance")
+
+#calculate stats
+spp.stat <- spp.long %>% 
+  group_by(species) %>% 
+  summarize(min = min(na_if(abundance,0), na.rm = TRUE),
+            max = max(na_if(abundance,0), na.rm = TRUE),
+            median = median(na_if(abundance,0), na.rm = TRUE),
+            lakeyear = sum(abundance > 0),
+            .groups = "drop") %>% 
+  #round values
+  mutate(across(min:median, ~ round(.x, digits = 2)))
+
+#how many distinct lakes are they in?
+
+#get the max value for each species in each lake (will be 0 if never present)
+lake.spp <- lakeyears %>% 
+  select(-GOE.CPUE, -QBS.CPUE, -TRP.CPUE) %>% 
+  group_by(lake_name) %>% 
+  summarize(across(BIB.CPUE:nauplii, max),
+            .groups = 'drop')
+#for each species, count the number of lakes where it has a value greater than 0 in at least one year
+spp.lake.count <- as.data.frame(colSums(lake.spp[,2:74] > 0))
+spp.lake.count$species = rownames(spp.lake.count)
+
+#add this lake count to the stat dataframe
+spp.stat <- full_join(spp.stat, spp.lake.count, by = "species")
