@@ -3,6 +3,7 @@
 #packages
 library(tidyverse)
 library(vegan)
+library(lubridate) #to help with dates
 
 set.seed(8789078)
 
@@ -38,6 +39,17 @@ zoop_parentdow <- zoop_months %>%
 
 #make parentdow.year column to join to other data
 zoop_parentdow$parentdow.year = paste(zoop_parentdow$parentdow, zoop_parentdow$year)
+
+
+
+
+
+
+
+
+
+
+
 
 
 #PREP GRACE'S WALLEYE-ZOOP-PALEO DATA SUBSET---------------------
@@ -2202,3 +2214,108 @@ scores2_large
 # ggsave(filename = "All_Large_Analyst.png", plot = NMDS_biom_analyst2_large, width = 8, height = 6, units = "in", dpi = 300)
 # ggsave(filename = "All_Large_MDS1.png", plot = scores1_large, width = 8, height = 6, units = "in", dpi = 300)
 # ggsave(filename = "All_Large_MDS2.png", plot = scores2_large, width = 8, height = 6, units = "in", dpi = 300)
+
+
+#BIOMASS OVER TIME-------------------------------------------------
+
+#total biomass over time to see if we see a change when the net size changes
+unique(zoop_parentdow$lake_name)
+#isolate sentinel lakes to get a more manageable number - these are the best sampled over time too
+sent <- zoop_parentdow %>% 
+  filter(is_slice_lake == "TRUE" | is_slice_lake == "True") %>% 
+  mutate(lake_name = ifelse(lake_name == "Shaokatan", "Shaokotan", lake_name))#fix spelling error
+unique(sent$lake_name)
+#filter more to just get lakes with long time series
+sent.filter <- sent %>% 
+  filter(lake_name == "Bearhead" | lake_name == "Carlos" | lake_name == "Elk" | lake_name == "Madison" | lake_name == "Pearl" | lake_name == "Portage" | 
+           lake_name == "Shaokotan" | lake_name == "South Center" | lake_name == "St. James" | lake_name == "Tait" | lake_name == "Ten Mile" | lake_name == "Trout") 
+#get total biomass for each sample
+sent.total.biom <- sent.filter %>% 
+  group_by(lake_name, year, sample_date, sample_id) %>% 
+  summarize(total.biom = sum(biomass),
+            .groups = "drop")
+#average samples taken in the same day on the same lake
+sent.total.biom.day <- sent.total.biom %>% 
+  group_by(lake_name, year, sample_date) %>% 
+  summarize(total.biom.day = mean(total.biom),
+            .groups = "drop") %>% 
+  mutate(sample_Date = as.Date(sample_date))
+
+#plot by lake
+biom.time <- ggplot(data = sent.total.biom.day, aes(x = sample_Date, y = total.biom.day))+
+  geom_line()+
+  geom_point()+
+  facet_wrap(~ lake_name, scales = "free_y")+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Total Biomass (ug/L)")
+biom.time
+
+#okay do this again but take yearly averages
+sent.total.biom.year <- sent.total.biom.day %>% 
+  group_by(lake_name, year) %>% 
+  summarize(total.biom.year = mean(total.biom.day),
+            .groups = "drop") %>% 
+  mutate(year = make_date(year = year, month = 6, day = 1))
+
+biom.year <- ggplot(data = sent.total.biom.year, aes(x = year, y = total.biom.year))+
+  geom_line()+
+  geom_point()+
+  facet_wrap(~ lake_name, scales = "free_y")+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Total Biomass (ug/L)")
+biom.year
+
+#save the two plots
+ggsave(filename = "Total_biom_date.png", plot = biom.time, width = 10, height = 6, units = "in", dpi = 300)
+ggsave(filename = "Total_biom_year.png", plot = biom.year, width = 10, height = 6, units = "in", dpi = 300)
+
+#get one figure that is just a mean of all samples across all lakes per year
+#get total biomass for each sample
+all.total.biom <- zoop_parentdow %>% 
+  group_by(lake_name, year, sample_date, sample_id) %>% 
+  summarize(total.biom = sum(biomass),
+            .groups = "drop")
+#average samples taken in the same day on the same lake
+all.total.biom.day <- all.total.biom %>% 
+  group_by(lake_name, year, sample_date) %>% 
+  summarize(total.biom.day = mean(total.biom),
+            .groups = "drop") %>% 
+  mutate(sample_Date = as.Date(sample_date))
+#yearly averages by lake
+all.total.biom.year <- all.total.biom.day %>% 
+  group_by(lake_name, year) %>% 
+  summarize(total.biom.year = mean(total.biom.day, na.rm = TRUE),
+            .groups = "drop") %>% 
+  mutate(year = make_date(year = year, month = 6, day = 1))
+#average across all lakes in each year
+all.total.biom.avg <- all.total.biom.year %>% 
+  group_by(year) %>% 
+  summarize(total.biom.avg = mean(total.biom.year, na.rm = TRUE),
+            .groups = "drop")
+
+biom.year.all <- ggplot(data = all.total.biom.avg, aes(x = year, y = total.biom.avg))+
+  geom_line()+
+  geom_point()+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Total Biomass (ug/L)")
+biom.year.all
+ggsave(filename = "Total_biom_year_all_lakes_mean.png", plot = biom.year.all, width = 6, height = 4, units = "in", dpi = 300)
+
+
+#Does total calanoid and cyclopoid biomass look the same over time by analyst?
+
+
+#Group by size: do size groups look the same over time by analyst?
+
