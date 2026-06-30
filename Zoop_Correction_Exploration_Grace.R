@@ -2274,8 +2274,8 @@ biom.year <- ggplot(data = sent.total.biom.year, aes(x = year, y = total.biom.ye
 biom.year
 
 #save the two plots
-ggsave(filename = "Total_biom_date.png", plot = biom.time, width = 10, height = 6, units = "in", dpi = 300)
-ggsave(filename = "Total_biom_year.png", plot = biom.year, width = 10, height = 6, units = "in", dpi = 300)
+#ggsave(filename = "Total_biom_date.png", plot = biom.time, width = 10, height = 6, units = "in", dpi = 300)
+#ggsave(filename = "Total_biom_year.png", plot = biom.year, width = 10, height = 6, units = "in", dpi = 300)
 
 #get one figure that is just a mean of all samples across all lakes per year
 #get total biomass for each sample
@@ -2311,11 +2311,915 @@ biom.year.all <- ggplot(data = all.total.biom.avg, aes(x = year, y = total.biom.
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
   labs(x = "Date", y = "Total Biomass (ug/L)")
 biom.year.all
-ggsave(filename = "Total_biom_year_all_lakes_mean.png", plot = biom.year.all, width = 6, height = 4, units = "in", dpi = 300)
+#ggsave(filename = "Total_biom_year_all_lakes_mean.png", plot = biom.year.all, width = 6, height = 4, units = "in", dpi = 300)
+
+#break down by taxa
+#filter more to just get 3 lakes to look into deeper 
+sent.3 <- sent %>% 
+  filter(lake_name == "Bearhead" | lake_name == "Carlos" | lake_name == "Elk" )
+#average samples taken in the same day on the same lake for each species
+sent.3.total.biom.day <- sent.3%>% 
+  group_by(lake_name, year, sample_date, species) %>% 
+  summarize(total.biom.day = mean(biomass),
+            .groups = "drop") %>% 
+  mutate(sample_Date = as.Date(sample_date))
+
+#take yearly averages
+sent.3.total.biom.year <- sent.3.total.biom.day %>% 
+  group_by(lake_name, year, species) %>% 
+  summarize(total.biom.year = mean(total.biom.day),
+            .groups = "drop") %>% 
+  mutate(year = make_date(year = year, month = 6, day = 1))
+
+biom.year.spp <- ggplot(data = sent.3.total.biom.year, aes(x = year, y = total.biom.year, color = species, fill = species))+
+  geom_line()+
+  geom_point()+
+  facet_wrap(~ lake_name, scales = "free_y")+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Biomass (ug/L)")+
+  theme(legend.position = "bottom")
+biom.year.spp
+#ggsave(filename = "Total_biom_year_spp.png", plot = biom.year.spp, width = 10, height = 6, units = "in", dpi = 300)
+
+biom.year.spp.label <- ggplot(data = sent.3.total.biom.year, aes(x = year, y = total.biom.year, color = species, fill = species))+
+  geom_line()+
+  geom_point()+
+  geom_text(aes(label = species))+
+  facet_wrap(~ lake_name, scales = "free_y")+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Biomass (ug/L)")
+biom.year.spp.label
+#don't save this one because it is messy but use to ID things you want to call out in ppt
 
 
-#Does total calanoid and cyclopoid biomass look the same over time by analyst?
+
+#Does total calanoid and cyclopoid biomass look the same over time by analyst? - do the 3 lakes and then average across all lakes
+#filter to just copepods
+sent.3.cop <- sent.3 %>% 
+  filter(grp == "Copepods")
+#average samples taken in the same day on the same lake for each species
+sent.3.cop.day <- sent.3.cop %>% 
+  group_by(lake_name, year, sample_date, species) %>% 
+  summarize(total.biom.day = mean(biomass),
+            .groups = "drop") %>% 
+  mutate(sample_Date = as.Date(sample_date))
+
+#take yearly averages
+sent.3.cop.year <- sent.3.cop.day %>% 
+  group_by(lake_name, year, species) %>% 
+  summarize(total.biom.year = mean(total.biom.day),
+            .groups = "drop") %>% 
+  mutate(year = make_date(year = year, month = 6, day = 1))
+
+biom.cop.spp.3 <- ggplot(data = sent.3.cop.year, aes(x = year, y = total.biom.year, color = species, fill = species))+
+  geom_line()+
+  geom_point()+
+  facet_wrap(~ lake_name, scales = "free_y")+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Biomass (ug/L)")+
+  theme(legend.position = "bottom")
+biom.cop.spp.3
+#not saving this one because confounded by inconsistent ID level over time
+
+#make this plot based on group2, not species
+#daily average by group2
+sent.3.grp2.total.biom <- sent.3.cop %>% 
+  group_by(lake_name, year, sample_date, sample_id, grp2) %>% 
+  mutate(grp2 = ifelse(species == "nauplii", "nauplii", ifelse(species == "copepodites", "copepodites", grp2))) %>% 
+  summarize(total.biom = sum(biomass),
+            .groups = "drop")
+sent.3.cop.day.grp <- sent.3.grp2.total.biom %>% 
+  group_by(lake_name, year, sample_date, grp2) %>% 
+  summarize(total.biom.day = mean(total.biom),
+            .groups = "drop") %>% 
+  mutate(sample_Date = as.Date(sample_date))
+#take yearly averages by group
+sent.3.cop.year.grp <- sent.3.cop.day.grp %>% 
+  group_by(lake_name, year, grp2) %>% 
+  summarize(total.biom.year = mean(total.biom.day),
+            .groups = "drop") %>% 
+  mutate(year = make_date(year = year, month = 6, day = 1))
+
+biom.cop.grp.3 <- ggplot(data = sent.3.cop.year.grp, aes(x = year, y = total.biom.year, color = grp2, fill = grp2))+
+  geom_line()+
+  geom_point()+
+  facet_wrap(~ lake_name, scales = "free_y")+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Biomass (ug/L)")+
+  theme(legend.position = "right")
+biom.cop.grp.3
+#ggsave(filename = "cop_year_3lakes.png", plot = biom.cop.grp.3, width = 10, height = 6, units = "in", dpi = 300)
+
+#copepods across ALL LAKES over time
+#get total biomass for each sample
+cop.all.total.biom <- zoop_parentdow %>% 
+  filter(grp == "Copepods") %>% 
+  mutate(grp2 = ifelse(species == "nauplii", "nauplii", ifelse(species == "copepodites", "copepodites", grp2))) %>% 
+  group_by(lake_name, year, sample_date, sample_id, grp2) %>% 
+  summarize(total.biom = sum(biomass),
+            .groups = "drop")
+#average samples taken in the same day on the same lake
+cop.all.day.biom <- cop.all.total.biom %>% 
+  group_by(lake_name, year, sample_date, grp2) %>% 
+  summarize(total.biom.day = mean(total.biom),
+            .groups = "drop") %>% 
+  mutate(sample_Date = as.Date(sample_date))
+#take yearly averages by group
+cop.all.year.biom <- cop.all.day.biom %>% 
+  group_by(lake_name, year, grp2) %>% 
+  summarize(total.biom.year = mean(total.biom.day),
+            .groups = "drop") %>% 
+  mutate(year = make_date(year = year, month = 6, day = 1))
+#average across all lakes in each year
+cop.all.total.biom.avg <- cop.all.year.biom %>% 
+  filter(grp2 != "NULL") %>% 
+  group_by(year, grp2) %>% 
+  summarize(total.biom.avg = mean(total.biom.year, na.rm = TRUE),
+            .groups = "drop")
+
+cop.biom.year.all <- ggplot(data = cop.all.total.biom.avg, aes(x = year, y = total.biom.avg, color = grp2, fill = grp2))+
+  geom_line()+
+  geom_point()+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Biomass (ug/L)")
+cop.biom.year.all
+#ggsave(filename = "Copepod_biom_year_all_lakes_mean.png", plot = cop.biom.year.all, width = 8, height = 4, units = "in", dpi = 300)
 
 
+
+#get a ratio of adult to juvenile and plot that
+cop.year.lifestage <- cop.all.total.biom.avg %>% 
+  mutate(lifestage = ifelse((grp2 == "calanoids" | grp2 == "cyclopoids"), "adult",
+                            ifelse(grp2 == "nauplii", "nauplii", "copepodite"))) %>% 
+  group_by(year, lifestage) %>%
+  summarize(total.biom = sum(total.biom.avg),
+            .groups = "drop")
+
+cop.lifestage.prop <- cop.year.lifestage %>% 
+  group_by(year) %>%
+  mutate(prop = total.biom/sum(total.biom)) %>% 
+  ungroup()
+
+cop.prop <- ggplot(data = cop.lifestage.prop, aes(x = year, y = prop, color = lifestage, fill = lifestage))+
+  geom_area(position = "stack", alpha = 0.8)+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Proportion of total copepod biomass")+
+  scale_color_manual(values = c("#F8766D",  "#7CAE00", "#00BFC4"))+
+  scale_fill_manual(values = c("#F8766D", "#7CAE00", "#00BFC4"))
+cop.prop
+#ggsave(filename = "Copepod_biom_prop_all_years.png", plot = cop.prop, width = 8, height = 4, units = "in", dpi = 300)
+
+#same plot but keep calanoid and cyclopoid separate:
+cop.grp.prop <- cop.all.total.biom.avg %>% 
+  group_by(year) %>%
+  mutate(prop = total.biom.avg/sum(total.biom.avg)) %>% 
+  ungroup() %>% 
+  mutate(grp2 = fct_relevel(grp2, "calanoids", "cyclopoids", "copepodites", "nauplii"))
+cop.prop.detail <- ggplot(data = cop.grp.prop, aes(x = year, y = prop, color = grp2, fill = grp2))+
+  geom_area(position = "stack", alpha = 0.8)+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Proportion of total copepod biomass")+
+  scale_color_manual(values = c("#F8766D", "#C77CFF", "#7CAE00", "#00BFC4"))+
+  scale_fill_manual(values = c("#F8766D", "#C77CFF", "#7CAE00", "#00BFC4"))
+cop.prop.detail
+#ggsave(filename = "Copepod_biom_prop_all_years_detail.png", plot = cop.prop.detail, width = 8, height = 4, units = "in", dpi = 300)
+
+
+
+
+#SIZE OVER TIME--------------------------------------------------------------------------------------
 #Group by size: do size groups look the same over time by analyst?
+hist(zoop_parentdow$mean_length, breaks = 1000)
+
+#I think this was in the context of copepods, I am going to instead plot the mean length of the copepod groups over time
+#copepods across ALL LAKES over time
+#get mean length for the copepod groups (weighted mean based on abundances when ID goes to species)
+cop.all.length <- zoop_parentdow %>% 
+  filter(grp == "Copepods") %>% 
+  mutate(grp2 = ifelse(species == "nauplii", "nauplii", ifelse(species == "copepodites", "copepodites", grp2))) %>% 
+  group_by(lake_name, year, sample_date, sample_id, grp2) %>% 
+  summarize(mean_length = weighted.mean(mean_length, count),
+            .groups = "drop")
+#average samples taken in the same day on the same lake
+cop.all.day.length <- cop.all.length %>% 
+  group_by(lake_name, year, sample_date, grp2) %>% 
+  summarize(mean_length.day = mean(mean_length),
+            .groups = "drop") %>% 
+  mutate(sample_Date = as.Date(sample_date))
+#take yearly averages by group
+cop.all.year.length <- cop.all.day.length %>% 
+  group_by(lake_name, year, grp2) %>% 
+  summarize(mean_length.year = mean(mean_length.day),
+            .groups = "drop") %>% 
+  mutate(year = make_date(year = year, month = 6, day = 1))
+#average across all lakes in each year
+cop.all.length.yearmean <- cop.all.year.length %>% 
+  filter(grp2 != "NULL") %>% 
+  group_by(year, grp2) %>% 
+  summarize(mean_length = mean(mean_length.year, na.rm = TRUE),
+            .groups = "drop")
+
+cop.length.year.all <- ggplot(data = cop.all.length.yearmean, aes(x = year, y = mean_length, color = grp2, fill = grp2))+
+  geom_line()+
+  geom_point()+
+  geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+  geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  labs(x = "Date", y = "Mean Length")
+cop.length.year.all
+ggsave(filename = "Copepod_length_year_all_lakes_mean.png", plot = cop.length.year.all, width = 8, height = 4, units = "in", dpi = 300)
+
+
+#COPEPOD RATIO----------------------
+#filter out the copepods
+all_copepods <- zoop_parentdow %>% 
+  filter(grp == "Copepods")
+#get just the adults
+all_adult_copepods <- all_copepods %>% 
+  filter(grp2 == "calanoids" | grp2 == "cyclopoids") 
+#sum count over all species within each order for each sample
+all_adult_cop_order <- all_adult_copepods%>% 
+  group_by(sample_id, lake_name, grp2) %>% 
+  summarize(count = sum(count),
+            .groups = "drop")
+
+#get a proportion for each sample by order
+cop_master_prop <- all_adult_cop_order %>% 
+  group_by(sample_id, lake_name) %>%
+  mutate(prop = count/sum(count)) %>% 
+  ungroup() 
+
+#pivot this wider and replace missing values with 0
+cop_master_prop_wide <- cop_master_prop %>% 
+  select(-count) %>% 
+  pivot_wider(names_from = "grp2", values_from = "prop") %>% 
+  rename(cyclo_prop = cyclopoids, calan_prop = calanoids) %>% 
+  mutate(cyclo_prop = replace_na(cyclo_prop, 0),
+         calan_prop = replace_na(calan_prop, 0))
+
+
+#append to the original data 
+zoop_parentdow_cop_prop <- left_join(zoop_parentdow, cop_master_prop_wide, by = c("sample_id", "lake_name"))
+
+#Now need to split the copepodites and nauplii into two rows based on these proportions:
+    
+    #isolate the copepodites and nauplii
+    juv_cop <- zoop_parentdow_cop_prop %>% 
+      filter(species == "copepodites" | species == "nauplii")
+    
+    #isolate the data that are not copepodites or nauplii and remove the proportion columnds
+    all_other <- zoop_parentdow_cop_prop %>% 
+      filter(species != "copepodites" & species != "nauplii") %>% 
+      select(-calan_prop, -cyclo_prop)
+    
+    #pivot longer to get two rows for each current row
+    juv_cop_dup <- pivot_longer(juv_cop, cols = c(cyclo_prop, calan_prop), names_to = "order", values_to = "proportion")
+    
+    #apply the proportions, rename the species labels, update the groups, and remove temporary columns
+    juv_cop_partitioned <- juv_cop_dup %>% 
+      mutate(density = density*proportion,
+             biomass = biomass*proportion,
+             number_pct = number_pct*proportion,
+             weight_pct = weight_pct*proportion,
+             count = round(count*proportion, 0),
+             species = ifelse((species == "nauplii" & order == "calan_prop"), "calanoid nauplii",
+                              ifelse((species == "nauplii" & order == "cyclo_prop"), "cyclopoid nauplii",
+                                     ifelse((species == "copepodites" & order == "calan_prop"), "calanoid copepodites", "cyclopoid copepodites"))),
+             grp2 = ifelse(order == "calan_prop", "calanoids", "cyclopoids")
+             ) %>% 
+      select(-order, -proportion)
+    
+    #rowbind the two parts of the data back together
+    zoop_parentdow_juv_part <- rbind(all_other, juv_cop_partitioned)
+
+#so that is done, let's see what it does to the data analysis....
+
+    #look at proportions of calanoids and cyclopoids over time
+    #get total biomass for each sample
+    cop.all.total.biom2 <- zoop_parentdow_juv_part %>% 
+      filter(grp == "Copepods") %>% 
+      group_by(lake_name, year, sample_date, sample_id, grp2) %>% 
+      summarize(total.biom = sum(biomass),
+                .groups = "drop")
+    #average samples taken in the same day on the same lake
+    cop.all.day.biom2 <- cop.all.total.biom2 %>% 
+      group_by(lake_name, year, sample_date, grp2) %>% 
+      summarize(total.biom.day = mean(total.biom),
+                .groups = "drop") %>% 
+      mutate(sample_Date = as.Date(sample_date))
+    #take yearly averages by group
+    cop.all.year.biom2 <- cop.all.day.biom2 %>% 
+      group_by(lake_name, year, grp2) %>% 
+      summarize(total.biom.year = mean(total.biom.day),
+                .groups = "drop") %>% 
+      mutate(year = make_date(year = year, month = 6, day = 1))
+    #average across all lakes in each year
+    cop.all.total.biom.avg2 <- cop.all.year.biom2 %>% 
+      filter(grp2 != "NULL") %>% 
+      group_by(year, grp2) %>% 
+      summarize(total.biom.avg = mean(total.biom.year, na.rm = TRUE),
+                .groups = "drop")
+    
+    cop.biom.year.all2 <- ggplot(data = cop.all.total.biom.avg2, aes(x = year, y = total.biom.avg, color = grp2, fill = grp2))+
+      geom_line()+
+      geom_point()+
+      geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+      geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+      scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+      theme_classic()+
+      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+      labs(x = "Date", y = "Biomass (ug/L)")
+    cop.biom.year.all2
+    #ggsave(filename = "Copepod_juv_partitioned_biom_year_all_lakes_mean.png", plot = cop.biom.year.all2, width = 8, height = 4, units = "in", dpi = 300)
+    
+    #get a ratio of cyclopoid to calanoid and plot that over time
+    cop.order.prop <- cop.all.total.biom.avg2 %>% 
+      group_by(year) %>%
+      mutate(prop = total.biom.avg/sum(total.biom.avg)) %>% 
+      ungroup()
+    
+    cop.prop2 <- ggplot(data = cop.order.prop, aes(x = year, y = prop, color = grp2, fill = grp2))+
+      geom_area(position = "stack", alpha = 0.8)+
+      geom_vline(xintercept = as.Date("2013-01-01"), color = "red")+ #net change
+      geom_vline(xintercept = as.Date("2020-01-01"), color = "blue")+ #analyst change
+      scale_x_date(date_labels = "%Y", date_breaks = "1 year")+
+      theme_classic()+
+      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+      labs(x = "Date", y = "Proportion of total copepod biomass")+
+      scale_color_manual(values = c("#F8766D",  "#C77CFF"))+
+      scale_fill_manual(values = c("#F8766D", "#C77CFF"))
+    cop.prop2
+    #ggsave(filename = "Copepod_juv_partitioned_biom_prop_all_years.png", plot = cop.prop2, width = 8, height = 4, units = "in", dpi = 300)
+    
+
+    
+    
+    
+    
+    
+#add this juvenile-copepod partitioned data to the NMDS comparison
+  #LITERALLY RE-RUNS THE EXACT SAME NET-SIZE correction NMDS script as above but with the juvneile copepods partitioned by order based on proportions
+    #Isolate samples that Jodie took for comparison (Sentinel lakes 2013)
+    net_test <- zoop_parentdow_juv_part %>% 
+      filter(year == 2013 & is_slice_lake == "True" & (net_mouth_diameter_cm == 13 | net_mouth_diameter_cm == 30)) %>%
+      mutate(net_mouth_diameter_cm = as.factor(net_mouth_diameter_cm))
+    #does every sample have a 13 and a 30?
+    test <- net_test %>% 
+      group_by(lake_name, sample_date, dowlknum) %>% 
+      summarize(net_sizes = n_distinct(net_mouth_diameter_cm),
+                tow_depths = n_distinct(haul_depth_m),
+                .groups = 'drop')
+    #Bearhead August does not, so remove that one
+    net_test_paired <- net_test %>% 
+      filter(sample_id != 2467)
+    
+    
+    #Sometimes the "paired" 13 and 30 cm tows have different depths
+    #get a dataset with one row for each sample
+    sample_rows <- net_test_paired %>% 
+      group_by(sample_id, sample_date, haul_depth_m, net_mouth_diameter_cm, dowlknum, lake_name) %>% 
+      summarize(spp_rich = n_distinct(species),
+                .groups = 'drop')
+    #pivot wider so we have a column for each net size and the data inside is the haul depth
+    sample_wide <- sample_rows %>% 
+      select(-sample_id, - spp_rich) %>% 
+      pivot_wider(names_from = net_mouth_diameter_cm, values_from = haul_depth_m)
+    #calculate difference between haul depths and isolate differences that aren't zero
+    depth_test <- sample_wide %>% 
+      mutate(depth_diff = `13` - `30`) %>% 
+      filter(depth_diff != 0)
+    #presenting this table to the group to see if we care about these differences...  
+    
+    #not going to worry about any taxonomic corrections or anything here - these were IDed at the same time so it should all match to each other
+    
+    #pivot wider so we have a 30 and a 13 cm column for density, count, biomass, and mean length
+    #if none present in other corresponding sample, fills value with 0
+    net_test_paired_wide <- net_test_paired %>%
+      pivot_wider(names_from = net_mouth_diameter_cm,
+                  values_from = c(density, biomass, count, mean_length),
+                  id_cols = c(parentdow.year, sample_date, lake_name, species, year, parentdow),
+                  values_fill = 0) %>% 
+      #don't want zeroes for missing data for lengths
+      mutate(mean_length_13 = ifelse(mean_length_13 == 0, NA, mean_length_13),
+             mean_length_30 = ifelse(mean_length_30 == 0, NA, mean_length_30))
+    
+    
+    #how does the variation between net mouth samples from same sampling event compare to variation between lakes and between dates in multivariate space?
+    #and how does the correction change this?
+    #CHANGE FROM PREVIOUS ANALYSIS: NO HELLINGER TRANSFORMATION - actually I am still doing it for a comparison
+    #Made a version with relative abundance (community composition only) and a raw data version (biomass and density are already in either ug or # per liter) which shows productivity AND community composition
+    
+    
+  #I DID UPDATE THESE AFTER DOING THE JUVENILE COPEPOD PARTITIONING (very small changes to the correction values)  
+    #calculate my own correction factors with the same method Kylie used but on my subset of data
+    summary(lm_dens <- lm(density_30~density_13, net_test_paired_wide))
+    #intercept = 0.34936     slope = 1.82470      adjusted R2 = 0.718 
+    
+    summary(lm_biom <- lm(biomass_30 ~ biomass_13, net_test_paired_wide))
+    #intercept = -8.89130     slope = 3.45456     adjusted R2 = 0.6785
+    
+    #try the mean weight thing
+    net_test_paired_wide$mw13 <- net_test_paired_wide$biomass_13/net_test_paired_wide$density_13
+    net_test_paired_wide$mw30 <- net_test_paired_wide$biomass_30/net_test_paired_wide$density_30
+    summary(lm_mw <- lm(mw30 ~ mw13, net_test_paired_wide))
+    #intercept = 0.64516     slope = 0.75289     adjusted R2 = 0.6543
+    
+    #Apply my these correction factors
+    net_test_corrected <- net_test_paired %>%
+      mutate(density2 = ifelse(net_mouth_diameter_cm == "13" & density != 0, (1.82470*density)+0.34936, density),  #save as density 2 but keep original density for mean weight calculation
+             biomass = ifelse(net_mouth_diameter_cm == "13" & biomass != 0, density2*((0.75289*(biomass/density))+0.64516), biomass),  #calculate mean weight with original density but multiply by new density
+             density = density2,  #make the new density the main density column
+             remarks = ifelse(net_mouth_diameter_cm == "13" & (biomass != 0 | density != 0), "net diff correction applied to density and biomass", "")) %>%
+      select(-density2) %>%  #get rid of temporary density column
+      #mark these as corrected
+      mutate(net_mouth_diameter_cm = as.factor(ifelse(net_mouth_diameter_cm == "13", "13_corrected", "30")))
+    
+    
+    #Combine corrected data with uncorrected data
+    #isolate uncorrected 13 from previous version
+    net_test_13only <- net_test_paired %>% 
+      filter(net_mouth_diameter_cm == "13")
+    #rowbind
+    net_test_all <- rbind(net_test_corrected, net_test_13only)
+    
+    
+    #This time just doing one set because we know the results are all about the same
+    #make the NMDS plots that show all three (13, 13_corrected, and 30) with 3 versions:
+    #1) hellinger transformation = community composition that downweights rare species
+    #2) relative abundance = community composition
+    #3) no transformation = community composition AND productivity (how much total biomass is there?)
+    
+    #do this for density and biomass
+    #Create wide format biomass dataframe
+    net_test_wide_biom <- net_test_all %>%
+      pivot_wider(names_from = species,
+                  values_from = biomass,
+                  id_cols = c(sample_date, lake_name, net_mouth_diameter_cm), #don't need year because all 2013
+                  values_fill = 0)
+    
+    #Create wide format density dataframe
+    net_test_wide_dens <- net_test_all %>%
+      pivot_wider(names_from = species,
+                  values_from = density,
+                  id_cols = c(sample_date, lake_name, net_mouth_diameter_cm), #don't need year because all 2013
+                  values_fill = 0)
+    
+    
+    #plot the biomass and density with 30, 13, and 13 corrected all together, a plot for each transformation
+    #writing this code so I can just input the right dataset in first lines and the rest will run
+    
+    #BIOMASS NMDS PLOTS
+    
+    #1) biomass no transformation
+    #Make an NMDS with bray-curtis distance for each net size - need to calculate each NMDS separately
+    NMDS_data <- net_test_wide_biom
+    datatype = "Biomass"
+    transformation = "no_transformation"
+    #filter out for each net size
+    NMDS_13 <- NMDS_data %>% 
+      filter(net_mouth_diameter_cm == "13")
+    NMDS_13_corr <- NMDS_data %>% 
+      filter(net_mouth_diameter_cm == "13_corrected")
+    NMDS_30 <- NMDS_13_corr <- NMDS_data %>% 
+      filter(net_mouth_diameter_cm == "30")
+    #isolate the species data and replace na values with zero
+    spp_13 <- NMDS_13[,4:30]
+    spp_13[is.na(spp_13)] <- 0
+    spp_13_corr <- NMDS_13_corr[,4:30]
+    spp_13_corr[is.na(spp_13_corr)] <- 0
+    spp_30 <- NMDS_30[,4:30]
+    spp_30[is.na(spp_30)] <- 0
+    #make the NMDS files
+    bray_dist_13 <- metaMDS(spp_13, distance = "bray", trymax = 1000)
+    bray_dist_13_corr <- metaMDS(spp_13_corr, distance = "bray", trymax = 1000)
+    bray_dist_30 <- metaMDS(spp_30, distance = "bray", trymax = 1000)
+    #extract axis scores for the sites (samples) only
+    scores_13 <- as.data.frame(scores(bray_dist_13, display = "sites")) %>% 
+      mutate(net_size = "13",
+             lake_name = NMDS_13$lake_name,
+             month = substr(NMDS_13$sample_date, 6, 7))
+    scores_13_corr <- as.data.frame(scores(bray_dist_13_corr, display = "sites")) %>% 
+      mutate(net_size = "13_corrected",
+             lake_name = NMDS_13_corr$lake_name,
+             month = substr(NMDS_13_corr$sample_date, 6, 7))
+    scores_30 <- as.data.frame(scores(bray_dist_30, display = "sites")) %>% 
+      mutate(net_size = "30",
+             lake_name = NMDS_30$lake_name,
+             month = substr(NMDS_30$sample_date, 6, 7))
+    #rowbind them all and make factors for plot variables
+    plot_scores <- rbind(scores_13, scores_13_corr, scores_30) %>% 
+      mutate(net_size = as.factor(net_size),
+             lake_name = as.factor(lake_name),
+             month = as.factor(month)
+      )
+    #plot
+    plot_current <- ggplot(data = plot_scores, aes(x = NMDS1, y = NMDS2, color = lake_name, alpha = net_size, shape = month)) +
+      geom_point(size = 3)+
+      labs(title = paste(datatype, transformation, "NMDS"), y = "NMDS2", x = "NMDS1") +
+      scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+      theme_classic()
+    plot_current
+    ggsave(filename = paste(datatype, transformation, "juv_cop_part_NMDS.png", sep = "_"), plot = plot_current, width = 10, height = 8, units = "in", dpi = 300)
+    
+    #that's a lot to look at, we could facet wrap by lake and make month the color
+    plot_current_panels <- ggplot(data = plot_scores, aes(x = NMDS1, y = NMDS2, shape = net_size, color = month)) +
+      geom_point(size = 3, alpha = 0.6)+
+      facet_wrap(~lake_name)+
+      labs(title = paste(datatype, transformation, "NMDS"), y = "NMDS2", x = "NMDS1") +
+      scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+      theme_classic()
+    plot_current_panels
+    ggsave(filename = paste(datatype, transformation, "by_lake_juv_cop_part_NMDS.png", sep = "_"), plot = plot_current_panels, width = 10, height = 9, units = "in", dpi = 300)
+    
+    #enlarge three lakes as case studies: the least clustered (St James), most clustered (Greenwood), and intermediate (Shaokotan)
+    plot_scores_stJames <- plot_scores %>% 
+      filter(lake_name == "St. James")
+    plot_scores_Greenwood <- plot_scores %>% 
+      filter(lake_name == "Greenwood")
+    plot_scores_Shaokotan <- plot_scores %>% 
+      filter(lake_name == "Shaokotan")
+    plot_current_stJames <- ggplot(data = plot_scores_stJames, aes(x = NMDS1, y = NMDS2, shape = net_size, color = month)) +
+      geom_point(size = 3, alpha = 0.6)+
+      labs(title = paste("St. James", datatype, transformation, "NMDS"), y = "NMDS2", x = "NMDS1") +
+      scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+      theme_classic()
+    ggsave(filename = paste("StJames", datatype, transformation, "juv_cop_part_NMDS.png", sep = "_"), plot = plot_current_stJames, width = 8, height = 6, units = "in", dpi = 300)
+    plot_current_Greenwood <- ggplot(data = plot_scores_Greenwood, aes(x = NMDS1, y = NMDS2, shape = net_size, color = month)) +
+      geom_point(size = 3, alpha = 0.6)+
+      labs(title = paste("Greenwood", datatype, transformation, "juv_cop_part_NMDS"), y = "NMDS2", x = "NMDS1") +
+      scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+      theme_classic()
+    ggsave(filename = paste("Greenwood", datatype, transformation, "juv_cop_part_NMDS.png", sep = "_"), plot = plot_current_Greenwood, width = 8, height = 6, units = "in", dpi = 300)
+    plot_current_Shaokotan <- ggplot(data = plot_scores_Shaokotan, aes(x = NMDS1, y = NMDS2, shape = net_size, color = month)) +
+      geom_point(size = 3, alpha = 0.6)+
+      labs(title = paste("Shaokotan", datatype, transformation, "NMDS"), y = "NMDS2", x = "NMDS1") +
+      scale_alpha_manual(values = c("30" = 1.0, "13" = 0.6, "13_corrected" = 0.3))+
+      theme_classic()
+    ggsave(filename = paste("Shaokotan", datatype, transformation, "juv_cop_part_NMDS.png", sep = "_"), plot = plot_current_Shaokotan, width = 8, height = 6, units = "in", dpi = 300)
+    
+    
+    
+#look at analyst NMDS plots after doing the copepod ratio and FOR ALL LAKES:
+    #still restricted this to samples with data from all five months and no oblique, littoral, composite tows etc.
+    #all still named "large" becuase I didn't have time to change it and it was copied from the large lakes section ; CAUTION: WILL OVERWRITE
+    
+    
+    #Do the entire thing I did with Sentinel Lakes but this time with Large Lakes
+    #Starting from the top! Do everything except match to my inclusion table
+    #start with the zoop_parentdow dataframe
+    
+    #Do a few checks that were previously done in inclusion table:
+    #isolate just summer months we will use (May - September)
+    large_summer <- zoop_parentdow_juv_part %>%
+      filter(month == "05" | month == "06" | month == "07" | month == "08" | month == "09")
+    
+    #find and remove any littoral samples, horizontal samples, night samples, closing nets, oblique tows, and LMB stomachs
+    large_summer_clean <- large_summer %>% 
+      filter(!grepl(pattern = "littoral", x = remarks, ignore.case = TRUE)) %>% 
+      filter(!grepl(pattern = "horizontal", x = remarks, ignore.case = TRUE)) %>% 
+      filter(!grepl(pattern = "night", x = remarks, ignore.case = TRUE)) %>% 
+      filter(!grepl(pattern = "closing", x = remarks, ignore.case = TRUE)) %>% 
+      filter(!grepl(pattern = "oblique", x = remarks, ignore.case = TRUE)) %>% 
+      filter(!grepl(pattern = "LMB", x = remarks, ignore.case = TRUE))
+    
+    #calculate number of unique summer months for each parentdow.year
+    large_summer_month_count <- large_summer_clean %>%
+      group_by(parentdow.year) %>%
+      summarize(Zoop.Month.Count = n_distinct(month), .groups = 'drop')
+    
+    #filter to only those with all 5 months and get rid of any lakes without parentdows - these will be useless to me anyways
+    large_5month <- large_summer_month_count %>% 
+      filter(Zoop.Month.Count == 5) %>% 
+      filter(!grepl(pattern = "NA", x = parentdow.year, ignore.case = TRUE))
+    
+    
+    #I want more info than parentdow.year in my inclusion table, so joining detailed (and filtered) data back to this list
+    large_5month_detail <- left_join(large_5month, large_summer_clean, by = "parentdow.year")
+    
+    #check for the flags you want to individually assess
+    large_check <- large_5month_detail %>% 
+      filter(grepl(pattern = "composite", x = remarks, ignore.case = TRUE) |
+               grepl(pattern = "special", x = remarks, ignore.case = TRUE) |
+               grepl(pattern = "depth", x = remarks, ignore.case = TRUE) |
+               grepl(pattern = "shallow", x = remarks, ignore.case = TRUE) |
+               grepl(pattern = "deep", x = remarks, ignore.case = TRUE)
+      )
+    #get rid of these that are problems, keep deep tows
+    large_5month_clean <- large_5month_detail %>% 
+      filter(!(grepl(pattern = "composite", x = remarks, ignore.case = TRUE) |
+                 grepl(pattern = "special", x = remarks, ignore.case = TRUE) |
+                 grepl(pattern = "shallow", x = remarks, ignore.case = TRUE) |
+                 grepl(pattern = "depth", x = remarks, ignore.case = TRUE)
+      ))
+    
+    #make a list of all the unique remarks to check if there is anything else I should filter out
+    large.remarks <- data.frame(unique(large_5month_clean$remarks))
+    #looks good
+    
+    
+    #remove bythotrephes and leptodora
+    large_nopreds <- large_5month_clean %>% 
+      filter(species != "Bythotrephes longimanus" & species != "Leptodora kindti")
+    
+    
+    #create a dataframe that has a list of name/date/sites that have multiple associated sample ids
+    large_sample_duplicates <- large_nopreds %>%
+      group_by(lake_name, sample_date, site_number) %>%
+      filter(n_distinct(sample_id) > 1) %>%
+      summarize(sample_ids = paste(unique(sample_id), collapse = ", "),
+                .groups = 'drop')
+    
+    #Check for duplicate taxa within samples
+    large_taxa_duplicates <- large_nopreds %>%
+      group_by(lake_name, sample_id, species) %>%
+      filter(n() > 1) %>%
+      summarize(num_dups = n(),
+                .groups = 'drop')
+    
+    #There are a lot of problems here. For the purposes of this I am not going to worry about it 
+    
+    #Taxonomy simplification based on conversations with Kylie
+    #what taxa do we have to start with?
+    sort(unique(large_nopreds$species))
+    #Any how many of each?
+    table(sort(large_nopreds$species))
+    
+    #rename taxa that need it based on conversation with Heidi and Kylie
+    #targeted just the Belle lake Daphnia based on Jodie's notes from when she IDed them
+    #I know I can run these together but I was getting an error I didn't have time to deal with when I tried that
+    large_clean_taxa <- large_nopreds %>%
+      mutate(species = ifelse(species == "Chydorus sp." | species == "Chydoridae" | species == "Chydorus bicornutus", "Chydorus sphaericus", species)) 
+    large_clean_taxa <- large_clean_taxa %>%
+      mutate(species = ifelse(species == "Bosmina longirostris" | species == "Bosmina sp.", "Bosmina sp.", species))
+    large_clean_taxa <- large_clean_taxa %>%
+      mutate(species = ifelse(species == "Alona setulosa" | species == "Alona quadrangularis" , "Alona sp.", species))
+    large_clean_taxa <- large_clean_taxa %>%  
+      mutate(species = ifelse(species == "Ceriodaphnia reticulata" | species == "Ceriodaphnia quadrangula" | species == "Ceriodaphnia lacustris", "Ceriodaphnia sp.", species))
+    large_clean_taxa <- large_clean_taxa %>%
+      mutate(species = ifelse(species == "Daphnia pulex", "Daphnia pulicaria", species))
+    #below I am targeting just the Belle lake Daphnia based on Jodie's notes from when she IDed them
+    large_clean_taxa <- large_clean_taxa %>%
+      mutate(species = ifelse(species == "Daphnia sp." & parentdow.year == "470049 2008", "Daphnia rosea", species)) %>% 
+      #get rid of the one "Daphnia sp." in the sentinel lakes
+      filter(species != "Daphnia sp.")
+    # rename copepod "species" to the taxonomic level we consistently have for them
+    large_clean_taxa <- large_clean_taxa %>%
+      mutate(species = ifelse(grp2 == "calanoids", "calanoids", 
+                              ifelse(grp2 == "cyclopoids", "cyclopoids", species)))
+    #fix group 2 classifications per Kylie's instructions
+    large_clean_taxa <- large_clean_taxa %>%
+      mutate(grp2 = ifelse(species == "Daphnia sp." | species == "Daphnia rosea", "small cladocerans",
+                           ifelse(species == "nauplii" | species == "copepodites", "immature copepods", 
+                                  ifelse(species == "Harpacticoida", "harpacticoids",  grp2))))
+    
+    #check that it worked
+    table(sort(large_clean_taxa$species))
+    #yay!
+    
+    #Now I might have multiple rows with the same species in the same sample after renaming things (especially copepods because I lumped a lot together)
+    #Here I make only row row per species per sample, and I sum the density, biomass, number percent, weight percent, and count if multiple rows
+    #this will only keep the columns in the dataset that I want
+    #Only keeping metrics I can sum together for rows
+    large_copepod_rows <- large_clean_taxa %>% 
+      group_by(parentdow.year, parentdow, lake_name, sample_date, year, month, sample_id, site_number, is_slice_lake, net_mouth_diameter_cm, species) %>% 
+      summarize(density = sum(density),
+                biomass = sum(biomass),
+                number_pct = sum(number_pct),
+                weight_pct = sum(weight_pct),
+                count = sum(count),
+                .groups = 'drop')
+    
+    
+    #need to make sure all species have a row for all tows - even if the biomass value is 0 so that my means calculate correctly
+    #How many rows should I end up with?
+    n_distinct(large_clean_taxa$parentdow.year, large_clean_taxa$parentdow, large_clean_taxa$lake_name, large_clean_taxa$sample_date, large_clean_taxa$year, large_clean_taxa$month, large_clean_taxa$sample_id)
+    length(unique(large_clean_taxa$species))
+    #we have 3048 tows and they should each have 27 species so we should end up with a data frame that has 3048 * 27 = 82296 rows
+    #make all the empty rows you need, preserve the groups you need to average and other data you still want in each row, and fill the data values with 0 for the new rows
+    large_complete <- complete(data = large_copepod_rows, nesting(parentdow.year, parentdow, lake_name, sample_date, year, month, site_number, is_slice_lake, net_mouth_diameter_cm, sample_id), species, fill = list(density = 0, biomass = 0, number_pct = 0, weight_pct = 0, mean_weight = 0, mean_length = 0, count = 0), explicit = FALSE)
+    #The number of rows looks good!
+    
+    #CALCULATE ANNUAL BIOMASS SUMMARIES
+    
+    #first need to average tow biomasses in each month in each lake-year for each species
+    large_biom_month_mean <- large_complete %>%
+      group_by(parentdow, lake_name, year, month, species) %>%
+      summarize(biomass = mean(biomass), .groups = 'drop') 
+    
+    #finally average monthly biomasses to get average biomass in each lake-year for each species
+    large_biom_year_mean <- large_biom_month_mean %>%
+      group_by(parentdow, lake_name, year, species) %>%
+      summarize(biomass = mean(biomass), .groups = 'drop')
+    
+    #convert to wide so there is a column for each species
+    large_wide <- pivot_wider(data = large_biom_year_mean, names_from = species, values_from = biomass)
+    
+    #what is the year coverage like now?
+    table(large_wide$lake_name , large_wide$year)
+    #decent
+    
+    #make a Kylie/Jodie column
+    large_wide_analyst <- large_wide %>% 
+      mutate(analyst = ifelse(year < 2020, "Jodie", "Kylie"))
+    
+    #make a plot for each lake in a for loop
+    
+    #get list of unique lakes
+    large_lakes <- unique(large_wide_analyst$lake_name)
+    
+    #Create empty list to store the plots
+    Analyst_NMDS_plots <- list()
+    #Create empty lists to store NMDS species score data
+    Analyst_NMDS_scores <- list()
+    Analyst_NMDS_score_plots <- list()
+    
+    for(i in large_lakes){
+      #filter out data for correct lake
+      plot.data <- large_wide_analyst %>% 
+        filter(lake_name == i)
+      
+      #make analyst vector for color and a year vector just to keep track
+      analyst <- plot.data$analyst
+      years <- plot.data$year
+      
+      #get rid of all non-biomass columns
+      plot.data.biom <- plot.data %>% 
+        select(-parentdow, -lake_name, -year, -analyst)
+      
+      #change all na values to 0
+      plot.data.biom[is.na(plot.data.biom)] <- 0
+      
+      #get rid of taxa not present in that lake in any year
+      plot.data.clean <- plot.data.biom %>% #remove columns where column sum is 0
+        select(where( ~sum(.x) != 0))
+      
+      #Calculate relative abundances
+      biom_rel_abundance <- plot.data.clean / rowSums(plot.data.clean)
+      
+      #square root transform to do Hellinger transformation to downweight rare species and deal with the many zeroes
+      biom_rel_abun_Holl <- sqrt(biom_rel_abundance)
+      
+      #Next little code chunk is from AI to fix an error I got when trying this with all lakes
+      # --- FIX: Check if you have enough rows to run a 2D NMDS ---
+      if (nrow(biom_rel_abun_Holl) <= 2) {
+        message(paste("Skipping lake", i, "because it has insufficient data rows:", nrow(biom_rel_abun_Holl)))
+        next  # This skips the rest of the loop and moves to the next lake
+      }
+      
+      #Make an NMDS with euclidean distance on Hellinger-transformed biomass data
+      biom_euclidean_dist <- metaMDS(biom_rel_abun_Holl, distance = "euclidean")
+      #extract axis scores for the sites (samples) only
+      NMDS.scores <- as.data.frame(scores(biom_euclidean_dist, display = "sites"))
+      #add LakeName and net size to the Plot.Data as a column
+      NMDS.scores$lake_name <- i
+      NMDS.scores$analyst <- as.factor(analyst)
+      NMDS.scores$year <- as.factor(years)
+      
+      #set max and min values for axes
+      max <- max(NMDS.scores[,1:2])
+      min <- min(NMDS.scores[,1:2])
+      
+      
+      #make the NMDS plot
+      NMDS <- ggplot(data = NMDS.scores, aes(x = NMDS1, y = NMDS2, color = analyst)) +
+        geom_point(size = 3)+
+        labs(title = paste(i, "Biomass"), y = "NMDS2", x = "NMDS1") +
+        geom_text(aes(label = year), vjust = -0.5)+
+        #coord_fixed()+
+        #lims(x = c(min, max), y = c(min, max))+
+        theme_classic()
+      
+      #extract species scores
+      spec_scores <- as.data.frame(scores(biom_euclidean_dist$species))
+      spec_scores$species <- rownames(spec_scores)
+      
+      #plot species scores
+      scores1 <- ggplot(data = spec_scores, aes(y = MDS1, x = species))+
+        geom_col()+
+        theme_classic()+
+        theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+      
+      scores2 <- ggplot(data = spec_scores, aes(y = MDS2, x = species))+
+        geom_col()+
+        theme_classic()+
+        theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+      
+      #save the plot with the lake name as its name
+      Analyst_NMDS_plots[[i]] <- NMDS
+      #save the species scores with lake name as its name
+      Analyst_NMDS_scores[[i]] <- spec_scores
+      #same species score plots
+      Analyst_NMDS_score_plots[[paste0(i, "MDS1")]] <- scores1
+      Analyst_NMDS_score_plots[[paste0(i, "MDS2")]] <- scores2
+    }
+    
+    #save all these plots outside of R
+    # iwalk(Analyst_NMDS_plots, ~{
+    #   ggsave(filename = paste0(.y, "juv_cop_part.png"), plot = .x, width = 8, height = 6, units = "in", dpi = 300)
+    # })
+    # 
+    # iwalk(Analyst_NMDS_score_plots, ~{
+    #   ggsave(filename = paste0(.y, "juv_cop_part.png"), plot = .x, width = 8, height = 6, units = "in", dpi = 300)
+    # })
+    
+    #make one with all the large lakes together
+    
+    #Create vectors for color by lake and shape by analyst, also one for year
+    lake.name <- large_wide$lake_name
+    large_wide_analyst <- large_wide %>% 
+      mutate(analyst = ifelse(year < 2020, "Jodie", "Kylie"))
+    analyst <- large_wide_analyst$analyst
+    year <- large_wide$year
+    
+    #Calculate relative abundance and remove the identifier columns
+    biom_rel_abundance <- large_wide[,4:34] / rowSums(large_wide[,4:34])
+    
+    biom_rel_abundance[is.na(biom_rel_abundance)] <- 0
+    
+    #square root transform to do Hellinger transformation to downweight rare species and deal with the many zeroes
+    biom_rel_abun_Holl <- sqrt(biom_rel_abundance)
+    
+    #Make an NMDS with euclidean distance on Hellinger-transformed biomass data
+    biom_euclidean_dist <- metaMDS(biom_rel_abun_Holl, distance = "euclidean")
+    #extract axis scores for the sites (samples) only
+    Plot.Data <- as.data.frame(scores(biom_euclidean_dist, display = "sites"))
+    #add LakeName and analyst to the Plot.Data as a column
+    Plot.Data$lake_name <- as.factor(lake.name)
+    Plot.Data$analyst <- as.factor(analyst)
+    Plot.Data$year <- as.factor(year)
+    
+    
+    #plot with color by lake and shape by analyst
+    NMDS_biom_analyst_large <- ggplot(data = Plot.Data, aes(x = NMDS1, y = NMDS2, color = lake_name, shape = analyst)) +
+      geom_point(size = 3, alpha = 0.7)+
+      labs(title = "Large Lakes Biomass", y = "NMDS2", x = "NMDS1") +
+      scale_shape_manual(values = c("Kylie" = 17, "Jodie" = 16))+
+      theme_classic()
+    NMDS_biom_analyst_large
+    
+    #plot with color by analyst
+    NMDS_biom_analyst2_large <- ggplot(data = Plot.Data, aes(x = NMDS1, y = NMDS2, color = analyst)) +
+      geom_point(size = 3, alpha = 0.7)+
+      labs(title = "All Lakes Biomass", y = "NMDS2", x = "NMDS1") +
+      theme_classic()
+    NMDS_biom_analyst2_large
+    
+    # #plot with color by year
+    # NMDS_biom_year <- ggplot(data = Plot.Data, aes(x = NMDS1, y = NMDS2, color = year)) +
+    #   geom_point(size = 3)+
+    #   labs(title = "Biomass", y = "NMDS2", x = "NMDS1") +
+    #   theme_classic()
+    # NMDS_biom_year
+    # #this year plot is not very informative since we lose track of individual lakes and Kylie is all the recent years
+    
+    #extract species scores
+    spec_scores <- as.data.frame(scores(biom_euclidean_dist$species))
+    spec_scores$species <- rownames(spec_scores)
+    
+    #plot species scores
+    scores1_large <- ggplot(data = spec_scores, aes(y = MDS1, x = species))+
+      geom_col()+
+      theme_classic()+
+      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+    
+    scores2_large <- ggplot(data = spec_scores, aes(y = MDS2, x = species))+
+      geom_col()+
+      theme_classic()+
+      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+    
+    scores1_large
+    scores2_large
+    
+    #save plots
+    ggsave(filename = "All_Lake_Analyst_juv_cop_part.png", plot = NMDS_biom_analyst2_large, width = 8, height = 6, units = "in", dpi = 300)
 
