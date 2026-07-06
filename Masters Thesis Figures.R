@@ -39,7 +39,7 @@ names(model$params$phi) <- new_names
 names(model$sd$beta0) <- new_names
 names(model$sd$phi) <- new_names
 
-#my chosen color-blind friendly palette from https://davidmathlogic.com/colorblind/#%23332288-%23117733-%2344AA99-%2388CCEE-%23DDCC77-%23CC6677-%23AA4499-%23882255
+#my chosen color-blind friendly palette frotm https://davidmathlogic.com/colorblind/#%23332288-%23117733-%2344AA99-%2388CCEE-%23DDCC77-%23CC6677-%23AA4499-%23882255
 cb_colors <- c(
   "#332288",
   "#117733",
@@ -541,6 +541,7 @@ CLV1_CLV3 <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
         legend.box.just = "center", #aligns the two legends to the left
         legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
         legend.key.spacing.y = unit(0, "cm")) #shrinks the vertical space between legend entries
+
 CLV1_CLV3
 #ggsave("clv1v3_optima.png", plot = CLV1_CLV3, width = 7, height = 9, units = "in", dpi = 600)
 
@@ -1723,6 +1724,7 @@ lakeyears <- read.csv("Data/Input/GLLVM_Complete_Dataset.csv")
 lakes <- lakeyears %>% 
   group_by(lake_name, parentdow, lake_lat_decdeg, lake_lon_decdeg, depth.max.m, area_ha) %>% 
   summarize(mean_secchi_m = mean(secchi.meters.MPCA.Jul.to.Sept),
+            mean_GDD = mean(gdd.year.5c),
             lakeyear_n = n(),
             .groups = "drop")
 
