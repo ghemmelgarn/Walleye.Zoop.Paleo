@@ -5220,9 +5220,10 @@ x_scale_trout <- x_trout  %>%
          GDD = scale(GDD),
          Precip = scale(Precip),
          CDOM = scale(CDOM),
+         log.Area = scale(log(Area)),
          Area = scale(Area),
          Max_Depth = scale(Max_Depth),
-         Photic = scale(Photic, center = FALSE, scale = TRUE)) #SCALE BUT NOT CENTER FOR MODEL PERFORMANCE REASONS
+         Photic = scale(Photic, center = TRUE, scale = TRUE)) #SCALE BUT NOT CENTER FOR MODEL PERFORMANCE REASONS - CHANGED THIS TO SCALE AND CENTER ON 7/3/26
 #set x as a dataframe for rownames later
 x_scale_trout <- as.data.frame(x_scale_trout)
 
@@ -5898,7 +5899,7 @@ ggplot() +
   labs(title = "Concurrent GLLVM Biplot", x = "Environmental Axis 1", y = "Environmental Axis 2")
 
 
-#THIS IS THE ONE: ASLO MODEL WITH PRECIP ADDED ------------------------------------------------
+#ASLO MODEL WITH PRECIP ADDED------------------------------------------------
 #somehow in copying and pasting I lost precip as a predictor, seeing if I can add it back into my functioning model structure
 model_aslo_precip <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
                                               lv.formula = ~ CDOM + Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
@@ -5956,6 +5957,333 @@ ggplot(data = rand.lake, aes(x = Lake, y = Rand_Effect_Value))+
   )
 #extract canonical coefficients
 coef(model_aslo_precip, parm="Cancoef")
+
+
+#THIS IS THE ONE: ASLO MODEL WITH PRECIP ADDED, LOG AREA, AND Photic proportion centered and scaled ------------------------------------------------
+model_aslo_precip_logarea <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                           row.eff = ~(1|lake),
+                           num.RR = 3, num.lv = 4, family = "tweedie", Power = NULL,
+                           randomB = "LV", quadratic = "LV",
+                           control.start = list(n.init = 30, jitter.var = 0.1))
+beep()
+#saveRDS(model_aslo_precip_logarea, file = "Models/model_aslo_precip_logarea.rds")
+#model_aslo_precip_logarea <- readRDS("Models/model_aslo_precip_logarea.rds")
+plot(model_aslo_precip_logarea)
+AICc(model_aslo_precip_logarea)
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#good
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip_logarea)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#looks fine, a bit chunky but not the worst
+VP(model_aslo_precip_logarea)
+
+#the intense control line:
+#control.start = list(n.init = 30, start.optimizer = "nlminb", start.optim.method = "BFGS"), jitter.var = 0.1, control = list(maxit = 100000))
+
+
+#mess around with number of latent variables
+#now that I have the code to make n.init actually work these models take forever, so dropping it to 2
+
+#NO: performance plots bad
+model_aslo_precip_logarea_3RR_3LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                   lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                   row.eff = ~(1|lake),
+                                   num.RR = 3, num.lv = 3, family = "tweedie", Power = NULL,
+                                   randomB = "LV", quadratic = "LV",
+                                   control.start = list(n.init = 10, jitter.var = 0.1))
+beep()
+saveRDS(model_aslo_precip_logarea_3RR_3LV, file = "Models/model_aslo_precip_logarea_3RR_3LV.rds")
+model_aslo_precip_logarea_3RR_3LV <- readRDS("Models/model_aslo_precip_logarea_3RR_3LV.rds")
+plot(model_aslo_precip_logarea_3RR_3LV) 
+#not great
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea_3RR_3LV)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#a bit chunky but I've seen worse
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip_logarea_3RR_3LV)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#looks fine
+
+
+#MAYBE - ran with more inits
+model_aslo_precip_logarea_3RR_2LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                           row.eff = ~(1|lake),
+                                           num.RR = 3, num.lv = 2, family = "tweedie", Power = NULL,
+                                           randomB = "LV", quadratic = "LV",
+                                           control.start = list(n.init = 10, jitter.var = 0.1))
+beep()
+saveRDS(model_aslo_precip_logarea_3RR_2LV, file = "Models/model_aslo_precip_logarea_3RR_2LV.rds")
+model_aslo_precip_logarea_3RR_2LV <- readRDS("Models/model_aslo_precip_logarea_3RR_2LV.rds")
+plot(model_aslo_precip_logarea_3RR_2LV)
+#PEFORMANCE PLOTS LOOK DAMN GOOD
+AICc(model_aslo_precip_logarea_3RR_2LV)
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea_3RR_2LV)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#looks somewhat chunky
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip_logarea_3RR_2LV)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#doesn't explain much
+VP(model_aslo_precip_logarea_3RR_2LV)
+
+#NO: residual correlations failed
+model_aslo_precip_logarea_3RR_1LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                          lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                          row.eff = ~(1|lake),
+                                          num.RR = 3, num.lv = 1, family = "tweedie", Power = NULL,
+                                          randomB = "LV", quadratic = "LV",
+                                          control.start = list(n.init = 2, jitter.var = 0.1))
+beep()
+saveRDS(model_aslo_precip_logarea_3RR_1LV, file = "Models/model_aslo_precip_logarea_3RR_1LV.rds")
+model_aslo_precip_logarea_3RR_1LV <- readRDS("Models/model_aslo_precip_logarea_3RR_1LV.rds")
+plot(model_aslo_precip_logarea_3RR_1LV)
+#pretty good
+AICc(model_aslo_precip_logarea_3RR_1LV)
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea_3RR_1LV)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#too chunky
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip_logarea_3RR_1LV)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#doesn't do much
+
+#MAYBE: would need to run again longer to get better convergence
+model_aslo_precip_logarea_2RR_3LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                           row.eff = ~(1|lake),
+                                           num.RR = 2, num.lv = 3, family = "tweedie", Power = NULL,
+                                           randomB = "LV", quadratic = "LV",
+                                           control.start = list(n.init = 10, jitter.var = 0.1))
+beep()
+saveRDS(model_aslo_precip_logarea_2RR_3LV, file = "Models/model_aslo_precip_logarea_2RR_3LV.rds")
+model_aslo_precip_logarea_2RR_3LV <- readRDS("Models/model_aslo_precip_logarea_2RR_3LV.rds")
+plot(model_aslo_precip_logarea_2RR_3LV)
+#decent - but ran again and now bad??
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea_2RR_3LV)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#okay
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip_logarea_2RR_3LV)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#env doesn't take up much variation, I think it would need to run longer to try to converge better because lots of parameters had negative variance
+#when I ran it longer it became really chunky so I need more than 2 RR
+
+
+#Maybe - performance plots look good but env correlations suspiciously small, converged okay
+model_aslo_precip_logarea_1RR_3LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                           row.eff = ~(1|lake),
+                                           num.RR = 1, num.lv = 3, family = "tweedie", Power = NULL,
+                                           randomB = "LV", quadratic = "LV",
+                                           control.start = list(n.init = 2, jitter.var = 0.1))
+beep()
+saveRDS(model_aslo_precip_logarea_1RR_3LV, file = "Models/model_aslo_precip_logarea_1RR_3LV.rds")
+model_aslo_precip_logarea_1RR_3LV <- readRDS("Models/model_aslo_precip_logarea_1RR_3LV.rds")
+plot(model_aslo_precip_logarea_1RR_3LV)
+#pretty good
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea_1RR_3LV)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#okay
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip_logarea_1RR_3LV)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#again, env doesn't explain much at all
+
+
+#MAYBE but same suspicioun with the env
+model_aslo_precip_logarea_2RR_2LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                           row.eff = ~(1|lake),
+                                           num.RR = 2, num.lv = 2, family = "tweedie", Power = NULL,
+                                           randomB = "LV", quadratic = "LV",
+                                           control.start = list(n.init = 2, jitter.var = 0.1))
+beep()
+saveRDS(model_aslo_precip_logarea_2RR_2LV, file = "Models/model_aslo_precip_logarea_2RR_2LV.rds")
+model_aslo_precip_logarea_2RR_2LV <- readRDS("Models/model_aslo_precip_logarea_2RR_2LV.rds")
+plot(model_aslo_precip_logarea_2RR_2LV)
+#great
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea_2RR_2LV)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#okay
+#get correlations due to environment/covariates
+Env <- getEnvironCor(model_aslo_precip_logarea_2RR_2LV)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#suspiciously chunky
+
+
+#NO - both corrplots collapsed
+model_aslo_precip_logarea_4RR_2LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                           row.eff = ~(1|lake),
+                                           num.RR = 4, num.lv = 2, family = "tweedie", Power = NULL,
+                                           randomB = "LV", quadratic = "LV",
+                                           control.start = list(n.init = 10, jitter.var = 0.1))
+beep()
+saveRDS(model_aslo_precip_logarea_4RR_2LV, file = "Models/model_aslo_precip_logarea_4RR_2LV.rds")
+model_aslo_precip_logarea_4RR_2LV <- readRDS("Models/model_aslo_precip_logarea_4RR_2LV.rds")
+plot(model_aslo_precip_logarea_4RR_2LV)
+#not great
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea_4RR_2LV)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#this collapsed
+Env <- getEnvironCor(model_aslo_precip_logarea_4RR_2LV)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#also collapsed
+
+
+model_aslo_precip_logarea_4RR_3LV <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
+                                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + Photic + Precip + SWF + ZM,
+                                           row.eff = ~(1|lake),
+                                           num.RR = 4, num.lv = 3, family = "tweedie", Power = NULL,
+                                           randomB = "LV", quadratic = "LV",
+                                           control.start = list(n.init = 10, jitter.var = 0.1))
+beep()
+saveRDS(model_aslo_precip_logarea_4RR_3LV, file = "Models/model_aslo_precip_logarea_4RR_3LV.rds")
+model_aslo_precip_logarea_4RR_3LV <- readRDS("Models/model_aslo_precip_logarea_4RR_3LV.rds")
+plot(model_aslo_precip_logarea_4RR_3LV)
+#BAD
+#get residual correlations
+Theta <- getResidualCor(model_aslo_precip_logarea_4RR_3LV)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#looks okay
+Env <- getEnvironCor(model_aslo_precip_logarea_4RR_3LV)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+#also looks okay
+
+#test the AICc values of the maybes
+AICc(model_aslo_precip_logarea_2RR_2LV) #11992
+AICc(model_aslo_precip_logarea_1RR_3LV) #11906
+AICc(model_aslo_precip_logarea_2RR_3LV) #11770- this is the lowest but also the one that didn't converge super well
+                                        # after running with more iniits, became 11740
+AICc(model_aslo_precip_logarea_3RR_2LV) #11797
+
+
+
+
+
+
+
+
 
 
 
