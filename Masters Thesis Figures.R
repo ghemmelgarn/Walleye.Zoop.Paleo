@@ -25,13 +25,28 @@ library(ggExtra) #for ggMarginal plots
 #read in model
 model <- readRDS("Models/model_aslo_precip.rds")
 
-#Correct species names for nice plots
+#Correct species names for nice plots and create a dataframe to easily apprend abbreviations when needed
 new_names <- c("Black Crappie", "Bluegill", "Bullhead", "Bowfin", "Burbot", "Cisco", "Common Carp", "Golden Shiner", "Hybrid Sunfish", "Lake Whitefish", 
                "Largemouth Bass", "Muskellunge", "Northern Pike", "Pumpkinseed", "Rainbow Smelt", "Redhorse", "Rock Bass", "Sauger", "Smallmouth Bass",
                "Walleye", "White Sucker", "Yellow Perch", "Alona spp.", "Bosmina longirostris", "Ceriodaphnia spp.", "Chydorus sphaericus",
                "Daphnia galeata mendotae", "Daphnia longiremis", "Daphnia parvula", "Daphnia pulicaria", "Daphnia retrocurva",
                "Daphnia small rare", "Diaphanosoma birgei", "Eubosmina coregoni", "Eurycercus lamellatus", "Holopedium gibberum",
                "Sida crystallina")
+abbrv_names <- c("BLC", "BLG", "BLH", "BOF", "BUB", "TLC", "CAP", "GOS", "HSF", "LKW", 
+                 "LMB", "MUE", "NOP", "PMK", "RBS", "RHS", "RKB", "SAR", "SMB",
+                 "WAE", "WTS", "YEP", "Alona spp.", "Bosm. long.", "Ceri. spp.", "Chyd. spha.",
+                 "Daph. g. m.", "Daph. long.", "Daph. parv.", "Daph. puli.", "Daph. retr.",
+                 "Daph. s. r.", "Diap. birg.", "Eubo. core.", "Eury. lame.", "Holo. gibb.",
+                 "Sida crys.")
+group <- c("Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", 
+           "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish",
+           "Fish", "Fish", "Fish", "Zooplankton", "Zooplankton", "Zooplankton", "Zooplankton",
+           "Zooplankton", "Zooplankton", "Zooplankton", "Zooplankton", "Zooplankton",
+           "Zooplankton", "Zooplankton", "Zooplankton", "Zooplankton", "Zooplankton",
+           "Zooplankton")
+master.names<- as.data.frame(cbind(new_names, abbrv_names, group)) %>% 
+  rename(Species = new_names)
+
 colnames(model$y) <- new_names
 rownames(model$params$theta) <- new_names
 names(model$params$beta0) <- new_names
@@ -314,16 +329,19 @@ rownames(GOF.spp) <- new_names
 #plot MARNE
 GOF.spp.plot <- GOF.spp %>% 
   mutate(Species = rownames(GOF.spp)) %>% 
-  mutate(Species = fct_inorder(Species)) 
-MARNE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MARNE))+
+  mutate(Species = fct_inorder(Species)) %>% 
+  left_join(master.names, by = "Species")
+MARNE_plot <- ggplot(data = GOF.spp.plot, aes(x = reorder(Species, -MARNE), y = MARNE, fill = group))+
   geom_col()+
-  labs(x = "Taxon", y = "Mean Absolute Range Normalized Error")+
+  labs(x = "Taxon", y = "Mean Absolute Range Normalized Error", fill = "")+
+  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
   theme_classic(base_size = 11)+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  coord_flip()+
+  theme(legend.key.size = unit(0.4, "cm"))
 MARNE_plot
 #save plot
-#ggsave("MARNE_plot.png", plot = MARNE_plot, width = 6.5, height = 5, units = "in", dpi = 600)
-#ggsave("MARNE_plot.svg", plot = MARNE_plot, width = 6.5, height = 5, units = "in", dpi = 600)
+#ggsave("MARNE_plot.png", plot = MARNE_plot, width = 6, height = 6, units = "in", dpi = 600)
+#ggsave("MARNE_plot.svg", plot = MARNE_plot, width = 6, height = 6, units = "in", dpi = 600)
 
 #make an MAE plot that I probably won't use
 MAE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MAE))+
