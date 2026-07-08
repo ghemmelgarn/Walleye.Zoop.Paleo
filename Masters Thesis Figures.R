@@ -622,7 +622,72 @@ opt_plot_data <- coef_opt_tol_prec %>%
 #         legend.key.size = unit(0.1, "pt")) #make the legend color boxes tiny so they don't take up space
 # CLV1_CLV3_biplot
 # #ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 6.5, height = 8, units = "in", dpi = 600)
-# 
+
+#biplot with color for linear CLV2
+CLV1_CLV3_biplot_CLV2color <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
+  #make colored points for the numbers to print on top of
+  geom_point(aes(fill = CLV2_coef), size =4, color = "transparent", shape = 21)+
+  scale_fill_viridis_c(option = "inferno", direction = -1, limits = c(-4,3), , oob = scales::squish, breaks = c(-4, 0, 3), labels = c("<-4", "0", "3"))+
+  #plot optima with numbers as species and then have a key!
+  #geom_text(aes(label = abbrv_names), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
+  geom_text_repel(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt, label = abbrv_names), size = 3, max.overlaps = Inf) +
+  #make invisible points with colors as the label to force the number key
+  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "CLV2 Linear Coefficient")+
+  #add env arrows
+  geom_segment(data = as.data.frame(env_arrows),
+               aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
+               arrow = arrow(length = unit(0.2, "cm")), color = "blue") +
+  geom_text(data = as.data.frame(env_arrows),
+            aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "blue") +
+  theme_classic()+
+  #format these large legends
+  guides(fill = guide_colorbar(order = 1, title.position = "top", title.hjust = 0.5, barwidth = unit(6, "cm"), barheight = unit(0.5, "cm")))+
+  theme(legend.text = element_text(size = 9),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.position = "bottom")
+CLV1_CLV3_biplot_CLV2color
+
+#make layout with the CLV2 loadings
+clv2_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV2), y = CLV2))+
+  geom_col()+
+  labs(x = "Environmental Variable", y = "CLV2 Canonical Coefficient")+
+  theme_classic(base_size = 11)+
+  coord_flip()
+#scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+clv2_loadings
+
+CLV_layout_map <- "
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA
+#BBBBBBBB##########
+#BBBBBBBB##########
+#BBBBBBBB##########
+#BBBBBBBB##########
+"
+
+all_CLV_layout <- CLV1_CLV3_biplot_CLV2color + clv2_loadings +
+  plot_layout(design = CLV_layout_map)+ 
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.tag = element_text(size = 12, face = "bold"),
+        plot.tag.position = c(0.1, 1))
+all_CLV_layout
+#ggsave("all_CLV_layout.png", plot = all_CLV_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+#ggsave("all_CLV_layout.svg", plot = all_CLV_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+
+
+ 
 # #add error bars wih 95% confidence intervals based on CONDITIONAL standard errors
 # CLV1_CLV3_95CI <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
 #   #make conditional standard error cross-hairs
@@ -1278,7 +1343,8 @@ study_lakes_sf_rand_lake <- left_join(study_lakes_sf, rand.lake, by = "lake_name
 rand_lake_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_rand_lake, shape = 21, alpha = 0.9, color = "black", aes(fill = `Lake Random Intercept`), size = 3, )+
-  scale_fill_distiller(palette = "RdBu", direction = 1, limits = c(-1,1), , oob = scales::squish, breaks = c(-1, 0, 1), labels = c("<-1", "0", ">1"))+
+  #scale_fill_distiller(palette = "RdBu", direction = 1, limits = c(-1,1), , oob = scales::squish, breaks = c(-1, 0, 1), labels = c("<-1", "0", ">1"))+
+  scale_fill_viridis_c(option = "inferno", direction = -1)+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()+
   annotation_scale(location = "tr", width_hint = 0.25, style = "ticks", pad_x = unit(1, "in"), pad_y = unit(0.7, "in"), text_cex = 1)+
