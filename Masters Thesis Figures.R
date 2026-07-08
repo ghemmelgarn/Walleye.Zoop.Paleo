@@ -23,20 +23,20 @@ library(ggExtra) #for ggMarginal plots
 
 #SETUP---------------------------------------------------
 #read in model
-model <- readRDS("Models/model_aslo_precip.rds")
+model <- readRDS("Models/model_aslo_precip_logarea_3RR_3LV_logit.rds")
 
 #Correct species names for nice plots and create a dataframe to easily apprend abbreviations when needed
 new_names <- c("Black Crappie", "Bluegill", "Bullhead", "Bowfin", "Burbot", "Cisco", "Common Carp", "Golden Shiner", "Hybrid Sunfish", "Lake Whitefish", 
                "Largemouth Bass", "Muskellunge", "Northern Pike", "Pumpkinseed", "Rainbow Smelt", "Redhorse", "Rock Bass", "Sauger", "Smallmouth Bass",
                "Walleye", "White Sucker", "Yellow Perch", "Alona spp.", "Bosmina longirostris", "Ceriodaphnia spp.", "Chydorus sphaericus",
                "Daphnia galeata mendotae", "Daphnia longiremis", "Daphnia parvula", "Daphnia pulicaria", "Daphnia retrocurva",
-               "Daphnia small rare", "Diaphanosoma birgei", "Eubosmina coregoni", "Eurycercus lamellatus", "Holopedium gibberum",
+               "Daphnia rare", "Diaphanosoma birgei", "Eubosmina coregoni", "Eurycercus lamellatus", "Holopedium gibberum",
                "Sida crystallina")
 abbrv_names <- c("BLC", "BLG", "BLH", "BOF", "BUB", "TLC", "CAP", "GOS", "HSF", "LKW", 
                  "LMB", "MUE", "NOP", "PMK", "RBS", "RHS", "RKB", "SAR", "SMB",
                  "WAE", "WTS", "YEP", "Alona spp.", "Bosm. long.", "Ceri. spp.", "Chyd. spha.",
                  "Daph. g. m.", "Daph. long.", "Daph. parv.", "Daph. puli.", "Daph. retr.",
-                 "Daph. s. r.", "Diap. birg.", "Eubo. core.", "Eury. lame.", "Holo. gibb.",
+                 "Daph. rare", "Diap. birg.", "Eubo. core.", "Eury. lame.", "Holo. gibb.",
                  "Sida crys.")
 group <- c("Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", 
            "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish",
@@ -67,15 +67,15 @@ cb_colors <- c(
 )
 #colors for my variance partitioning where I want random lake effect to be gray
 vp_colors <- c(
-  "darkgray",
-  "#332288",
-  "#117733",
-  "#44AA99",
-  "#88CCEE",
-  "#CC6677",
-  "#AA4499",
-  "#882255"
+  "#4D4D4D",
+  "#F0E442",
+  "#E69F00",
+  "#D55E00",
+  "#56B4E9",
+  "#0072B2",
+  "#004987"
 )
+
 
 
 #MODEL POWER-----------------------------------
@@ -206,94 +206,101 @@ plot(VP, col = cb_colors, main = "", xlab = "Taxon", ylab = "Variance Proportion
 #ggplot by species for publication
 #extract values as data frame
 VP.df <- as.data.frame(VP[["PropExplainedVarSp"]]) %>% 
-  rename("CLV1+CLV1^2" = "CLV1:X/CLV1^2",
-         "CLV2+CLV2^2" = "CLV2:X/CLV2^2",
-         "CLV3+CLV3^2" = "CLV3:X/CLV3^2",
-         "LV1+LV1^2" = "LV1/LV1^2",
-         "LV2+LV2^2" = "LV2/LV2^2",
-         "LV3+LV3^2" = "LV3/LV3^2",
-         "LV4+LV4^2" = "LV4/LV4^2",
+  rename("Environmental Axis 1" = "CLV1:X/CLV1^2",
+         "Environmental Axis 2" = "CLV2:X/CLV2^2",
+         "Environmental Axis 3" = "CLV3:X/CLV3^2",
+         "Residual Axis 1" = "LV1/LV1^2",
+         "Residual Axis 2" = "LV2/LV2^2",
+         "Residual Axis 3" = "LV3/LV3^2",
          "Random Lake Effect" = "Row random effect: lake"
          )
 VP.df <- VP.df %>% 
-  mutate(Species = rownames(VP.df))
+  mutate(Species = rownames(VP.df))%>% 
+  left_join(master.names, by = "Species")
 #pivot longer
-VP.df.long <- pivot_longer(VP.df, cols = "CLV1+CLV1^2":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
-  #make species a factor so they stay in order for plot
-  mutate(Species = fct_inorder(Species)) %>% 
+VP.df.long <- pivot_longer(VP.df, cols = "Environmental Axis 1":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
+  #make species a factor so I can put them in the order I want
+  mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
+                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass",
+                                              "Muskellunge", "Bullhead", "Common Carp", "Pumpkinseed", "Largemouth Bass", "Hybrid Sunfish", "Bluegill",
+                                              "Bowfin", "Chydorus sphaericus", "Bosmina longirostris", "Ceriodaphnia spp.", "Eubosmina coregoni",
+                                              "Alona spp.", "Diaphanosoma birgei", "Holopedium gibberum", "Daphnia rare", "Daphnia longiremis",
+                                              "Daphnia parvula", "Daphnia retrocurva", "Eurycercus lamellatus", "Sida crystallina",
+                                              "Daphnia galeata mendotae", "Daphnia pulicaria"))) %>% 
   #change variance component factor levels so I put them in the order I want
-  mutate(`Variance Component` = fct_rev(`Variance Component`))
-VP_plot <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
-  geom_col()+
-  scale_fill_manual(values = vp_colors)+
-  labs(x = "Taxon", y = "Variance Proportion", fill = "")+
-  theme_classic(base_size = 11)+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "top",
-        legend.direction = "horizontal")+
-  guides(fill = guide_legend(nrow = 2, byrow = TRUE, reverse = TRUE))
-VP_plot
-#save plot
-#ggsave("VP_plot_top_legend.png", plot = VP_plot, width = 7, height = 6, units = "in", dpi = 600)
+  mutate(`Variance Component` = factor(`Variance Component`, levels = c("Random Lake Effect", 
+                                                                        "Residual Axis 3", "Residual Axis 2", "Residual Axis 1", 
+                                                                        "Environmental Axis 3", "Environmental Axis 2", "Environmental Axis 1")))
 
-#make a version with the legend on the right
-VP_plot_r <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
-  geom_col()+
-  scale_fill_manual(values = vp_colors)+
-  labs(x = "Taxon", y = "Variance Proportion", fill = "")+
-  theme_classic(base_size = 11)+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.text = element_text(size = 8),
-        legend.box.margin = margin(0,0,0,-10))
-VP_plot_r
-#save plot
-#ggsave("VP_plot.png", plot = VP_plot_r, width = 7, height = 6, units = "in", dpi = 600)
-
-
+#old versions of plots
+# VP_plot <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
+#   geom_col()+
+#   scale_fill_manual(values = vp_colors)+
+#   labs(x = "Taxon", y = "Variance Proportion", fill = "")+
+#   theme_classic(base_size = 11)+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#         legend.position = "top",
+#         legend.direction = "horizontal")+
+#   guides(fill = guide_legend(nrow = 2, byrow = TRUE, reverse = TRUE))
+# VP_plot
+# #save plot
+# #ggsave("VP_plot_top_legend.png", plot = VP_plot, width = 7, height = 6, units = "in", dpi = 600)
+# 
+# #make a version with the legend on the right
+# VP_plot_r <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
+#   geom_col()+
+#   scale_fill_manual(values = vp_colors)+
+#   labs(x = "Taxon", y = "Variance Proportion", fill = "")+
+#   theme_classic(base_size = 11)+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#         legend.text = element_text(size = 8),
+#         legend.box.margin = margin(0,0,0,-10))
+# VP_plot_r
+# #save plot
+# #ggsave("VP_plot.png", plot = VP_plot_r, width = 7, height = 6, units = "in", dpi = 600)
+# 
+# 
 #try swapping the axes
 VP_plot_coordflip <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
   geom_col()+
   scale_fill_manual(values = vp_colors)+
   labs(x = "Taxon", y = "Variance Proportion", fill = "")+
   theme_classic(base_size = 11)+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "right",
+  theme(legend.position = "right",
         legend.box.margin = margin(0,0,0,-10))+
   coord_flip()+
+  guides(fill = guide_legend(reverse = TRUE))+
   scale_x_discrete(limits = rev)
 VP_plot_coordflip
 #save plot
 #ggsave("VP_plot_coordflip.png", plot = VP_plot_coordflip, width = 6.5, height = 6.5, units = "in", dpi = 600)
 
 #percentages split by fish and zoops
-VP.df$type <- c(rep("Fish", 22), rep("Zooplankton", 15))
 VP.fish.zoop <- VP.df %>% 
-  group_by(type) %>% 
-  summarize(`CLV1+CLV1^2` = mean(`CLV1+CLV1^2`),
-            `CLV2+CLV2^2` = mean(`CLV2+CLV2^2`),
-            `CLV3+CLV3^2` = mean(`CLV3+CLV3^2`),
-            `LV1+LV1^2` = mean(`LV1+LV1^2`),
-            `LV2+LV2^2` = mean(`LV2+LV2^2`),
-            `LV3+LV3^2` = mean(`LV3+LV3^2`),
-            `LV4+LV4^2` = mean(`LV4+LV4^2`),
+  group_by(group) %>% 
+  summarize(`Environmental Axis 1` = mean(`Environmental Axis 1`),
+            `Environmental Axis 2` = mean(`Environmental Axis 2`),
+            `Environmental Axis 3` = mean(`Environmental Axis 3`),
+            `Residual Axis 1` = mean(`Residual Axis 1`),
+            `Residual Axis 2` = mean(`Residual Axis 2`),
+            `Residual Axis 3` = mean(`Residual Axis 3`),
             `Random Lake Effect` = mean(`Random Lake Effect`),
             .groups = 'drop')
+
 #plot this
 #pivot longer
-VP.fish.zoop.long <- pivot_longer(VP.fish.zoop, cols = "CLV1+CLV1^2":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
+VP.fish.zoop.long <- pivot_longer(VP.fish.zoop, cols = "Environmental Axis 1":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
   #change variance component factor levels so I put them in the order I want
-  mutate(`Variance Component` = fct_rev(`Variance Component`))
-VP_fish_zoop <- ggplot(data = VP.fish.zoop.long, aes(x = type, y =Proportion, fill = `Variance Component`))+
+  mutate(`Variance Component` = factor(`Variance Component`, levels = c("Random Lake Effect", "Residual Axis 3", "Residual Axis 2", "Residual Axis 1", "Environmental Axis 3", "Environmental Axis 2", "Environmental Axis 1")))
+VP_fish_zoop <- ggplot(data = VP.fish.zoop.long, aes(x = group, y =Proportion, fill = `Variance Component`))+
   geom_col()+
   scale_fill_manual(values = vp_colors)+
   labs(x = "Trophic Level", y = "Variance Proportion", fill = "")+
   theme_classic(base_size = 11)+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none")+
+  theme(legend.position = "none")+
   coord_flip()+
   scale_x_discrete(limits = rev)
 VP_fish_zoop
-#save plot
 
 
 #make a VP layout
@@ -335,6 +342,7 @@ MARNE_plot <- ggplot(data = GOF.spp.plot, aes(x = reorder(Species, -MARNE), y = 
   geom_col()+
   labs(x = "Taxon", y = "Mean Absolute Range Normalized Error", fill = "")+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_y_continuous(labels = scales::label_percent())+
   theme_classic(base_size = 11)+
   coord_flip()+
   theme(legend.key.size = unit(0.4, "cm"))
@@ -360,88 +368,88 @@ MAE_plot
 # Extract the effects of predictors on the Latent Variables (RR axes)
 clv_load <- as.data.frame(model$params$LvXcoef) %>% 
   mutate(Param = rownames(model$params$LvXcoef)) %>% 
-  mutate(Param = ifelse(Param == "Area", "Lake Area",
+  mutate(Param = ifelse(Param == "log.Area", "Lake Area",
                          ifelse(Param == "GDD", "Degree Days",
                                 ifelse(Param == "Max_Depth", "Maximum Depth", 
-                                       ifelse(Param == "Photic", "Littoral Zone",
+                                       ifelse(Param == "logit.Photic", "Littoral Zone",
                                               ifelse(Param == "Precip", "Annual Precipitation",
                                                      ifelse(Param == "SWFyes", "Spiny Water Flea Presence",
                                                             ifelse(Param == "ZMyes", "Zebra Mussel Presence", Param))))))))
 
-clv_load_long <- pivot_longer(clv_load, cols = CLV1:CLV3, names_to = "CLV", values_to = "Loading")
-
-#Base R plots - not using
-barplot(clv_load[, 1], main = "Impact of predictors on RR Axis 1")
-barplot(clv_load[, 2], main = "Impact of predictors on RR Axis 2")
-barplot(clv_load[, 3], main = "Impact of predictors on RR Axis 3")
-
-#separate ggplots for each one combined into a layout
-clv_panel_plot <- ggplot(data = clv_load_long, aes(x = Param, y = Loading))+
-  geom_col()+
-  facet_wrap2(~CLV, ncol = 1, scales = "free_y", axes = "all", remove_labels = "x")+
-  labs(x = "Environmental Variable", y = "Canonical Coefficients")+
-  theme_classic(base_size = 11)+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        strip.text = element_text(face = "bold", hjust = 0.5, size = 11),
-        strip.background = element_blank(),
-        panel.spacing = unit(1.5, "lines"))
-clv_panel_plot
-#save plot
-#ggsave("clv_panel.png", plot = clv_panel_plot, width = 5, height = 10, units = "in", dpi = 600)
-
-#make y axis constant across all three panels
-clv_panel_plot_samey <- ggplot(data = clv_load_long, aes(x = Param, y = Loading))+
-  geom_col()+
-  facet_wrap2(~CLV, ncol = 1, axes = "all", remove_labels = "x")+
-  labs(x = "Environmental Variable", y = "Canonical Coefficients")+
-  theme_classic(base_size = 11)+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        strip.text = element_text(face = "bold", hjust = 0.5, size = 11),
-        strip.background = element_blank(),
-        panel.spacing = unit(1.5, "lines"))
-clv_panel_plot_samey
-#save plot
-#ggsave("clv_panel_yconstant.png", plot = clv_panel_plot_samey, width = 5, height = 10, units = "in", dpi = 600)
-
-#flip x and y axes
-clv_panel_plot_samey_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param), y = Loading))+
-  geom_col()+
-  facet_wrap2(~CLV, ncol = 1, axes = "all", remove_labels = "x")+
-  labs(x = "Environmental Variable", y = "Canonical Coefficients")+
-  theme_classic(base_size = 11)+
-  theme(strip.text = element_text(face = "bold", hjust = 0.5, size = 11),
-        strip.background = element_blank(),
-        panel.spacing = unit(1.5, "lines"))+
-  coord_flip()
-clv_panel_plot_samey_flip
-#save plot
-#ggsave("clv_panel_yconstant_flip.png", plot = clv_panel_plot_samey_flip, width = 6.5, height = 7, units = "in", dpi = 600)
-
-#one plot with colors for each CLV
-clv_combo_plot <- ggplot(data = clv_load_long, aes(x = Param, y = Loading, fill = CLV))+
-  geom_col(position = "dodge")+
-  scale_fill_manual(values = c("#332288", "#44AA99", "#AA4499"))+
-  labs(x = "Environmental Variable", y = "Canonical Coefficients", fill = "")+
-  theme_classic(base_size = 11)+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "top",
-        legend.direction = "horizontal")
-clv_combo_plot
-#save plot
-#ggsave("clv_combo.png", plot = clv_combo_plot, width = 6, height = 4, units = "in", dpi = 600)
-
-#one plot with colors for each CLV but flip x and y
-clv_combo_plot_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param), y = Loading, fill = CLV))+
-  geom_col(position = "dodge")+
-  scale_fill_manual(values = c("#332288", "#44AA99", "#AA4499"))+
-  labs(x = "Environmental Variable", y = "Canonical Coefficients", fill = "")+
-  theme_classic(base_size = 11)+
-  theme(legend.position = "top",
-        legend.direction = "horizontal")+
-  coord_flip()
-clv_combo_plot_flip
-#save plot
-#ggsave("clv_combo_flip.png", plot = clv_combo_plot_flip, width = 6, height = 4, units = "in", dpi = 600)
+# clv_load_long <- pivot_longer(clv_load, cols = CLV1:CLV3, names_to = "CLV", values_to = "Loading")
+# 
+# #Base R plots - not using
+# barplot(clv_load[, 1], main = "Impact of predictors on RR Axis 1")
+# barplot(clv_load[, 2], main = "Impact of predictors on RR Axis 2")
+# barplot(clv_load[, 3], main = "Impact of predictors on RR Axis 3")
+# 
+# #separate ggplots for each one combined into a layout
+# clv_panel_plot <- ggplot(data = clv_load_long, aes(x = Param, y = Loading))+
+#   geom_col()+
+#   facet_wrap2(~CLV, ncol = 1, scales = "free_y", axes = "all", remove_labels = "x")+
+#   labs(x = "Environmental Variable", y = "Canonical Coefficients")+
+#   theme_classic(base_size = 11)+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#         strip.text = element_text(face = "bold", hjust = 0.5, size = 11),
+#         strip.background = element_blank(),
+#         panel.spacing = unit(1.5, "lines"))
+# clv_panel_plot
+# #save plot
+# #ggsave("clv_panel.png", plot = clv_panel_plot, width = 5, height = 10, units = "in", dpi = 600)
+# 
+# #make y axis constant across all three panels
+# clv_panel_plot_samey <- ggplot(data = clv_load_long, aes(x = Param, y = Loading))+
+#   geom_col()+
+#   facet_wrap2(~CLV, ncol = 1, axes = "all", remove_labels = "x")+
+#   labs(x = "Environmental Variable", y = "Canonical Coefficients")+
+#   theme_classic(base_size = 11)+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#         strip.text = element_text(face = "bold", hjust = 0.5, size = 11),
+#         strip.background = element_blank(),
+#         panel.spacing = unit(1.5, "lines"))
+# clv_panel_plot_samey
+# #save plot
+# #ggsave("clv_panel_yconstant.png", plot = clv_panel_plot_samey, width = 5, height = 10, units = "in", dpi = 600)
+# 
+# #flip x and y axes
+# clv_panel_plot_samey_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param), y = Loading))+
+#   geom_col()+
+#   facet_wrap2(~CLV, ncol = 1, axes = "all", remove_labels = "x")+
+#   labs(x = "Environmental Variable", y = "Canonical Coefficients")+
+#   theme_classic(base_size = 11)+
+#   theme(strip.text = element_text(face = "bold", hjust = 0.5, size = 11),
+#         strip.background = element_blank(),
+#         panel.spacing = unit(1.5, "lines"))+
+#   coord_flip()
+# clv_panel_plot_samey_flip
+# #save plot
+# #ggsave("clv_panel_yconstant_flip.png", plot = clv_panel_plot_samey_flip, width = 6.5, height = 7, units = "in", dpi = 600)
+# 
+# #one plot with colors for each CLV
+# clv_combo_plot <- ggplot(data = clv_load_long, aes(x = Param, y = Loading, fill = CLV))+
+#   geom_col(position = "dodge")+
+#   scale_fill_manual(values = c("#332288", "#44AA99", "#AA4499"))+
+#   labs(x = "Environmental Variable", y = "Canonical Coefficients", fill = "")+
+#   theme_classic(base_size = 11)+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#         legend.position = "top",
+#         legend.direction = "horizontal")
+# clv_combo_plot
+# #save plot
+# #ggsave("clv_combo.png", plot = clv_combo_plot, width = 6, height = 4, units = "in", dpi = 600)
+# 
+# #one plot with colors for each CLV but flip x and y
+# clv_combo_plot_flip <- ggplot(data = clv_load_long, aes(x = fct_rev(Param), y = Loading, fill = CLV))+
+#   geom_col(position = "dodge")+
+#   scale_fill_manual(values = c("#332288", "#44AA99", "#AA4499"))+
+#   labs(x = "Environmental Variable", y = "Canonical Coefficients", fill = "")+
+#   theme_classic(base_size = 11)+
+#   theme(legend.position = "top",
+#         legend.direction = "horizontal")+
+#   coord_flip()
+# clv_combo_plot_flip
+# #save plot
+# #ggsave("clv_combo_flip.png", plot = clv_combo_plot_flip, width = 6, height = 4, units = "in", dpi = 600)
 
 
 
@@ -481,8 +489,7 @@ coef_opt_tol_prec <- coef_opt_tol %>%
          CLV3_prec = 1/(CLV3_tol^2),
          LV1_prec = 1/(LV1_tol^2),
          LV2_prec = 1/(LV2_tol^2),
-         LV3_prec = 1/(LV3_tol^2),
-         LV4_prec = 1/(LV4_tol^2),
+         LV3_prec = 1/(LV3_tol^2)
          )
 #try to get standard errors for my optima
 #can I hand calculate my optima?
@@ -494,217 +501,214 @@ optima_se <- optima(model, sd.errors = TRUE)
 coef_opt_tol_prec$CLV1_opt_se <- coef_opt_tol_prec$CLV1_coef_se/abs(2*coef_opt_tol_prec$`CLV1^2_coef`)
 coef_opt_tol_prec$CLV3_opt_se <- coef_opt_tol_prec$CLV3_coef_se/abs(2*coef_opt_tol_prec$`CLV3^2_coef`)
 
-#plot optima for CLV1 and 3 (the quadratic ones) and color by the linear coefficient of CLV2 (linear response to that one)
-CLV1_CLV3_old <- ggplot(data = coef_opt_tol_prec, aes(x = CLV1_opt, y = CLV3_opt))+
-  #plot precision ellipses
-  geom_ellipse(aes(x0 = CLV1_opt, y0 = CLV3_opt, a = CLV1_tol, b = CLV3_tol, angle = 0), alpha = 0.5, color = "gray")+
-  #plot optima
-  geom_point(aes(fill = CLV2_coef), shape = 21, size = 5)+
-  scale_fill_distiller(palette = "RdBu", direction = 1, limits = c(-5,5), , oob = scales::squish, breaks = c(-5, 0, 5), labels = c("<-5", "0", ">5"))+
-  #species labels
-  geom_text_repel(data = coef_opt_tol_prec, aes(x = CLV1_opt, y = CLV3_opt, label = taxon), max.overlaps = Inf) +
-  theme_classic()
-CLV1_CLV3_old
-#I don't like this plot
-#colors are hard to follow for CLV2 - I think it's best to give it it's own caterpillar plot
-#tolerances don't tell you much because they are forced to be the same for all species which we know is ecologically not true
-
-#let's plot the optima and color by species type: fish or zooplankton
-#can have same colors in a caterpillar plot for CLV2 that goes next to it
+# #plot optima for CLV1 and 3 (the quadratic ones) and color by the linear coefficient of CLV2 (linear response to that one)
+# CLV1_CLV3_old <- ggplot(data = coef_opt_tol_prec, aes(x = CLV1_opt, y = CLV3_opt))+
+#   #plot precision ellipses
+#   geom_ellipse(aes(x0 = CLV1_opt, y0 = CLV3_opt, a = CLV1_tol, b = CLV3_tol, angle = 0), alpha = 0.5, color = "gray")+
+#   #plot optima
+#   geom_point(aes(fill = CLV2_coef), shape = 21, size = 5)+
+#   scale_fill_distiller(palette = "RdBu", direction = 1, limits = c(-5,5), , oob = scales::squish, breaks = c(-5, 0, 5), labels = c("<-5", "0", ">5"))+
+#   #species labels
+#   geom_text_repel(data = coef_opt_tol_prec, aes(x = CLV1_opt, y = CLV3_opt, label = taxon), max.overlaps = Inf) +
+#   theme_classic()
+# CLV1_CLV3_old
+# #I don't like this plot
+# #colors are hard to follow for CLV2 - I think it's best to give it it's own caterpillar plot
+# #tolerances don't tell you much because they are forced to be the same for all species which we know is ecologically not true
+# 
+# #let's plot the optima and color by species type: fish or zooplankton
+# #can have same colors in a caterpillar plot for CLV2 that goes next to it
 
 #separate fish vs. zoop groups
-coef_opt_tol_prec$group <- ifelse((coef_opt_tol_prec$taxon == "Walleye" | coef_opt_tol_prec$taxon == "Black Crappie" | 
-                                     coef_opt_tol_prec$taxon == "Bluegill" | coef_opt_tol_prec$taxon == "Hybrid Sunfish" | 
-                                     coef_opt_tol_prec$taxon == "Largemouth Bass" | coef_opt_tol_prec$taxon == "Pumpkinseed" | 
-                                     coef_opt_tol_prec$taxon == "Rock Bass" | coef_opt_tol_prec$taxon == "Smallmouth Bass" |
-                                    coef_opt_tol_prec$taxon == "Bullhead" |coef_opt_tol_prec$taxon == "Bowfin" |
-                                     coef_opt_tol_prec$taxon == "Burbot"  |coef_opt_tol_prec$taxon == "Cisco" |
-                                     coef_opt_tol_prec$taxon == "Common Carp" |coef_opt_tol_prec$taxon == "Golden Shiner" |
-                                     coef_opt_tol_prec$taxon == "Lake Whitefish" |coef_opt_tol_prec$taxon == "Muskellunge" |
-                                     coef_opt_tol_prec$taxon == "Northern Pike" |coef_opt_tol_prec$taxon == "Rainbow Smelt"  |
-                                     coef_opt_tol_prec$taxon == "Redhorse"  |coef_opt_tol_prec$taxon == "Sauger"  |
-                                     coef_opt_tol_prec$taxon == "White Sucker"  |coef_opt_tol_prec$taxon == "Yellow Perch"),
-                                  "Fish", "Zooplankton")
+coef_opt_tol_prec$Species <- coef_opt_tol_prec$taxon
+coef_opt_tol_prec <- coef_opt_tol_prec %>% 
+  left_join(master.names, by = "Species")
 
-#do some weird stuff to make a key for the number points that correspond to species
-opt_plot_data <- coef_opt_tol_prec %>% 
-  mutate(taxon = factor(taxon, levels = unique(taxon)), #don't let it change the taxon factor order to alphabetical order
-         species_num = as.numeric(taxon), 
-         legend_label = paste0(species_num, " ", taxon)
-         )
-
-#sort the legend labels and add back to dataframe
-legend_label_sort <- stringr::str_sort(unique(opt_plot_data$legend_label), numeric = TRUE)
-opt_plot_data <- opt_plot_data %>% 
-  mutate(legend_label = factor(legend_label, levels = legend_label_sort))
-
-#this is the good one but not a biplot - use the next one 
-CLV1_CLV3 <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
-  #make colored points for the numbers to print on top of
-  geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  #plot optima with numbers as species and then have a key!
-  geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
-  #make invisible points with colors as the label to force the number key
-  geom_point(aes(color = legend_label), alpha = 0)+
-  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
-  theme_classic()+
-  #format these large legends
-  guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
-         color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
-  theme(legend.text = element_text(size = 8.5),
-        legend.title = element_text(size = 11, face = "bold"),
-        legend.position = "bottom",
-        legend.box = "vertical", #puts the two legends on top of each other
-        legend.box.just = "center", #aligns the two legends to the left
-        legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
-        legend.key.spacing.y = unit(0, "cm")) #shrinks the vertical space between legend entries
-
-CLV1_CLV3
-#ggsave("clv1v3_optima.png", plot = CLV1_CLV3, width = 7, height = 9, units = "in", dpi = 600)
+# #do some weird stuff to make a key for the number points that correspond to species
+# opt_plot_data <- coef_opt_tol_prec %>% 
+#   mutate(taxon = factor(taxon, levels = unique(taxon)), #don't let it change the taxon factor order to alphabetical order
+#          species_num = as.numeric(taxon), 
+#          legend_label = paste0(species_num, " ", taxon)
+#          )
+# 
+# #sort the legend labels and add back to dataframe
+# legend_label_sort <- stringr::str_sort(unique(opt_plot_data$legend_label), numeric = TRUE)
+# opt_plot_data <- opt_plot_data %>% 
+#   mutate(legend_label = factor(legend_label, levels = legend_label_sort))
+# 
+# #this is the good one but not a biplot - use the next one 
+# CLV1_CLV3 <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
+#   #make colored points for the numbers to print on top of
+#   geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   #plot optima with numbers as species and then have a key!
+#   geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
+#   #make invisible points with colors as the label to force the number key
+#   geom_point(aes(color = legend_label), alpha = 0)+
+#   labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
+#   theme_classic()+
+#   #format these large legends
+#   guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
+#          color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
+#   theme(legend.text = element_text(size = 8.5),
+#         legend.title = element_text(size = 11, face = "bold"),
+#         legend.position = "bottom",
+#         legend.box = "vertical", #puts the two legends on top of each other
+#         legend.box.just = "center", #aligns the two legends to the left
+#         legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
+#         legend.key.spacing.y = unit(0, "cm")) #shrinks the vertical space between legend entries
+# 
+# CLV1_CLV3
+# #ggsave("clv1v3_optima.png", plot = CLV1_CLV3, width = 7, height = 9, units = "in", dpi = 600)
 
 
-#USE THIS ONE
-#turn the good one into a biplot with the environment in there too
-#extract environmental coefficients
-env_arrows <- model$params$LvXcoef
-#rename these how I want them to appear in plot
-rownames(env_arrows) <- c("CDOM", "Area", "Depth", "Secchi", "Degree Days", "Littoral", "Precipitation", "SWF", "ZM")
-#plot
-CLV1_CLV3_biplot <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
-  #make colored points for the numbers to print on top of
-  geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  #plot optima with numbers as species and then have a key!
-  geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
-  #make invisible points with colors as the label to force the number key
-  geom_point(aes(color = legend_label), alpha = 0)+
-  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
-  #add env arrows
-  geom_segment(data = as.data.frame(env_arrows), 
-               aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
-               arrow = arrow(length = unit(0.2, "cm")), color = "black") +
-  geom_text(data = as.data.frame(env_arrows), 
-            aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "black") +
-  theme_classic()+
-  #format these large legends
-  guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
-         color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
-  theme(legend.text = element_text(size = 9),
-        legend.title = element_text(size = 11, face = "bold"),
-        legend.position = "bottom",
-        legend.box = "vertical", #puts the two legends on top of each other
-        legend.box.just = "center", #aligns the two legends to the left
-        legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
-        legend.key.spacing.y = unit(0.1, "cm"),  #shrinks the vertical space between legend entries
-        legend.key.size = unit(0.1, "pt")) #make the legend color boxes tiny so they don't take up space
-CLV1_CLV3_biplot
-#ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 6.5, height = 8, units = "in", dpi = 600)
+# #USE THIS ONE
+# #turn the good one into a biplot with the environment in there too
+# #extract environmental coefficients
+# env_arrows <- model$params$LvXcoef
+# #rename these how I want them to appear in plot
+# rownames(env_arrows) <- c("CDOM", "Area", "Depth", "Secchi", "Degree Days", "Littoral", "Precipitation", "SWF", "ZM")
+# #plot
+# CLV1_CLV3_biplot <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
+#   #make colored points for the numbers to print on top of
+#   geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   #plot optima with numbers as species and then have a key!
+#   geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
+#   #make invisible points with colors as the label to force the number key
+#   geom_point(aes(color = legend_label), alpha = 0)+
+#   labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
+#   #add env arrows
+#   geom_segment(data = as.data.frame(env_arrows), 
+#                aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
+#                arrow = arrow(length = unit(0.2, "cm")), color = "black") +
+#   geom_text(data = as.data.frame(env_arrows), 
+#             aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "black") +
+#   theme_classic()+
+#   #format these large legends
+#   guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
+#          color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
+#   theme(legend.text = element_text(size = 9),
+#         legend.title = element_text(size = 11, face = "bold"),
+#         legend.position = "bottom",
+#         legend.box = "vertical", #puts the two legends on top of each other
+#         legend.box.just = "center", #aligns the two legends to the left
+#         legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
+#         legend.key.spacing.y = unit(0.1, "cm"),  #shrinks the vertical space between legend entries
+#         legend.key.size = unit(0.1, "pt")) #make the legend color boxes tiny so they don't take up space
+# CLV1_CLV3_biplot
+# #ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 6.5, height = 8, units = "in", dpi = 600)
+# 
+# #add error bars wih 95% confidence intervals based on CONDITIONAL standard errors
+# CLV1_CLV3_95CI <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
+#   #make conditional standard error cross-hairs
+#   geom_errorbar(aes(xmin = CLV1_opt-(1.96*CLV1_opt_se), xmax = CLV1_opt+(1.96*CLV1_opt_se)), width = 0.1, linewidth = 0.2, color = "gray")+
+#   geom_errorbar(aes(ymin = CLV3_opt-(1.96*CLV3_opt_se), ymax = CLV3_opt+(1.96*CLV3_opt_se)), width = 0.1, linewidth = 0.2, color = "gray")+
+#   #make colored points for the numbers to print on top of
+#   geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   #plot optima with numbers as species and then have a key!
+#   geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
+#   #make invisible points with colors as the label to force the number key
+#   geom_point(aes(color = legend_label), alpha = 0)+
+#   labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
+#   #add env arrows
+#   geom_segment(data = as.data.frame(env_arrows), 
+#                aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
+#                arrow = arrow(length = unit(0.2, "cm")), color = "black") +
+#   geom_text(data = as.data.frame(env_arrows), 
+#             aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "black") +
+#   theme_classic()+
+#   #format these large legends
+#   guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
+#          color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
+#   theme(legend.text = element_text(size = 8.5),
+#         legend.title = element_text(size = 11, face = "bold"),
+#         legend.position = "bottom",
+#         legend.box = "vertical", #puts the two legends on top of each other
+#         legend.box.just = "center", #aligns the two legends to the left
+#         legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
+#         legend.key.spacing.y = unit(0, "cm")) +#shrinks the vertical space between legend entries
+#   coord_cartesian(xlim = c(-5, 5.5), ylim = c(-6, 4.5)) #this zooms in on the part of the plot where the points are
+# CLV1_CLV3_95CI
+# #ggsave("clv1v3_optima_95CI.png", plot = CLV1_CLV3_95CI, width = 7, height = 9, units = "in", dpi = 600)
+# #this is just unreadable
+# 
+# #add error bars with just the CONDITIONAL standard errors
+# CLV1_CLV3_SE <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
+#   #make conditional standard error cross-hairs
+#   geom_errorbar(aes(xmin = CLV1_opt-CLV1_opt_se, xmax = CLV1_opt+CLV1_opt_se), width = 0.1, linewidth = 0.2, color = "gray")+
+#   geom_errorbar(aes(ymin = CLV3_opt-CLV3_opt_se, ymax = CLV3_opt+CLV3_opt_se), width = 0.1, linewidth = 0.2, color = "gray")+
+#   #make colored points for the numbers to print on top of
+#   geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   #plot optima with numbers as species and then have a key!
+#   geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
+#   #make invisible points with colors as the label to force the number key
+#   geom_point(aes(color = legend_label), alpha = 0)+
+#   labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
+#   #add env arrows
+#   geom_segment(data = as.data.frame(env_arrows), 
+#                aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
+#                arrow = arrow(length = unit(0.2, "cm")), color = "black") +
+#   geom_text(data = as.data.frame(env_arrows), 
+#             aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "black") +
+#   theme_classic()+
+#   #format these large legends
+#   guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
+#          color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
+#   theme(legend.text = element_text(size = 8.5),
+#         legend.title = element_text(size = 11, face = "bold"),
+#         legend.position = "bottom",
+#         legend.box = "vertical", #puts the two legends on top of each other
+#         legend.box.just = "center", #aligns the two legends to the left
+#         legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
+#         legend.key.spacing.y = unit(0, "cm")) +#shrinks the vertical space between legend entries
+#   coord_cartesian(xlim = c(-5, 5.5), ylim = c(-6, 4.5)) #this zooms in on the part of the plot where the points are
+# CLV1_CLV3_SE
+# #slightly easier to look at but harder for readers to interpret SE than 95CI
 
-#add error bars wih 95% confidence intervals based on CONDITIONAL standard errors
-CLV1_CLV3_95CI <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
-  #make conditional standard error cross-hairs
-  geom_errorbar(aes(xmin = CLV1_opt-(1.96*CLV1_opt_se), xmax = CLV1_opt+(1.96*CLV1_opt_se)), width = 0.1, linewidth = 0.2, color = "gray")+
-  geom_errorbar(aes(ymin = CLV3_opt-(1.96*CLV3_opt_se), ymax = CLV3_opt+(1.96*CLV3_opt_se)), width = 0.1, linewidth = 0.2, color = "gray")+
-  #make colored points for the numbers to print on top of
-  geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  #plot optima with numbers as species and then have a key!
-  geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
-  #make invisible points with colors as the label to force the number key
-  geom_point(aes(color = legend_label), alpha = 0)+
-  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
-  #add env arrows
-  geom_segment(data = as.data.frame(env_arrows), 
-               aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
-               arrow = arrow(length = unit(0.2, "cm")), color = "black") +
-  geom_text(data = as.data.frame(env_arrows), 
-            aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "black") +
-  theme_classic()+
-  #format these large legends
-  guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
-         color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
-  theme(legend.text = element_text(size = 8.5),
-        legend.title = element_text(size = 11, face = "bold"),
-        legend.position = "bottom",
-        legend.box = "vertical", #puts the two legends on top of each other
-        legend.box.just = "center", #aligns the two legends to the left
-        legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
-        legend.key.spacing.y = unit(0, "cm")) +#shrinks the vertical space between legend entries
-  coord_cartesian(xlim = c(-5, 5.5), ylim = c(-6, 4.5)) #this zooms in on the part of the plot where the points are
-CLV1_CLV3_95CI
-#ggsave("clv1v3_optima_95CI.png", plot = CLV1_CLV3_95CI, width = 7, height = 9, units = "in", dpi = 600)
-#this is just unreadable
-
-#add error bars with just the CONDITIONAL standard errors
-CLV1_CLV3_SE <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
-  #make conditional standard error cross-hairs
-  geom_errorbar(aes(xmin = CLV1_opt-CLV1_opt_se, xmax = CLV1_opt+CLV1_opt_se), width = 0.1, linewidth = 0.2, color = "gray")+
-  geom_errorbar(aes(ymin = CLV3_opt-CLV3_opt_se, ymax = CLV3_opt+CLV3_opt_se), width = 0.1, linewidth = 0.2, color = "gray")+
-  #make colored points for the numbers to print on top of
-  geom_point(aes(fill = group), size = 6, color = "transparent", shape = 21)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  #plot optima with numbers as species and then have a key!
-  geom_text(aes(label = species_num), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
-  #make invisible points with colors as the label to force the number key
-  geom_point(aes(color = legend_label), alpha = 0)+
-  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "Trophic Level", color = "Taxon Key")+
-  #add env arrows
-  geom_segment(data = as.data.frame(env_arrows), 
-               aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
-               arrow = arrow(length = unit(0.2, "cm")), color = "black") +
-  geom_text(data = as.data.frame(env_arrows), 
-            aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "black") +
-  theme_classic()+
-  #format these large legends
-  guides(fill = guide_legend(order = 1, , override.aes = list(size = 4), title.position = "top", title.hjust = 0.5),
-         color = guide_legend(order = 2, ncol = 4, title.position = "top", title.hjust = 0.5, override.aes = list(size = 0)))+
-  theme(legend.text = element_text(size = 8.5),
-        legend.title = element_text(size = 11, face = "bold"),
-        legend.position = "bottom",
-        legend.box = "vertical", #puts the two legends on top of each other
-        legend.box.just = "center", #aligns the two legends to the left
-        legend.spacing.y = unit(0, "cm"), #shrinks the space between legends
-        legend.key.spacing.y = unit(0, "cm")) +#shrinks the vertical space between legend entries
-  coord_cartesian(xlim = c(-5, 5.5), ylim = c(-6, 4.5)) #this zooms in on the part of the plot where the points are
-CLV1_CLV3_SE
-#slightly easier to look at but harder for readers to interpret SE than 95CI
-
-#now I need the caterpillar plot for the linear CLV2
-CLV2_plot <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV2_coef-(1.96*CLV2_coef_se), xmax = CLV2_coef+(1.96*CLV2_coef_se)), width = 0.2, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV2 Linear Coefficient", y = "Taxon", fill = "")+
-  scale_x_continuous(limits = c(-19, 5))+
-  theme_classic(base_size = 11)
-CLV2_plot
-#ggsave("clv2_coef_95CI.png", plot = CLV2_plot, width = 7, height = 7, units = "in", dpi = 600)
+# #now I need the caterpillar plot for the linear CLV2
+# CLV2_plot <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
+#   #vertical line at 0
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+#   #95% confidence intervals
+#   geom_errorbar(aes(xmin = CLV2_coef-(1.96*CLV2_coef_se), xmax = CLV2_coef+(1.96*CLV2_coef_se)), width = 0.2, linewidth = 0.2)+
+#   #point estimate
+#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   labs(x = "CLV2 Linear Coefficient", y = "Taxon", fill = "")+
+#   #scale_x_continuous(limits = c(-19, 5))+
+#   theme_classic(base_size = 11)
+# CLV2_plot
+# #ggsave("clv2_coef_95CI.png", plot = CLV2_plot, width = 7, height = 7, units = "in", dpi = 600)
 
 #a caterpillar plot for CLV2 combined with the canonical coefficient plot for that axis
-CLV2_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
+opt_plot_data_CLV2 <- opt_plot_data %>% 
+  mutate(lower = CLV2_coef-(1.96*CLV2_coef_se),
+         upper = CLV2_coef+(1.96*CLV2_coef_se),
+         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+CLV2_plot_forlayout <- ggplot(data = opt_plot_data_CLV2, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV2_coef-(1.96*CLV2_coef_se), xmax = CLV2_coef+(1.96*CLV2_coef_se)), width = 0.2, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV2 Linear Coefficient", y = "Taxon", fill = "")+
-  scale_x_continuous(limits = c(-19, 22))+
+  geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none")+
+  labs(x = "CLV2 Linear Coefficient", y = "Taxon", color = "")+
+  #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)+
   theme(legend.position = "right")
 CLV2_plot_forlayout
-clv2_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV2))+
+clv2_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV2), y = CLV2))+
   geom_col()+
   labs(x = "Environmental Variable", y = "CLV2 Canonical Coefficient")+
   theme_classic(base_size = 11)+
-  coord_flip()+
-  scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+  coord_flip()
+  #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
 clv2_loadings
 
 CLV2_layout <- clv2_loadings / plot_spacer() / CLV2_plot_forlayout +
@@ -718,25 +722,31 @@ CLV2_layout
 #ggsave("clv2_layout.svg", plot = CLV2_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
 
 #Make similar layouts for CLV1 and 3 with their optima
-CLV1_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = reorder(taxon, CLV1_opt)))+
+opt_plot_data_CLV1 <- opt_plot_data %>% 
+  mutate(lower = CLV1_opt-(1.96*CLV1_opt_se),
+         upper = CLV1_opt+(1.96*CLV1_opt_se),
+         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = reorder(taxon, CLV1_opt)))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV1_opt-(1.96*CLV1_opt_se), xmax = CLV1_opt+(1.96*CLV1_opt_se)), width = 0.2, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV1 Optimum", y = "Taxon", fill = "")+
-  scale_x_continuous(limits = c(-19, 22))+
+  geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none")+
+  labs(x = "CLV1 Optimum", y = "Taxon", color = "")+
+  #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)+
   theme(legend.position = "right")
 CLV1_plot_forlayout
-clv1_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV1))+
+clv1_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV1), y = CLV1))+
   geom_col()+
   labs(x = "Environmental Variable", y = "CLV1 Canonical Coefficient")+
   theme_classic(base_size = 11)+
-  coord_flip()+
-  scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+  coord_flip()
+  #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
 clv1_loadings
 
 CLV1_layout <- clv1_loadings / plot_spacer() / CLV1_plot_forlayout +
@@ -750,25 +760,31 @@ CLV1_layout
 #ggsave("clv1_layout.svg", plot = CLV1_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
 
 
-CLV3_plot_forlayout <- ggplot(data = opt_plot_data, aes(x = CLV3_opt, y = reorder(taxon, CLV3_opt)))+
+opt_plot_data_CLV3 <- opt_plot_data %>% 
+  mutate(lower = CLV3_opt-(1.96*CLV3_opt_se),
+         upper = CLV3_opt+(1.96*CLV3_opt_se),
+         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+CLV3_plot_forlayout <- ggplot(data = opt_plot_data_CLV3, aes(x = CLV3_opt, y = reorder(taxon, CLV3_opt)))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV3_opt-(1.96*CLV3_opt_se), xmax = CLV3_opt+(1.96*CLV3_opt_se)), width = 0.2, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV3 Optimum", y = "Taxon", fill = "")+
-  coord_cartesian(xlim = c(-19, 22))+
+  geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none")+
+  labs(x = "CLV3 Optimum", y = "Taxon", color = "")+
+  #coord_cartesian(xlim = c(-19, 22))+
   theme_classic(base_size = 11)+
   theme(legend.position = "right")
 CLV3_plot_forlayout
-clv3_loadings <- ggplot(data = clv_load, aes(x = fct_rev(Param), y = CLV3))+
+clv3_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV3), y = CLV3))+
   geom_col()+
   labs(x = "Environmental Variable", y = "CLV3 Canonical Coefficient")+
   theme_classic(base_size = 11)+
-  coord_flip()+
-  scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+  coord_flip()
+  #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
 clv3_loadings
 
 CLV3_layout <- clv3_loadings / plot_spacer() / CLV3_plot_forlayout +
@@ -784,36 +800,34 @@ CLV3_layout
 
 
 
-#make caterpillar plots for the other two linear predictors too
-CLV3_plot <- ggplot(data = opt_plot_data, aes(x = CLV3_coef, y = reorder(taxon, CLV3_coef)))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV3_coef-(1.96*CLV3_coef_se), xmax = CLV3_coef+(1.96*CLV3_coef_se)), width = 0.2, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV3 Linear Coefficient", y = "Taxon", fill = "")+
-  scale_x_continuous(limits = c(-20.1, 10.1))+
-  theme_classic(base_size = 11)
-CLV3_plot
-#ggsave("clv3_coef_95CI.png", plot = CLV3_plot, width = 7, height = 7, units = "in", dpi = 600)
-
-CLV1_plot <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, CLV1_coef)))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV1_coef-(1.96*CLV1_coef_se), xmax = CLV1_coef+(1.96*CLV1_coef_se)), width = 0.2, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV1 Linear Coefficient", y = "Taxon", fill = "")+
-  #scale_x_continuous(limits = c(-20.1, 10.1))+
-  theme_classic(base_size = 11)
-CLV1_plot
-#ggsave("clv1_coef_95CI.png", plot = CLV1_plot, width = 7, height = 7, units = "in", dpi = 600)
-
-
+# #make caterpillar plots for the other two linear predictors too
+# CLV3_plot <- ggplot(data = opt_plot_data, aes(x = CLV3_coef, y = reorder(taxon, CLV3_coef)))+
+#   #vertical line at 0
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+#   #95% confidence intervals
+#   geom_errorbar(aes(xmin = CLV3_coef-(1.96*CLV3_coef_se), xmax = CLV3_coef+(1.96*CLV3_coef_se)), width = 0.2, linewidth = 0.2)+
+#   #point estimate
+#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   labs(x = "CLV3 Linear Coefficient", y = "Taxon", fill = "")+
+#   scale_x_continuous(limits = c(-20.1, 10.1))+
+#   theme_classic(base_size = 11)
+# CLV3_plot
+# #ggsave("clv3_coef_95CI.png", plot = CLV3_plot, width = 7, height = 7, units = "in", dpi = 600)
+# 
+# CLV1_plot <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, CLV1_coef)))+
+#   #vertical line at 0
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+#   #95% confidence intervals
+#   geom_errorbar(aes(xmin = CLV1_coef-(1.96*CLV1_coef_se), xmax = CLV1_coef+(1.96*CLV1_coef_se)), width = 0.2, linewidth = 0.2)+
+#   #point estimate
+#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   labs(x = "CLV1 Linear Coefficient", y = "Taxon", fill = "")+
+#   #scale_x_continuous(limits = c(-20.1, 10.1))+
+#   theme_classic(base_size = 11)
+# CLV1_plot
+# #ggsave("clv1_coef_95CI.png", plot = CLV1_plot, width = 7, height = 7, units = "in", dpi = 600)
 
 
 
@@ -821,63 +835,65 @@ CLV1_plot
 
 
 
-#make a version with all three plots together
-CLV1_combo <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, CLV1_coef)))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV1_coef-(1.96*CLV1_coef_se), xmax = CLV1_coef+(1.96*CLV1_coef_se)), width = 0.2, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV1 Linear Coefficient", y = NULL, fill = "")+
-  #scale_x_continuous(limits = c(-20.1, 10.1))+
-  theme_classic()+
-  theme(legend.position = "none")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip()
-CLV1_combo
 
-CLV2_combo <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV2_coef-(1.96*CLV2_coef_se), xmax = CLV2_coef+(1.96*CLV2_coef_se)), width = 0.2, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV2 Linear Coefficient", y = NULL, fill = "")+
-  scale_x_continuous(limits = c(-19, 5))+
-  theme_classic()+
-  theme(legend.position = "none")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip()
-CLV2_combo
 
-CLV3_combo <- ggplot(data = opt_plot_data, aes(x = CLV3_coef, y = reorder(taxon, CLV3_coef)))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = CLV3_coef-(1.96*CLV3_coef_se), xmax = CLV3_coef+(1.96*CLV3_coef_se)), width = 0.2, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV3 Linear Coefficient", y = "Taxon", fill = "")+
-  scale_x_continuous(limits = c(-20.1, 10.1))+
-  theme_classic()+
-  theme(legend.position = "bottom",
-        legend.margin = margin(t = -10,0,0,0, unit = "pt"))+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip()
-CLV3_combo
-
-all_CLV <- (CLV1_combo / CLV2_combo / CLV3_combo) +
-  plot_annotation(tag_levels = 'A') &
-  theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
-        plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.1, 0.99)) 
-all_CLV
-#ggsave("CLV_coef_panel.png", plot = all_CLV, width = 7, height = 10, units = "in", dpi = 600)
+# #make a version with all three plots together
+# CLV1_combo <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, CLV1_coef)))+
+#   #vertical line at 0
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+#   #95% confidence intervals
+#   geom_errorbar(aes(xmin = CLV1_coef-(1.96*CLV1_coef_se), xmax = CLV1_coef+(1.96*CLV1_coef_se)), width = 0.2, linewidth = 0.2)+
+#   #point estimate
+#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   labs(x = "CLV1 Linear Coefficient", y = NULL, fill = "")+
+#   #scale_x_continuous(limits = c(-20.1, 10.1))+
+#   theme_classic()+
+#   theme(legend.position = "none")+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#   coord_flip()
+# CLV1_combo
+# 
+# CLV2_combo <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
+#   #vertical line at 0
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+#   #95% confidence intervals
+#   geom_errorbar(aes(xmin = CLV2_coef-(1.96*CLV2_coef_se), xmax = CLV2_coef+(1.96*CLV2_coef_se)), width = 0.2, linewidth = 0.2)+
+#   #point estimate
+#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   labs(x = "CLV2 Linear Coefficient", y = NULL, fill = "")+
+#   scale_x_continuous(limits = c(-19, 5))+
+#   theme_classic()+
+#   theme(legend.position = "none")+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#   coord_flip()
+# CLV2_combo
+# 
+# CLV3_combo <- ggplot(data = opt_plot_data, aes(x = CLV3_coef, y = reorder(taxon, CLV3_coef)))+
+#   #vertical line at 0
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+#   #95% confidence intervals
+#   geom_errorbar(aes(xmin = CLV3_coef-(1.96*CLV3_coef_se), xmax = CLV3_coef+(1.96*CLV3_coef_se)), width = 0.2, linewidth = 0.2)+
+#   #point estimate
+#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
+#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
+#   labs(x = "CLV3 Linear Coefficient", y = "Taxon", fill = "")+
+#   scale_x_continuous(limits = c(-20.1, 10.1))+
+#   theme_classic()+
+#   theme(legend.position = "bottom",
+#         legend.margin = margin(t = -10,0,0,0, unit = "pt"))+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#   coord_flip()
+# CLV3_combo
+# 
+# all_CLV <- (CLV1_combo / CLV2_combo / CLV3_combo) +
+#   plot_annotation(tag_levels = 'A') &
+#   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
+#         plot.tag = element_text(size = 12, face = "bold"),
+#         plot.tag.position = c(0.1, 0.99)) 
+# all_CLV
+# #ggsave("CLV_coef_panel.png", plot = all_CLV, width = 7, height = 10, units = "in", dpi = 600)
 
 
 
@@ -886,7 +902,7 @@ LV1_combo <- ggplot(data = opt_plot_data, aes(x = LV1_coef, y = reorder(taxon, L
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = LV1_coef-(1.96*LV1_coef_se), xmax = CLV1_coef+(1.96*LV1_coef_se)), width = 0.2, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = LV1_coef-(1.96*LV1_coef_se), xmax = CLV1_coef+(1.96*LV1_coef_se)), width = 0.4, linewidth = 0.2)+
   #point estimate
   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
@@ -901,7 +917,7 @@ LV2_combo <- ggplot(data = opt_plot_data, aes(x = LV2_coef, y = reorder(taxon, L
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = LV2_coef-(1.96*LV2_coef_se), xmax = LV2_coef+(1.96*LV2_coef_se)), width = 0.2, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = LV2_coef-(1.96*LV2_coef_se), xmax = LV2_coef+(1.96*LV2_coef_se)), width = 0.4, linewidth = 0.2)+
   #point estimate
   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
@@ -916,7 +932,7 @@ LV3_combo <- ggplot(data = opt_plot_data, aes(x = LV3_coef, y = reorder(taxon, L
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = LV3_coef-(1.96*LV3_coef_se), xmax = LV3_coef+(1.96*LV3_coef_se)), width = 0.2, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = LV3_coef-(1.96*LV3_coef_se), xmax = LV3_coef+(1.96*LV3_coef_se)), width = 0.4, linewidth = 0.2)+
   #point estimate
   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
@@ -930,22 +946,8 @@ LV3_combo <- ggplot(data = opt_plot_data, aes(x = LV3_coef, y = reorder(taxon, L
   coord_flip()
 LV3_combo
 
-LV4_combo <- ggplot(data = opt_plot_data, aes(x = LV4_coef, y = reorder(taxon, LV4_coef)))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = LV4_coef-(1.96*LV4_coef_se), xmax = LV4_coef+(1.96*LV4_coef_se)), width = 0.2, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "LV4 Linear Coefficient", y = "Taxon", fill = "")+
-  theme_classic(base_size = 9)+
-  theme(legend.position = "none")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip()
-LV4_combo
 
-all_LV <- (LV1_combo / LV2_combo / LV3_combo / LV4_combo) +
+all_LV <- (LV1_combo / LV2_combo / LV3_combo) +
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(10,5,5,5), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
@@ -963,27 +965,16 @@ intercept <- as.data.frame(model[["params"]][["beta0"]])
 #format, add standard errors, and separate fish vs. zoop groups
 intercept_se <- intercept %>% 
   rename(beta0 = "model[[\"params\"]][[\"beta0\"]]") %>% 
-  mutate(Taxon = rownames(intercept),
-         beta0_se = model[["sd"]][["beta0"]],
-         group = ifelse((Taxon == "Walleye" | Taxon == "Black Crappie" |
-                           Taxon == "Bluegill" | Taxon == "Hybrid Sunfish" |
-                           Taxon == "Largemouth Bass" | Taxon == "Pumpkinseed" |
-                           Taxon == "Rock Bass" | Taxon == "Smallmouth Bass" |
-                           Taxon == "Bullhead" | Taxon == "Bowfin" |
-                           Taxon == "Burbot"  | Taxon == "Cisco" |
-                           Taxon == "Common Carp" | Taxon == "Golden Shiner" |
-                           Taxon == "Lake Whitefish" | Taxon == "Muskellunge" |
-                           Taxon == "Northern Pike" | Taxon == "Rainbow Smelt"  |
-                           Taxon == "Redhorse"  | Taxon == "Sauger"  |
-                           Taxon == "White Sucker" | Taxon == "Yellow Perch"),
-                        "Fish", "Zooplankton"))
+  mutate(Species = rownames(intercept),
+         beta0_se = model[["sd"]][["beta0"]]) %>% 
+  left_join(master.names, by = "Species")
 
 #plot
-intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = reorder(Taxon, beta0)))+
+intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = reorder(Species, beta0)))+
   #vertical line at 0
   #geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = beta0-(1.96*beta0_se), xmax = beta0+(1.96*beta0_se)), width = 0.2, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = beta0-(1.96*beta0_se), xmax = beta0+(1.96*beta0_se)), width = 0.4, linewidth = 0.2)+
   #point estimate
   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
@@ -991,39 +982,29 @@ intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = reorder(Taxon, 
   #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)
 intercept_plot
-#ggsave("intercepts.png", plot = intercept_plot, width = 7, height = 7, units = "in", dpi = 600)
-#ggsave("intercepts.svg", plot = intercept_plot, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave("intercepts.png", plot = intercept_plot, width = 6.5, height = 7, units = "in", dpi = 600)
+#ggsave("intercepts.svg", plot = intercept_plot, width = 6.5, height = 7, units = "in", dpi = 600)
 
 
 
 #PHI------------------------------
+#run intercept code first to make this work 
 #extract species-specific intercepts and their standard errors
 phi <- as.data.frame(model[["params"]][["phi"]])
 
 #format, add standard errors, and separate fish vs. zoop groups
 phi_se <- phi %>% 
   rename(phi = "model[[\"params\"]][[\"phi\"]]") %>% 
-  mutate(Taxon = rownames(intercept),
-         phi_se = model[["sd"]][["phi"]],
-         group = ifelse((Taxon == "Walleye" | Taxon == "Black Crappie" |
-                           Taxon == "Bluegill" | Taxon == "Hybrid Sunfish" |
-                           Taxon == "Largemouth Bass" | Taxon == "Pumpkinseed" |
-                           Taxon == "Rock Bass" | Taxon == "Smallmouth Bass" |
-                           Taxon == "Bullhead" | Taxon == "Bowfin" |
-                           Taxon == "Burbot"  | Taxon == "Cisco" |
-                           Taxon == "Common Carp" | Taxon == "Golden Shiner" |
-                           Taxon == "Lake Whitefish" | Taxon == "Muskellunge" |
-                           Taxon == "Northern Pike" | Taxon == "Rainbow Smelt"  |
-                           Taxon == "Redhorse"  | Taxon == "Sauger"  |
-                           Taxon == "White Sucker" | Taxon == "Yellow Perch"),
-                        "Fish", "Zooplankton"))
+  mutate(Species = rownames(intercept),
+         phi_se = model[["sd"]][["phi"]]) %>% 
+  left_join(master.names, by = "Species")
 
 #plot
-phi_plot <- ggplot(data = phi_se, aes(x = phi, y = reorder(Taxon, phi)))+
+phi_plot <- ggplot(data = phi_se, aes(x = phi, y = reorder(Species, phi)))+
   #vertical line at 0
   #geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = phi-(1.96*phi_se), xmax = phi+(1.96*phi_se)), width = 0.2, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = phi-(1.96*phi_se), xmax = phi+(1.96*phi_se)), width = 0.7, linewidth = 0.2)+
   #point estimate
   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
@@ -1031,8 +1012,8 @@ phi_plot <- ggplot(data = phi_se, aes(x = phi, y = reorder(Taxon, phi)))+
   #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)
 phi_plot
-#ggsave("phi.png", plot = phi_plot, width = 7, height = 7, units = "in", dpi = 600)
-#ggsave("phi.svg", plot = phi_plot, width = 7, height = 7, units = "in", dpi = 600)
+#ggsave("phi.png", plot = phi_plot, width = 6.5, height = 7, units = "in", dpi = 600)
+#ggsave("phi.svg", plot = phi_plot, width = 6.5, height = 7, units = "in", dpi = 600)
 
 
 
@@ -1314,11 +1295,11 @@ x <- read.csv("Data/Input/gllvm_x_matrix_raw.csv")
 x_lake_avg <- x %>% 
   group_by(lake_name) %>% 
   summarize(CDOM = mean(CDOM),
-            `Lake Area` = mean(Area),
+            `Lake Area` = log(mean(Area)),
             `Maximum Depth` = mean(Max_Depth),
             Secchi = mean(Secchi),
             `Degree Days` = mean(GDD),
-            `Photic Proportion` = mean(Photic),
+            `Photic Proportion` = plogis(mean(Photic)),
             `Annual Precipitation` = mean(Precip),
             `Spiny Water Flea Presence` = max(SWF),
             `Zebra Mussel Presence` = max(ZM),
@@ -1343,7 +1324,7 @@ area_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Lake Area`), size = 2)+
   scale_fill_viridis_c(option = "inferno", direction = -1)+
-  labs(fill = "Lake\nArea\n(ha)")+
+  labs(fill = "Lake\nArea\n(log(ha))")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
 area_map
@@ -1379,7 +1360,7 @@ photic_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Photic Proportion`), size = 2)+
   scale_fill_viridis_c(option = "inferno", direction = -1)+
-  labs(fill = "Littoral\nZone")+
+  labs(fill = "Littoral\nZone\n(logit(prop))")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
 photic_map
@@ -1398,6 +1379,7 @@ swf_map <- ggplot()+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Spiny Water Flea Presence`), size = 2)+
   scale_fill_manual(values = c("no" = "#FCA50A", "yes" = "#000004"))+
   labs(fill = "Spiny\nWater\nFlea\nPresence")+
+  guides(fill = guide_legend(reverse = TRUE))+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
 swf_map
@@ -1407,6 +1389,7 @@ zm_map <- ggplot()+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Zebra Mussel Presence`), size = 2)+
   scale_fill_manual(values = c("no" = "#FCA50A", "yes" = "#000004"))+
   labs(fill = "Zebra\nMussel\nPresence")+
+  guides(fill = guide_legend(reverse = TRUE))+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
 zm_map
