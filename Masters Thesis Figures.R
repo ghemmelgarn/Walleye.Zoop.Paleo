@@ -336,9 +336,16 @@ rownames(GOF.spp) <- new_names
 #plot MARNE
 GOF.spp.plot <- GOF.spp %>% 
   mutate(Species = rownames(GOF.spp)) %>% 
-  mutate(Species = fct_inorder(Species)) %>% 
-  left_join(master.names, by = "Species")
-MARNE_plot <- ggplot(data = GOF.spp.plot, aes(x = reorder(Species, -MARNE), y = MARNE, fill = group))+
+  left_join(master.names, by = "Species") %>% 
+  mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
+                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass",
+                                              "Muskellunge", "Bullhead", "Common Carp", "Pumpkinseed", "Largemouth Bass", "Hybrid Sunfish", "Bluegill",
+                                              "Bowfin", "Chydorus sphaericus", "Bosmina longirostris", "Ceriodaphnia spp.", "Eubosmina coregoni",
+                                              "Alona spp.", "Diaphanosoma birgei", "Holopedium gibberum", "Daphnia rare", "Daphnia longiremis",
+                                              "Daphnia parvula", "Daphnia retrocurva", "Eurycercus lamellatus", "Sida crystallina",
+                                              "Daphnia galeata mendotae", "Daphnia pulicaria")))
+MARNE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MARNE, fill = group))+
+  scale_x_discrete(limits = rev)+
   geom_col()+
   labs(x = "Taxon", y = "Mean Absolute Range Normalized Error", fill = "")+
   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
@@ -500,6 +507,7 @@ coef_opt_tol_prec$test <- coef_opt_tol_prec$CLV1_opt-coef_opt_tol_prec$opt_test
 optima_se <- optima(model, sd.errors = TRUE)
 coef_opt_tol_prec$CLV1_opt_se <- coef_opt_tol_prec$CLV1_coef_se/abs(2*coef_opt_tol_prec$`CLV1^2_coef`)
 coef_opt_tol_prec$CLV3_opt_se <- coef_opt_tol_prec$CLV3_coef_se/abs(2*coef_opt_tol_prec$`CLV3^2_coef`)
+coef_opt_tol_prec$LV1_opt_se <- coef_opt_tol_prec$LV1_coef_se/abs(2*coef_opt_tol_prec$`LV1^2_coef`)
 
 # #plot optima for CLV1 and 3 (the quadratic ones) and color by the linear coefficient of CLV2 (linear response to that one)
 # CLV1_CLV3_old <- ggplot(data = coef_opt_tol_prec, aes(x = CLV1_opt, y = CLV3_opt))+
@@ -524,12 +532,28 @@ coef_opt_tol_prec$Species <- coef_opt_tol_prec$taxon
 coef_opt_tol_prec <- coef_opt_tol_prec %>% 
   left_join(master.names, by = "Species")
 
-# #do some weird stuff to make a key for the number points that correspond to species
-# opt_plot_data <- coef_opt_tol_prec %>% 
-#   mutate(taxon = factor(taxon, levels = unique(taxon)), #don't let it change the taxon factor order to alphabetical order
-#          species_num = as.numeric(taxon), 
-#          legend_label = paste0(species_num, " ", taxon)
-#          )
+#do some weird stuff to make a key for the number points that correspond to species
+opt_plot_data <- coef_opt_tol_prec %>%
+  mutate(taxon = factor(taxon, levels = unique(taxon)), #don't let it change the taxon factor order to alphabetical order
+         species_num = as.numeric(taxon),
+         legend_label = paste0(species_num, " ", taxon)
+         ) %>% 
+  #make species a factor so I can put them in the order I want
+  mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
+                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass",
+                                              "Muskellunge", "Bullhead", "Common Carp", "Pumpkinseed", "Largemouth Bass", "Hybrid Sunfish", "Bluegill",
+                                              "Bowfin", "Chydorus sphaericus", "Bosmina longirostris", "Ceriodaphnia spp.", "Eubosmina coregoni",
+                                              "Alona spp.", "Diaphanosoma birgei", "Holopedium gibberum", "Daphnia rare", "Daphnia longiremis",
+                                              "Daphnia parvula", "Daphnia retrocurva", "Eurycercus lamellatus", "Sida crystallina",
+                                              "Daphnia galeata mendotae", "Daphnia pulicaria"))) %>% 
+  #order species abbreviations same way
+  mutate(abbrv_names = factor(abbrv_names, levels = c("RBS", "TLC", "LKW", "BUB", "YEP", "SAR", "NOP",
+                                              "GOS", "WAE", "RHS", "BLC", "WTS", "RKB", "SMB",
+                                              "MUE", "BLH", "CAP", "PMK", "LMB", "HSF", "BLG",
+                                              "BOF", "Chyd. spha.", "Bosm. long.", "Ceri. spp.", "Eubo. core.",
+                                              "Alona spp.", "Diap. birg.", "Holo. gibb.", "Daph. rare", "Daph. long.",
+                                              "Daph. parv.", "Daph. retr.", "Eury. lame.", "Sida crys.",
+                                              "Daph. g. m.", "Daph. puli.")))
 # 
 # #sort the legend labels and add back to dataframe
 # legend_label_sort <- stringr::str_sort(unique(opt_plot_data$legend_label), numeric = TRUE)
@@ -688,7 +712,8 @@ opt_plot_data_CLV2 <- opt_plot_data %>%
   mutate(lower = CLV2_coef-(1.96*CLV2_coef_se),
          upper = CLV2_coef+(1.96*CLV2_coef_se),
          sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-CLV2_plot_forlayout <- ggplot(data = opt_plot_data_CLV2, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
+CLV2_plot_forlayout <- ggplot(data = opt_plot_data_CLV2, aes(x = CLV2_coef, y = Species))+
+  scale_y_discrete(limits = rev)+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
@@ -718,15 +743,16 @@ CLV2_layout <- clv2_loadings / plot_spacer() / CLV2_plot_forlayout +
         plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.33, 1))
 CLV2_layout
-#ggsave("clv2_layout.png", plot = CLV2_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
-#ggsave("clv2_layout.svg", plot = CLV2_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
+#ggsave("clv2_layout.png", plot = CLV2_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+#ggsave("clv2_layout.svg", plot = CLV2_layout, width = 6.5, height = 8, units = "in", dpi = 600)
 
 #Make similar layouts for CLV1 and 3 with their optima
 opt_plot_data_CLV1 <- opt_plot_data %>% 
   mutate(lower = CLV1_opt-(1.96*CLV1_opt_se),
          upper = CLV1_opt+(1.96*CLV1_opt_se),
          sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = reorder(taxon, CLV1_opt)))+
+CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = Species))+
+  scale_y_discrete(limits = rev)+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
@@ -756,15 +782,16 @@ CLV1_layout <- clv1_loadings / plot_spacer() / CLV1_plot_forlayout +
         plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.33, 1)) 
 CLV1_layout
-#ggsave("clv1_layout.png", plot = CLV1_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
-#ggsave("clv1_layout.svg", plot = CLV1_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
+#ggsave("clv1_layout.png", plot = CLV1_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+#ggsave("clv1_layout.svg", plot = CLV1_layout, width = 6.5, height = 8, units = "in", dpi = 600)
 
 
 opt_plot_data_CLV3 <- opt_plot_data %>% 
   mutate(lower = CLV3_opt-(1.96*CLV3_opt_se),
          upper = CLV3_opt+(1.96*CLV3_opt_se),
          sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-CLV3_plot_forlayout <- ggplot(data = opt_plot_data_CLV3, aes(x = CLV3_opt, y = reorder(taxon, CLV3_opt)))+
+CLV3_plot_forlayout <- ggplot(data = opt_plot_data_CLV3, aes(x = CLV3_opt, y = Species))+
+  scale_y_discrete(limits = rev)+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
@@ -794,8 +821,8 @@ CLV3_layout <- clv3_loadings / plot_spacer() / CLV3_plot_forlayout +
         plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.33, 1)) 
 CLV3_layout
-#ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
-#ggsave("clv3_layout.svg", plot = CLV3_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
+#ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+#ggsave("clv3_layout.svg", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
 
 
 
@@ -898,50 +925,67 @@ CLV3_layout
 
 
 #make a layout with plots for all the LV linear coefficients
-LV1_combo <- ggplot(data = opt_plot_data, aes(x = LV1_coef, y = reorder(taxon, LV1_coef)))+
+opt_plot_data_LV1 <- opt_plot_data %>% 
+  mutate(lower = LV1_opt-(1.96*LV1_opt_se),
+         upper = LV1_opt+(1.96*LV1_opt_se),
+         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+LV1_combo <- ggplot(data = opt_plot_data_LV1, aes(x = LV1_opt, y = abbrv_names))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = LV1_coef-(1.96*LV1_coef_se), xmax = CLV1_coef+(1.96*LV1_coef_se)), width = 0.4, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "LV1 Linear Coefficient", y = NULL, fill = "")+
-  theme_classic(base_size = 9)+
+  geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none")+
+  labs(x = "LV1 Optimum", y = NULL, color = "")+
+  theme_classic(base_size = 11)+
   theme(legend.position = "none")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   coord_flip()
 LV1_combo
 
-LV2_combo <- ggplot(data = opt_plot_data, aes(x = LV2_coef, y = reorder(taxon, LV2_coef)))+
+opt_plot_data_LV2 <- opt_plot_data %>% 
+  mutate(lower = LV2_coef-(1.96*LV2_coef_se),
+         upper = LV2_coef+(1.96*LV2_coef_se),
+         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+LV2_combo <- ggplot(data = opt_plot_data_LV2, aes(x = LV2_coef, y = abbrv_names))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = LV2_coef-(1.96*LV2_coef_se), xmax = LV2_coef+(1.96*LV2_coef_se)), width = 0.4, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "LV2 Linear Coefficient", y = NULL, fill = "")+
-  theme_classic(base_size = 9)+
+  geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none")+
+  labs(x = "LV2 Linear Coefficient", y = NULL, color = "")+
+  theme_classic(base_size = 11)+
   theme(legend.position = "none")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   coord_flip()
 LV2_combo
 
-LV3_combo <- ggplot(data = opt_plot_data, aes(x = LV3_coef, y = reorder(taxon, LV3_coef)))+
+opt_plot_data_LV3 <- opt_plot_data %>% 
+  mutate(lower = LV3_coef-(1.96*LV3_coef_se),
+         upper = LV3_coef+(1.96*LV3_coef_se),
+         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+LV3_combo <- ggplot(data = opt_plot_data_LV3, aes(x = LV3_coef, y = abbrv_names, LV3_coef))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
-  geom_errorbar(aes(xmin = LV3_coef-(1.96*LV3_coef_se), xmax = LV3_coef+(1.96*LV3_coef_se)), width = 0.4, linewidth = 0.2)+
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-  scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "LV3 Linear Coefficient", y = NULL, fill = "")+
-  theme_classic(base_size = 9)+
-  theme(legend.position = "right",
+  geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none")+
+  labs(x = "LV3 Linear Coefficient", y = "Taxon", color = "")+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "bottom",
         legend.title = element_blank(),
-        legend.box.margin = margin(t = -120,0,0,-10, unit = "pt"),
-        legend.background = element_rect(color = "gray80", linewidth = 0.5))+
+        legend.margin = margin(t = 0,0,0,0, unit = "pt"))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   coord_flip()
 LV3_combo
@@ -953,8 +997,8 @@ all_LV <- (LV1_combo / LV2_combo / LV3_combo) +
         plot.tag = element_text(size = 12, face = "bold"),
         plot.tag.position = c(0.09, 1)) 
 all_LV
-#ggsave("LV_coef_panel.png", plot = all_LV, width = 7, height = 8, units = "in", dpi = 600)
-#ggsave("LV_coef_panel.svg", plot = all_LV, width = 7, height = 8, units = "in", dpi = 600)
+#ggsave("LV_coef_panel.png", plot = all_LV, width = 6.5, height = 7, units = "in", dpi = 600)
+#ggsave("LV_coef_panel.svg", plot = all_LV, width = 6.5, height = 7, units = "in", dpi = 600)
 
 
 
@@ -967,10 +1011,18 @@ intercept_se <- intercept %>%
   rename(beta0 = "model[[\"params\"]][[\"beta0\"]]") %>% 
   mutate(Species = rownames(intercept),
          beta0_se = model[["sd"]][["beta0"]]) %>% 
-  left_join(master.names, by = "Species")
+  left_join(master.names, by = "Species") %>% 
+  mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
+                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass",
+                                              "Muskellunge", "Bullhead", "Common Carp", "Pumpkinseed", "Largemouth Bass", "Hybrid Sunfish", "Bluegill",
+                                              "Bowfin", "Chydorus sphaericus", "Bosmina longirostris", "Ceriodaphnia spp.", "Eubosmina coregoni",
+                                              "Alona spp.", "Diaphanosoma birgei", "Holopedium gibberum", "Daphnia rare", "Daphnia longiremis",
+                                              "Daphnia parvula", "Daphnia retrocurva", "Eurycercus lamellatus", "Sida crystallina",
+                                              "Daphnia galeata mendotae", "Daphnia pulicaria")))
 
 #plot
-intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = reorder(Species, beta0)))+
+intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = Species))+
+  scale_y_discrete(limits = rev)+
   #vertical line at 0
   #geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
@@ -997,10 +1049,18 @@ phi_se <- phi %>%
   rename(phi = "model[[\"params\"]][[\"phi\"]]") %>% 
   mutate(Species = rownames(intercept),
          phi_se = model[["sd"]][["phi"]]) %>% 
-  left_join(master.names, by = "Species")
+  left_join(master.names, by = "Species") %>% 
+  mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
+                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass",
+                                              "Muskellunge", "Bullhead", "Common Carp", "Pumpkinseed", "Largemouth Bass", "Hybrid Sunfish", "Bluegill",
+                                              "Bowfin", "Chydorus sphaericus", "Bosmina longirostris", "Ceriodaphnia spp.", "Eubosmina coregoni",
+                                              "Alona spp.", "Diaphanosoma birgei", "Holopedium gibberum", "Daphnia rare", "Daphnia longiremis",
+                                              "Daphnia parvula", "Daphnia retrocurva", "Eurycercus lamellatus", "Sida crystallina",
+                                              "Daphnia galeata mendotae", "Daphnia pulicaria")))
 
 #plot
-phi_plot <- ggplot(data = phi_se, aes(x = phi, y = reorder(Species, phi)))+
+phi_plot <- ggplot(data = phi_se, aes(x = phi, y = Species))+
+  scale_y_discrete(limits = rev)+
   #vertical line at 0
   #geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
@@ -1021,146 +1081,165 @@ phi_plot
 
 #CORRELATION MATRICES----------------
 
+#create vector with species abbreviation in order I want
+cor.order <- c("RBS", "TLC", "LKW", "BUB", "YEP", "SAR", "NOP",
+               "GOS", "WAE", "RHS", "BLC", "WTS", "RKB", "SMB",
+               "MUE", "BLH", "CAP", "PMK", "LMB", "HSF", "BLG",
+               "BOF", "Chyd. spha.", "Bosm. long.", "Ceri. spp.", "Eubo. core.",
+               "Alona spp.", "Diap. birg.", "Holo. gibb.", "Daph. rare", "Daph. long.",
+               "Daph. parv.", "Daph. retr.", "Eury. lame.", "Sida crys.",
+               "Daph. g. m.", "Daph. puli.")
+
 #environmental correlations
 Env <- getEnvironCor(model)
-#png("cor_all_env.png", width = 7, height = 6, units = "in", res = 600)
-corrplot(Env[order.single(Env), order.single(Env)],
+#reset row and column names to the abbreviations
+rownames(Env) <- master.names$abbrv_names
+colnames(Env) <- master.names$abbrv_names
+#png("cor_all_env.png", width = 6.5, height = 6.5, units = "in", res = 600)
+corrplot(Env[cor.order, cor.order],
          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
          type = "lower", #lower half of diagonal
          method = "square",
          tl.cex = 0.7, #label size
          tl.srt = 45, #rotate top labels
          tl.col = "black", #label color
-         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+         col = COL2('PuOr'), #purple-orange colors for color-blind friendly
+         mar = c(0, 0, 0, 0)) #get rid of white space around edges
 #dev.off()
 
 
 #residual correlations
 Theta <- getResidualCor(model)
-#png("cor_all_res.png", width = 7, height = 6, units = "in", res = 600)
-corrplot(Theta[order.single(Theta), order.single(Theta)],
+#reset row and column names to the abbreviations
+rownames(Theta) <- master.names$abbrv_names
+colnames(Theta) <- master.names$abbrv_names
+#png("cor_all_res.png", width = 6.5, height = 6.5, units = "in", res = 600)
+corrplot(Theta[cor.order, cor.order],
          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
          type = "lower", #lower half of diagonal
          method = "square",
          tl.cex = 0.7, #label size
          tl.srt = 45, #rotate top labels
          tl.col = "black", #label color
-         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+         col = COL2('PuOr'), #purple-orange colors for color-blind friendly
+         mar = c(0, 0, 0, 0)) #get rid of white space around edges
 #dev.off()
 
 
 
-#panel plot with both together
-#png("cor_both_panel.png", width = 7, height = 10, units = "in", res = 600)
-#set up the two panels
-par(mfrow = c(2,1))
-#shrink plot margins to make them print closer together
-par(mar = c(0,0,0,0))
-#make env. plot
-corrplot(Env[order.single(Env), order.single(Env)],
-         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-         type = "lower", #lower half of diagonal
-         method = "square",
-         tl.cex = 0.65, #label size
-         tl.srt = 45, #rotate top labels
-         tl.col = "black", #label color
-         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
-#add annotation
-mtext("A", 
-      side = 3, #3 for the top margin
-      line = -3, #bigger number here moves it further up in plot space
-      adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.5, #text size
-      font = 2) #2 = bold
-#make residual plot
-corrplot(Theta[order.single(Theta), order.single(Theta)],
-         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-         type = "lower", #lower half of diagonal
-         method = "square",
-         tl.cex = 0.65, #label size
-         tl.srt = 45, #rotate top labels
-         tl.col = "black", #label color
-         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
-#add annotation
-mtext("B", 
-      side = 3, #3 for the top margin
-      line = -3, #bigger number here moves it further up in plot space
-      adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.5, #text size
-      font = 2) #2 = bold
-#reset par
-par(mfrow = c(1,1))
-#reset margins
-par(mar = c(5.1, 4.1, 4.1, 2.1))
-#dev.off()
+# #panel plot with both together
+# #png("cor_both_panel.png", width = 7, height = 10, units = "in", res = 600)
+# #set up the two panels
+# par(mfrow = c(2,1))
+# #shrink plot margins to make them print closer together
+# par(mar = c(0,0,0,0))
+# #make env. plot
+# corrplot(Env[order.single(Env), order.single(Env)],
+#          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
+#          type = "lower", #lower half of diagonal
+#          method = "square",
+#          tl.cex = 0.65, #label size
+#          tl.srt = 45, #rotate top labels
+#          tl.col = "black", #label color
+#          col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+# #add annotation
+# mtext("A", 
+#       side = 3, #3 for the top margin
+#       line = -3, #bigger number here moves it further up in plot space
+#       adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.5, #text size
+#       font = 2) #2 = bold
+# #make residual plot
+# corrplot(Theta[order.single(Theta), order.single(Theta)],
+#          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
+#          type = "lower", #lower half of diagonal
+#          method = "square",
+#          tl.cex = 0.65, #label size
+#          tl.srt = 45, #rotate top labels
+#          tl.col = "black", #label color
+#          col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+# #add annotation
+# mtext("B", 
+#       side = 3, #3 for the top margin
+#       line = -3, #bigger number here moves it further up in plot space
+#       adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.5, #text size
+#       font = 2) #2 = bold
+# #reset par
+# par(mfrow = c(1,1))
+# #reset margins
+# par(mar = c(5.1, 4.1, 4.1, 2.1))
+# #dev.off()
 
 
 #save these as .svg files
-#svg("cor_all_env.svg", width = 7, height = 6)
-corrplot(Env[order.single(Env), order.single(Env)],
+#svg("cor_all_env.svg", width = 6.5, height = 6.5)
+corrplot(Env[cor.order, cor.order],
          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
          type = "lower", #lower half of diagonal
          method = "square",
          tl.cex = 0.7, #label size
          tl.srt = 45, #rotate top labels
          tl.col = "black", #label color
-         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+         col = COL2('PuOr'), #purple-orange colors for color-blind friendly
+         mar = c(0, 0, 0, 0)) #get rid of white space around edges
 #dev.off()
 
-#svg("cor_all_res.svg", width = 7, height = 6)
-corrplot(Theta[order.single(Theta), order.single(Theta)],
+#svg("cor_all_res.svg", width = 6.5, height = 6.5)
+corrplot(Theta[cor.order, cor.order],
          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
          type = "lower", #lower half of diagonal
          method = "square",
          tl.cex = 0.7, #label size
          tl.srt = 45, #rotate top labels
          tl.col = "black", #label color
-         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+         col = COL2('PuOr'), #purple-orange colors for color-blind friendly
+         mar = c(0, 0, 0, 0)) #get rid of white space around edges
 #dev.off()
 
 
-#svg("cor_both_panel.svg", width = 7, height = 10)
-#set up the two panels
-par(mfrow = c(2,1))
-#shrink plot margins to make them print closer together
-par(mar = c(0,0,0,0))
-#make env. plot
-corrplot(Env[order.single(Env), order.single(Env)],
-         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-         type = "lower", #lower half of diagonal
-         method = "square",
-         tl.cex = 0.65, #label size
-         tl.srt = 45, #rotate top labels
-         tl.col = "black", #label color
-         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
-#add annotation
-mtext("A", 
-      side = 3, #3 for the top margin
-      line = -3, #bigger number here moves it further up in plot space
-      adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.5, #text size
-      font = 2) #2 = bold
-#make residual plot
-corrplot(Theta[order.single(Theta), order.single(Theta)],
-         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-         type = "lower", #lower half of diagonal
-         method = "square",
-         tl.cex = 0.65, #label size
-         tl.srt = 45, #rotate top labels
-         tl.col = "black", #label color
-         col = COL2('PuOr')) #purple-orange colors for color-blind friendly
-#add annotation
-mtext("B", 
-      side = 3, #3 for the top margin
-      line = -3, #bigger number here moves it further up in plot space
-      adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.5, #text size
-      font = 2) #2 = bold
-#reset par
-par(mfrow = c(1,1))
-#reset margins
-par(mar = c(5.1, 4.1, 4.1, 2.1))
-#dev.off()
+# #svg("cor_both_panel.svg", width = 7, height = 10)
+# #set up the two panels
+# par(mfrow = c(2,1))
+# #shrink plot margins to make them print closer together
+# par(mar = c(0,0,0,0))
+# #make env. plot
+# corrplot(Env[order.single(Env), order.single(Env)],
+#          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
+#          type = "lower", #lower half of diagonal
+#          method = "square",
+#          tl.cex = 0.65, #label size
+#          tl.srt = 45, #rotate top labels
+#          tl.col = "black", #label color
+#          col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+# #add annotation
+# mtext("A", 
+#       side = 3, #3 for the top margin
+#       line = -3, #bigger number here moves it further up in plot space
+#       adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.5, #text size
+#       font = 2) #2 = bold
+# #make residual plot
+# corrplot(Theta[order.single(Theta), order.single(Theta)],
+#          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
+#          type = "lower", #lower half of diagonal
+#          method = "square",
+#          tl.cex = 0.65, #label size
+#          tl.srt = 45, #rotate top labels
+#          tl.col = "black", #label color
+#          col = COL2('PuOr')) #purple-orange colors for color-blind friendly
+# #add annotation
+# mtext("B", 
+#       side = 3, #3 for the top margin
+#       line = -3, #bigger number here moves it further up in plot space
+#       adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.5, #text size
+#       font = 2) #2 = bold
+# #reset par
+# par(mfrow = c(1,1))
+# #reset margins
+# par(mar = c(5.1, 4.1, 4.1, 2.1))
+# #dev.off()
 
 #SITE MAPS---------------------------------------------------------
 
