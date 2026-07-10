@@ -12,7 +12,7 @@ library(gridExtra)
 library(ggrepel)
 
 #read in data
-data <- read.csv("Data/Input/Contemporary_Dataset_2026_07_09.csv")
+data <- read.csv("Data/Input/Contemporary_Dataset_2026_07_10.csv")
 
 #set seed to keep results consistent
 set.seed(13453)
@@ -5277,21 +5277,21 @@ spp.filter <- spp %>%
 #what's left?
 names(spp.filter)
 
-#look at magnitude of fish vs. zoop data
-mag.plot.data <- spp.filter %>% 
-  pivot_longer(cols = everything(), names_to = "species", values_to = "abundance") %>% 
-  mutate(group = ifelse(str_ends(species, "CPUE"), "fish", "zoop"))
-mag.plot.raw <- ggplot(data = mag.plot.data, aes(x = species, y = abundance, color = group))+
-  geom_boxplot()+
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-mag.plot.raw
-#plot again but limit y axis to not include outliers
-mag.plot.raw.zoom <- ggplot(data = mag.plot.data, aes(x = species, y = abundance, color = group))+
-  geom_boxplot()+
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
-  scale_y_continuous(limits = c(0,5))
-mag.plot.raw.zoom
-#actually looks okay, not transforming at all
+# #look at magnitude of fish vs. zoop data
+# mag.plot.data <- spp.filter %>% 
+#   pivot_longer(cols = everything(), names_to = "species", values_to = "abundance") %>% 
+#   mutate(group = ifelse(str_ends(species, "CPUE"), "fish", "zoop"))
+# mag.plot.raw <- ggplot(data = mag.plot.data, aes(x = species, y = abundance, color = group))+
+#   geom_boxplot()+
+#   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+# mag.plot.raw
+# #plot again but limit y axis to not include outliers
+# mag.plot.raw.zoom <- ggplot(data = mag.plot.data, aes(x = species, y = abundance, color = group))+
+#   geom_boxplot()+
+#   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+#   scale_y_continuous(limits = c(0,5))
+# mag.plot.raw.zoom
+# #actually looks okay, not transforming at all
 
 #isolate fish data
 fish <- spp.filter %>% 
@@ -5308,8 +5308,8 @@ zoop_rel_abun <- zoop / rowSums(zoop)
 #isolate zoop summary metrics (may or may not include them)
 zoop_sum <- data.filter %>% 
   select(total_zoop_biomass:clad_ratio)
-#check for correlations with these metrics
-ggpairs(zoop_sum)
+# #check for correlations with these metrics
+# ggpairs(zoop_sum)
 #I should choose either mean length of all zoops or cladocerans
 #going with cladocerans because more preserved in sediments
 zoop_sum_filter <- zoop_sum %>% 
@@ -5340,19 +5340,19 @@ studyDesignData_trout <- data.frame(lake = as.factor(data.filter$lake_name),
 rownames(studyDesignData_trout) <- paste0(data.filter$lake_name, data.filter$Year)
 
 #with trout and WITHOUT any copepods
-y_raw_trout_nocopepod <- y_raw_trout %>% 
+y_raw_trout_nocopepod <- y_raw_trout %>%
   select(-copepodites, -nauplii, -cyclopoids, -calanoids)
+# 
+# #with trout and WITHOUT copepodites
+# y_raw_trout_nocopepodite <- y_raw_trout %>% 
+#   select(-copepodites)
 
-#with trout and WITHOUT copepodites
-y_raw_trout_nocopepodite <- y_raw_trout %>% 
-  select(-copepodites)
-
-#save the x matrix with only the desired coefficients for use later
-x_save <- x_scale_trout %>% 
-  select(CDOM, Area, Max_Depth, Secchi, GDD, Photic, SWF, ZM) %>% 
-  mutate(SWF = ifelse(SWF == "yes", 1, 0),
-         ZM = ifelse(ZM == "yes", 1, 0))
-#write.csv(x_save, "Data/Input/gllvm_x_matrix.csv", row.names = FALSE)
+# #save the x matrix with only the desired coefficients for use later
+# x_save <- x_scale_trout %>% 
+#   select(CDOM, Area, Max_Depth, Secchi, GDD, Photic, SWF, ZM) %>% 
+#   mutate(SWF = ifelse(SWF == "yes", 1, 0),
+#          ZM = ifelse(ZM == "yes", 1, 0))
+# #write.csv(x_save, "Data/Input/gllvm_x_matrix.csv", row.names = FALSE)
 
 #save a version with precipitation in it as well for the final model
 x_save_precip <- x_scale_trout %>% 
@@ -6293,17 +6293,18 @@ AICc(model_aslo_precip_logarea_3RR_2LV) #11797
 #LOGIT PHOTIC--------------------------------------------------------------------
 
 #ASLO MODEL WITH PRECIP ADDED, LOG AREA, AND Photic proportion logit transformed then centered and scaled ------------------------------------------------
+#too many negative variances
 model_aslo_precip_logarea_logit <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
                                          lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + logit.Photic + Precip + SWF + ZM,
                                          row.eff = ~(1|lake),
                                          num.RR = 3, num.lv = 4, family = "tweedie", Power = NULL,
                                          randomB = "LV", quadratic = "LV",
-                                         control.start = list(n.init = 30, jitter.var = 0.1),
+                                         control.start = list(n.init = 20, jitter.var = 0.1),
                                          trace = TRUE)
 beep()
 warnings_3RR_4LV <- warnings()
-saveRDS(model_aslo_precip_logarea_logit, file = "model_aslo_precip_logarea_logit.rds")
-model_aslo_precip_logarea_logit <- readRDS("model_aslo_precip_logarea_logit.rds")
+saveRDS(model_aslo_precip_logarea_logit, file = "model_aslo_precip_logarea_logit_SWFcorrected.rds")
+#model_aslo_precip_logarea_logit <- readRDS("model_aslo_precip_logarea_logit.rds")
 plot(model_aslo_precip_logarea_logit)
 #performance is awful
 AICc(model_aslo_precip_logarea_logit)
@@ -6423,7 +6424,7 @@ AICc(model_aslo_precip_logarea_logit_4RR_4LV)
 #Looks great
 
 model_aslo_precip_logarea_3RR_3LV_logit <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
-                                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + logit.Photic + Precip,
+                                           lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + logit.Photic + Precip + SWF + ZM,
                                            row.eff = ~(1|lake),
                                            num.RR = 3, num.lv = 3, family = "tweedie", Power = NULL,
                                            randomB = "LV", quadratic = "LV",
@@ -6431,7 +6432,7 @@ model_aslo_precip_logarea_3RR_3LV_logit <- gllvm(y = y_raw_trout_nocopepod, X = 
                                            trace = TRUE, seed = 123)
 beep()
 warnings_3RR_3LV <- warnings()
-saveRDS(model_aslo_precip_logarea_3RR_3LV_logit, file = "Models/model_aslo_precip_logarea_3RR_3LV_logit_SWFcorrected_4params.rds")
+saveRDS(model_aslo_precip_logarea_3RR_3LV_logit, file = "Models/model_aslo_precip_logarea_3RR_3LV_logit_SWFcorrected.rds")
 model_aslo_precip_logarea_3RR_3LV_logit <- readRDS("Models/model_aslo_precip_logarea_3RR_3LV_logit.rds")
 plot(model_aslo_precip_logarea_3RR_3LV_logit) 
 #decent
@@ -6459,17 +6460,18 @@ VP(model_aslo_precip_logarea_3RR_3LV_logit)
 AICc(model_aslo_precip_logarea_3RR_3LV_logit)
 
 
-#maybe
+#better performance than 3,3 but higher AIC
 model_aslo_precip_logarea_2RR_3LV_logit <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
                                                  lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + logit.Photic + Precip + SWF + ZM,
                                                  row.eff = ~(1|lake),
                                                  num.RR = 2, num.lv = 3, family = "tweedie", Power = NULL,
                                                  randomB = "LV", quadratic = "LV",
-                                                 control.start = list(n.init = 30, jitter.var = 0.1),
+                                                 control.start = list(n.init = 10, jitter.var = 0.1),
                                                  trace = TRUE)
 beep()
-saveRDS(model_aslo_precip_logarea_2RR_3LV_logit, file = "model_aslo_precip_logarea_2RR_3LV_logit.rds")
-model_aslo_precip_logarea_2RR_3LV_logit <- readRDS("model_aslo_precip_logarea_2RR_3LV_logit.rds")
+warnings_2RR_3LV <- warnings()
+saveRDS(model_aslo_precip_logarea_2RR_3LV_logit, file = "model_aslo_precip_logarea_2RR_3LV_logit_SWFcorrected.rds")
+model_aslo_precip_logarea_2RR_3LV_logit <- readRDS("model_aslo_precip_logarea_2RR_3LV_logit_SWFcorrected.rds")
 plot(model_aslo_precip_logarea_2RR_3LV_logit) 
 #really good except bad for walleye
 #get residual correlations
@@ -6496,17 +6498,18 @@ VP(model_aslo_precip_logarea_2RR_3LV_logit)
 AICc(model_aslo_precip_logarea_2RR_3LV_logit)
 
 
-#no- residuals collapsed, even when I ran it again
+#
 model_aslo_precip_logarea_3RR_2LV_logit <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
                                                  lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + logit.Photic + Precip + SWF + ZM,
                                                  row.eff = ~(1|lake),
                                                  num.RR = 3, num.lv = 2, family = "tweedie", Power = NULL,
                                                  randomB = "LV", quadratic = "LV",
-                                                 control.start = list(n.init = 30, jitter.var = 0.1),
+                                                 control.start = list(n.init = 20, jitter.var = 0.1),
                                                  trace = TRUE, seed = 123)
 beep()
-#saveRDS(model_aslo_precip_logarea_3RR_2LV_logit, file = "Models/model_aslo_precip_logarea_3RR_2LV_logit_SWFcorrected.rds")
-model_aslo_precip_logarea_3RR_2LV_logit <- readRDS("model_aslo_precip_logarea_3RR_2LV_logit.rds")
+warnings_3RR_2LV <- warnings()
+saveRDS(model_aslo_precip_logarea_3RR_2LV_logit, file = "Models/model_aslo_precip_logarea_3RR_2LV_logit_SWFcorrected.rds")
+#model_aslo_precip_logarea_3RR_2LV_logit <- readRDS("model_aslo_precip_logarea_3RR_2LV_logit.rds")
 plot(model_aslo_precip_logarea_3RR_2LV_logit) 
 #really good
 #get residual correlations
