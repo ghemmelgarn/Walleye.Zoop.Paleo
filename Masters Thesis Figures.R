@@ -23,7 +23,7 @@ library(ggExtra) #for ggMarginal plots
 
 #SETUP---------------------------------------------------
 #read in model
-model <- readRDS("Models/model_aslo_precip_logarea_3RR_3LV_logit.rds")
+model <- readRDS("Models/model_aslo_precip_logarea_3RR_2LV_logit_SWFcorrected.rds")
 
 #Correct species names for nice plots and create a dataframe to easily apprend abbreviations when needed
 new_names <- c("Black Crappie", "Bluegill", "Bullhead", "Bowfin", "Burbot", "Cisco", "Common Carp", "Golden Shiner", "Hybrid Sunfish", "Lake Whitefish", 
@@ -70,7 +70,7 @@ vp_colors <- c(
   "#4D4D4D",
   "#F0E442",
   "#E69F00",
-  "#D55E00",
+  #"#D55E00",
   "#56B4E9",
   "#0072B2",
   "#004987"
@@ -211,7 +211,7 @@ VP.df <- as.data.frame(VP[["PropExplainedVarSp"]]) %>%
          "Environmental Axis 3" = "CLV3:X/CLV3^2",
          "Residual Axis 1" = "LV1/LV1^2",
          "Residual Axis 2" = "LV2/LV2^2",
-         "Residual Axis 3" = "LV3/LV3^2",
+         #"Residual Axis 3" = "LV3/LV3^2",
          "Random Lake Effect" = "Row random effect: lake"
          )
 VP.df <- VP.df %>% 
@@ -283,7 +283,7 @@ VP.fish.zoop <- VP.df %>%
             `Environmental Axis 3` = mean(`Environmental Axis 3`),
             `Residual Axis 1` = mean(`Residual Axis 1`),
             `Residual Axis 2` = mean(`Residual Axis 2`),
-            `Residual Axis 3` = mean(`Residual Axis 3`),
+            #`Residual Axis 3` = mean(`Residual Axis 3`),
             `Random Lake Effect` = mean(`Random Lake Effect`),
             .groups = 'drop')
 
@@ -337,13 +337,10 @@ rownames(GOF.spp) <- new_names
 GOF.spp.plot <- GOF.spp %>% 
   mutate(Species = rownames(GOF.spp)) %>% 
   left_join(master.names, by = "Species") %>% 
-  mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
-                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass",
-                                              "Muskellunge", "Bullhead", "Common Carp", "Pumpkinseed", "Largemouth Bass", "Hybrid Sunfish", "Bluegill",
-                                              "Bowfin", "Chydorus sphaericus", "Bosmina longirostris", "Ceriodaphnia spp.", "Eubosmina coregoni",
-                                              "Alona spp.", "Diaphanosoma birgei", "Holopedium gibberum", "Daphnia rare", "Daphnia longiremis",
-                                              "Daphnia parvula", "Daphnia retrocurva", "Eurycercus lamellatus", "Sida crystallina",
-                                              "Daphnia galeata mendotae", "Daphnia pulicaria")))
+  #reorder species from high to low but within fish/zoop groups
+  arrange(group, MARNE) %>% 
+  mutate(Species = fct_inorder(Species))
+  
 MARNE_plot <- ggplot(data = GOF.spp.plot, aes(x = Species, y = MARNE, fill = group))+
   scale_x_discrete(limits = rev)+
   geom_col()+
@@ -496,7 +493,7 @@ coef_opt_tol_prec <- coef_opt_tol %>%
          CLV3_prec = 1/(CLV3_tol^2),
          LV1_prec = 1/(LV1_tol^2),
          LV2_prec = 1/(LV2_tol^2),
-         LV3_prec = 1/(LV3_tol^2)
+        # LV3_prec = 1/(LV3_tol^2)
          )
 #try to get standard errors for my optima
 #can I hand calculate my optima?
@@ -506,6 +503,7 @@ coef_opt_tol_prec$test <- coef_opt_tol_prec$CLV1_opt-coef_opt_tol_prec$opt_test
 #now scale the standard errors the same way - this gives me CONDITIONAL STANDARD ERROR - because it ignores the uncertainty of the quadratic term
 optima_se <- optima(model, sd.errors = TRUE)
 coef_opt_tol_prec$CLV1_opt_se <- coef_opt_tol_prec$CLV1_coef_se/abs(2*coef_opt_tol_prec$`CLV1^2_coef`)
+coef_opt_tol_prec$CLV2_opt_se <- coef_opt_tol_prec$CLV2_coef_se/abs(2*coef_opt_tol_prec$`CLV2^2_coef`)
 coef_opt_tol_prec$CLV3_opt_se <- coef_opt_tol_prec$CLV3_coef_se/abs(2*coef_opt_tol_prec$`CLV3^2_coef`)
 coef_opt_tol_prec$LV1_opt_se <- coef_opt_tol_prec$LV1_coef_se/abs(2*coef_opt_tol_prec$`LV1^2_coef`)
 
@@ -802,10 +800,10 @@ all_CLV_layout
 
 #a caterpillar plot for CLV2 combined with the canonical coefficient plot for that axis
 opt_plot_data_CLV2 <- opt_plot_data %>% 
-  mutate(lower = CLV2_coef-(1.96*CLV2_coef_se),
-         upper = CLV2_coef+(1.96*CLV2_coef_se),
+  mutate(lower = CLV2_opt-(1.96*CLV2_opt_se),
+         upper = CLV2_opt+(1.96*CLV2_opt_se),
          sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-CLV2_plot_forlayout <- ggplot(data = opt_plot_data_CLV2, aes(x = CLV2_coef, y = Species))+
+CLV2_plot_forlayout <- ggplot(data = opt_plot_data_CLV2, aes(x = CLV2_opt, y = Species))+
   scale_y_discrete(limits = rev)+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
@@ -851,10 +849,8 @@ CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = S
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
+  geom_point(aes(color = group), size = 3, shape = 16)+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
-  guides(shape = "none")+
   labs(x = "CLV1 Optimum", y = "Taxon", color = "")+
   #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)+
@@ -890,10 +886,8 @@ CLV3_plot_forlayout <- ggplot(data = opt_plot_data_CLV3, aes(x = CLV3_opt, y = S
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
+  geom_point(aes(color = group), size = 3, shape = 16)+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
-  guides(shape = "none")+
   labs(x = "CLV3 Optimum", y = "Taxon", color = "")+
   #coord_cartesian(xlim = c(-19, 22))+
   theme_classic(base_size = 11)+
@@ -1028,10 +1022,8 @@ LV1_combo <- ggplot(data = opt_plot_data_LV1, aes(x = LV1_opt, y = abbrv_names))
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
+  geom_point(aes(color = group), size = 2.5, shape = 16)+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
-  guides(shape = "none")+
   labs(x = "LV1 Optimum", y = NULL, color = "")+
   theme_classic(base_size = 11)+
   theme(legend.position = "none")+
@@ -1056,35 +1048,39 @@ LV2_combo <- ggplot(data = opt_plot_data_LV2, aes(x = LV2_coef, y = abbrv_names)
   labs(x = "LV2 Linear Coefficient", y = NULL, color = "")+
   theme_classic(base_size = 11)+
   theme(legend.position = "none")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip()
-LV2_combo
-
-opt_plot_data_LV3 <- opt_plot_data %>% 
-  mutate(lower = LV3_coef-(1.96*LV3_coef_se),
-         upper = LV3_coef+(1.96*LV3_coef_se),
-         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-LV3_combo <- ggplot(data = opt_plot_data_LV3, aes(x = LV3_coef, y = abbrv_names, LV3_coef))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
-  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
-  guides(shape = "none")+
-  labs(x = "LV3 Linear Coefficient", y = "Taxon", color = "")+
-  theme_classic(base_size = 11)+
-  theme(legend.position = "bottom",
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",
         legend.title = element_blank(),
         legend.margin = margin(t = 0,0,0,0, unit = "pt"))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   coord_flip()
-LV3_combo
+LV2_combo
+
+# opt_plot_data_LV3 <- opt_plot_data %>% 
+#   mutate(lower = LV3_coef-(1.96*LV3_coef_se),
+#          upper = LV3_coef+(1.96*LV3_coef_se),
+#          sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+# LV3_combo <- ggplot(data = opt_plot_data_LV3, aes(x = LV3_coef, y = abbrv_names, LV3_coef))+
+#   #vertical line at 0
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+#   #95% confidence intervals
+#   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
+#   #point estimate
+#   geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
+#   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+#   scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+#   guides(shape = "none")+
+#   labs(x = "LV3 Linear Coefficient", y = "Taxon", color = "")+
+#   theme_classic(base_size = 11)+
+#   theme(legend.position = "bottom",
+#         legend.title = element_blank(),
+#         legend.margin = margin(t = 0,0,0,0, unit = "pt"))+
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#   coord_flip()
+# LV3_combo
 
 
-all_LV <- (LV1_combo / LV2_combo / LV3_combo) +
+all_LV <- (LV1_combo / LV2_combo) +
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(10,5,5,5), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
