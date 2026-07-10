@@ -588,10 +588,10 @@ opt_plot_data <- coef_opt_tol_prec %>%
 
 # #USE THIS ONE
 # #turn the good one into a biplot with the environment in there too
-# #extract environmental coefficients
-# env_arrows <- model$params$LvXcoef
-# #rename these how I want them to appear in plot
-# rownames(env_arrows) <- c("CDOM", "Area", "Depth", "Secchi", "Degree Days", "Littoral", "Precipitation", "SWF", "ZM")
+#extract environmental coefficients
+env_arrows <- model$params$LvXcoef
+#rename these how I want them to appear in plot
+rownames(env_arrows) <- c("CDOM", "Area", "Depth", "Secchi", "Degree Days", "Littoral", "Precipitation", "SWF", "ZM")
 # #plot
 # CLV1_CLV3_biplot <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
 #   #make colored points for the numbers to print on top of
@@ -624,21 +624,50 @@ opt_plot_data <- coef_opt_tol_prec %>%
 # #ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 6.5, height = 8, units = "in", dpi = 600)
 
 #biplot with color for linear CLV2
-CLV1_CLV3_biplot_CLV2color <- ggplot(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt))+
-  #make colored points for the numbers to print on top of
-  geom_point(aes(fill = CLV2_coef), size =4, color = "transparent", shape = 21)+
-  scale_fill_viridis_c(option = "inferno", direction = -1, limits = c(-4,3), , oob = scales::squish, breaks = c(-4, 0, 3), labels = c("<-4", "0", "3"))+
-  #plot optima with numbers as species and then have a key!
-  #geom_text(aes(label = abbrv_names), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
-  geom_text_repel(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt, label = abbrv_names), size = 3, max.overlaps = Inf) +
-  #make invisible points with colors as the label to force the number key
-  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "CLV2 Linear Coefficient")+
+#get colors
+puor_colors <- rev(RColorBrewer::brewer.pal(11, "PuOr"))
+#define zoom limits
+ymin <- -12.6
+ymax <- 12.6
+xmin <- -1.6
+xmax <- 1.3
+#figure out which CIs are too long for the zoom
+opt_plot_data_biplot <- opt_plot_data %>% 
+  #calcualte upper and lower confidence limits
+  mutate(CLV1_opt_low = CLV1_opt-(1.96*CLV1_opt_se),
+         CLV1_opt_high = CLV1_opt+(1.96*CLV1_opt_se),
+         CLV3_opt_low = CLV3_opt-(1.96*CLV3_opt_se),
+         CLV3_opt_high = CLV3_opt+(1.96*CLV3_opt_se)) %>% 
+  #figure out which are too long
+  mutate(arrow_ymax = ifelse(CLV3_opt_high > ymax, ymax, NA),
+         arrow_ymin = ifelse(CLV3_opt_low < ymin, ymin, NA),
+         arrow_xmax = ifelse(CLV1_opt_high > xmax, xmax, NA),
+         arrow_xmin = ifelse(CLV1_opt_low < xmin, xmin, NA))
+
+CLV1_CLV3_biplot_CLV2color <- ggplot(data = opt_plot_data_biplot, aes(x = CLV1_opt, y = CLV3_opt))+
+  #make conditional confidence interval cross-hairs
+  geom_errorbar(aes(xmin = CLV1_opt_low, xmax = CLV1_opt_high), width = 0, linewidth = 0.2, color = "gray85")+
+  geom_errorbar(aes(ymin = CLV3_opt_low, ymax = CLV3_opt_high), width = 0, linewidth = 0.2, color = "gray85")+
+  #add arrows the end of the confidence intervals outside plot range
+  geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = CLV1_opt, yend = arrow_ymax), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+  geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = CLV1_opt, yend = arrow_ymin), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+  geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = arrow_xmax, yend = CLV3_opt), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+  geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = arrow_xmin, yend = CLV3_opt), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
   #add env arrows
   geom_segment(data = as.data.frame(env_arrows),
                aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
-               arrow = arrow(length = unit(0.2, "cm")), color = "blue") +
+               arrow = arrow(length = unit(0.2, "cm")), color = "#FFA6B6") +
   geom_text(data = as.data.frame(env_arrows),
-            aes(x = CLV1*8.4, y = CLV3*8.4, label = rownames(env_arrows)), color = "blue") +
+            aes(x = CLV1*8.7, y = CLV3*8.7, label = rownames(env_arrows)), color = "#FFA6B6", fontface = "bold", size = 4.5) +
+  #make points colored by CLV2
+  geom_point(aes(fill = CLV2_coef), size = 3, color = "black", stroke = 0.25,  shape = 21)+
+  scale_fill_gradientn(colors = puor_colors, values = scales:: rescale(c(-4,0,3)), limits = c(-4,3), , oob = scales::squish, breaks = c(-4, 0, 3), labels = c("<-4", "0", "3"))+
+  #plot optima with numbers as species and then have a key!
+  #geom_text(aes(label = abbrv_names), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
+  geom_text_repel(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt, label = abbrv_names), size = 3, max.overlaps = Inf, min.segment.length = 0, segment.size = 0.25) +
+  #make invisible points with colors as the label to force the number key
+  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "CLV2 Linear Coefficient")+
+  #coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = FALSE)+ #this zooms in on the part of the plot where the points are
   theme_classic()+
   #format these large legends
   guides(fill = guide_colorbar(order = 1, title.position = "top", title.hjust = 0.5, barwidth = unit(6, "cm"), barheight = unit(0.5, "cm")))+
@@ -671,7 +700,6 @@ AAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAA
-#BBBBBBBB##########
 #BBBBBBBB##########
 #BBBBBBBB##########
 #BBBBBBBB##########
@@ -1305,6 +1333,155 @@ corrplot(Theta[cor.order, cor.order],
 # #reset margins
 # par(mar = c(5.1, 4.1, 4.1, 2.1))
 # #dev.off()
+
+
+#ENV-RES BIPLOTS-------------------------------------------------------------
+
+#run correlation matrix and species optima prep code first
+
+#make a dataframe of the walleye correlations to all other species 
+WAE.env <- as.data.frame(Env) %>% 
+  select(WAE) %>% 
+  rename(env = WAE)
+WAE.res <- as.data.frame(Theta) %>% 
+  select(WAE)%>% 
+  rename(res = WAE)
+WAE.corr <- cbind(WAE.env, WAE.res) %>% 
+  mutate(Species = rownames(WAE.env),
+         highlight.spp = "Walleye",
+         res = ifelse(Species == "WAE", NA, res),
+         env = ifelse(Species == "WAE", NA, env))
+
+#NOT DOING SIGNIFICANCE - BUT INCOMPLETE CODE FROM TRYING IT HERE:
+              # #I can't easily get significance here
+              # #what I can do is see if they have a non-overlapping confidence interval on at least one CLV/LV
+              # CI.df <- opt_plot_data %>% 
+              #   mutate(CLV1low = CLV1_opt-(1.96*CLV1_opt_se),
+              #          CLV1up = CLV1_opt+(1.96*CLV1_opt_se),
+              #          CLV2low = CLV2_coef-(1.96*CLV2_coef_se),
+              #          CLV2up = CLV2_coef+(1.96*CLV2_coef_se),
+              #          CLV3low = CLV3_opt-(1.96*CLV3_opt_se),
+              #          CLV3up = CLV3_opt+(1.96*CLV3_opt_se),
+              #          LV1low = LV1_opt-(1.96*LV1_opt_se),
+              #          LV1up = LV1_opt+(1.96*LV1_opt_se),
+              #          LV2low = LV2_coef-(1.96*LV2_coef_se),
+              #          LV2up = LV2_coef+(1.96*LV2_coef_se),
+              #          LV3low = LV3_coef-(1.96*LV3_coef_se),
+              #          LV3up = LV3_coef+(1.96*LV3_coef_se)
+              #          ) %>% 
+              #   select(Species, abbrv_names, ends_with("low"), ends_with("up"))
+              # rownames(CI.df) <- CI.df$Species
+              # 
+              # #isolate and save the walleye limits as it's own dataframe
+              # WAE.CI <- CI.df %>% 
+              #   filter(Species == "Walleye")
+              # 
+              # #if there are any LINEAR CLV or LV axes where both species have CIs that don't cross 0 (ie, both had a significant response to the linear axis)
+              # #For quadratic axes, I am looking for CIs that don't overlap walleye at all (neg corr) OR that overlap walleye a lot (positive corr)
+              # Sig.df <- CI.df %>% 
+              #   mutate(env_sig_linear = (CLV2up < 0 | CLV2low > 0) & (WAE.CI$CLV2up < 0 | WAE.CI$CLV2low > 0),
+              #          res_sig_linear =  ((LV2up < 0 | LV2low > 0) & (WAE.CI$LV2up < 0 | WAE.CI$LV2low > 0)) | 
+              #            ((LV3up < 0 | LV3low > 0) & (WAE.CI$LV3up < 0 | WAE.CI$LV3low > 0)),
+              #          env_sig_quad = ((CLV1up < WAE.CI$CLV1low | CLV1low > WAE.CI$CLV1up) | ()) |
+              #            CLV3,
+              #          res_sig_quad = LV1
+              #       #THIS IS TOO COMPLICATED AND STATISTICALLY WEIRD - NOT GOING TO TRY TO DETERMINE OR SHOW SIGNIFICANCE    
+              # 
+              #          sig = ifelse((env_sig_liner == TRUE | env_sig_quad == TRUE) & (res_sig_linear == FALSE & res_sig_quad == FALSE), "Environment Significant",
+              #                       ifelse((env_sig_linear == FALSE & env_sig_quad == FALSE) & (res_sig_linear == TRUE | res_sig_quad == TRUE), "Residual Significant",
+              #                              ifelse((env_sig_liner == TRUE | env_sig_quad == TRUE) & (res_sig_linear == TRUE | res_sig_quad == TRUE), "Both Significant", "Not Significant")))
+              #   )
+              # 
+              # (CLV1up < WAE.CI$CLV1low | CLV1low > WAE.CI$CLV1up) |
+              # (CLV3up < WAE.CI$CLV3low | CLV3low > WAE.CI$CLV3up),
+              # (LV1up < WAE.CI$LV1low | LV1low > WAE.CI$LV1up)
+              # 
+              # #isolate just the columns to join
+              # Sig.join <- Sig.df %>% 
+              #   select(abbrv_names, sig) %>% 
+              #   rename(Species = abbrv_names) %>% 
+              #   mutate(sig = factor(sig, levels = c("Both Significant", "Environment Significant", "Residual Significant", "Not Significant")))
+              # #join
+              # WAE.plot.data <- left_join(WAE.corr, Sig.join, by = "Species")
+
+
+WAE.biplot <- ggplot(data = WAE.corr, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  geom_point(size = 3)+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.2) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation")+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)
+WAE.biplot
+
+#ggsave(filename = "Walleye_env_res_biplot.png", plot = WAE.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+#ggsave(filename = "Walleye_env_res_biplot.svg", plot = WAE.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
+
+#make one for LMB
+#make a dataframe of the walleye correlations to all other species 
+LMB.env <- as.data.frame(Env) %>% 
+  select(LMB) %>% 
+  rename(env = LMB)
+LMB.res <- as.data.frame(Theta) %>% 
+  select(LMB)%>% 
+  rename(res = LMB)
+LMB.corr <- cbind(LMB.env, LMB.res) %>% 
+  mutate(Species = rownames(LMB.env),
+         highlight.spp = "Largemouth Bass",
+         res = ifelse(Species == "LMB", NA, res),
+         env = ifelse(Species == "LMB", NA, env))
+
+
+LMB.biplot <- ggplot(data = LMB.corr, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  geom_point(size = 3)+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.2) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation")+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)
+LMB.biplot
+
+#ggsave(filename = "LMB_env_res_biplot.png", plot = LMB.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+#ggsave(filename = "LMB_env_res_biplot.svg", plot = LMB.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
+#make one with both combined
+WAE.LMB.corr <- rbind(WAE.corr, LMB.corr)
+
+WAE.LMB.biplot <- ggplot(data = WAE.LMB.corr, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold", size = 3.2)+
+  annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold", size = 3.2)+
+  annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold", size = 3.2)+
+  annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold", size = 3.2)+
+  geom_point(size = 2)+
+  geom_text_repel(aes(label = Species), size = 3, force = 0.2, box.padding = 0.2) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation")+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)+
+  facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
+  theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
+        strip.background = element_rect(linewidth = 0.5, color = "black"))
+WAE.LMB.biplot
+
+#ggsave(filename = "WAE_LMB_env_res_biplot.png", plot = WAE.LMB.biplot, width = 5, height = 8, units = "in", dpi = 600)
+#ggsave(filename = "WAE_LMB_env_res_biplot.svg", plot = WAE.LMB.biplot, width = 5, height = 8, units = "in", dpi = 600)
+
+
 
 #SITE MAPS---------------------------------------------------------
 
