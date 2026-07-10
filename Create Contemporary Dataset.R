@@ -2603,11 +2603,13 @@ data.update <- data %>%
   mutate(ZebraMussel.inv.year = ifelse(lake_name == "Red (Upper Red)" | lake_name == "Red (Lower Red)", 2019, ZebraMussel.inv.year),
          ZebraMussel.yn = ifelse((lake_name == "Red (Upper Red)" | lake_name == "Red (Lower Red)") & Year >= 2019, "yes", ZebraMussel.yn),
          ZebraMussel.ysi = ifelse(((lake_name == "Red (Upper Red)" | lake_name == "Red (Lower Red)") & (ZebraMussel.inv.year - Year <= 0)), Year - ZebraMussel.inv.year, ZebraMussel.ysi),
-         SpinyWaterflea.inv.year = ifelse(lake_name == "West Vermilion" | lake_name == "East Vermilion", 2015, SpinyWaterflea.inv.year),
-         SpinyWaterflea.yn = ifelse((lake_name == "West Vermilion" | lake_name == "East Vermilion") & Year >= 2015, "yes", SpinyWaterflea.yn),
+         SpinyWaterflea.inv.year = ifelse(lake_name == "West Vermilion" , 2018, 
+                                          ifelse(lake_name == "East Vermilion", 2015, SpinyWaterflea.inv.year)),
+         SpinyWaterflea.yn = ifelse(lake_name == "West Vermilion" & Year >= 2018, "yes", 
+                                    ifelse(lake_name == "East Vermilion" & Year >= 2015, "yes", SpinyWaterflea.yn)),
          SpinyWaterFlea.ysi = ifelse(((lake_name == "West Vermilion" | lake_name == "East Vermilion") & (SpinyWaterflea.inv.year - Year <= 0)), Year - SpinyWaterflea.inv.year, SpinyWaterFlea.ysi))
 
-#write.csv(data.update, file = "Data/Output/Contemporary_Dataset_2026_07_09.csv", row.names = FALSE)
+#write.csv(data.update, file = "Data/Output/Contemporary_Dataset_2026_07_10.csv", row.names = FALSE)
 
 
 
