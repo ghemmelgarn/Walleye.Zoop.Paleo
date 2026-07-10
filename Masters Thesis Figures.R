@@ -23,7 +23,7 @@ library(ggExtra) #for ggMarginal plots
 
 #SETUP---------------------------------------------------
 #read in model
-model <- readRDS("Models/model_aslo_precip_logarea_3RR_2LV_logit_SWFcorrected.rds")
+model <- readRDS("Models/model_aslo_precip_logarea_2RR_3LV_logit_SWFcorrected.rds")
 
 #Correct species names for nice plots and create a dataframe to easily apprend abbreviations when needed
 new_names <- c("Black Crappie", "Bluegill", "Bullhead", "Bowfin", "Burbot", "Cisco", "Common Carp", "Golden Shiner", "Hybrid Sunfish", "Lake Whitefish", 
@@ -65,16 +65,7 @@ cb_colors <- c(
   "#AA4499",
   "#882255"
 )
-#colors for my variance partitioning where I want random lake effect to be gray
-vp_colors <- c(
-  "#4D4D4D",
-  "#F0E442",
-  "#E69F00",
-  #"#D55E00",
-  "#56B4E9",
-  "#0072B2",
-  "#004987"
-)
+
 
 
 
@@ -141,62 +132,73 @@ mtext("E",
 par(mfrow = c(1,1))
 #dev.off()
 
-#save same layout as an svg
-#svg("performance_layout.svg", width = 6.5, height = 6)
-#set up 2x2 grid
-par(mfrow = c(3,2))
-#first plot
-plot(model, which = 1, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
-#custom titles to make things capitalized
-title(xlab = "Linear Predictors", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Linear Predictors")   
-#annotate letter label
-mtext("A", 
-      side = 3, #3 for the top margin
-      line = 1, #bigger number here moves it further up in plot space
-      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.1, #text size
-      font = 2) #2 = bold
-#same thing for the rest of the plots  
-plot(model, which = 2, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
-title(xlab = "Theoretical Quantiles", ylab = "Dunn-Smyth-Residuals", main = "Normal Q-Q")
-mtext("B", 
-      side = 3, #3 for the top margin
-      line = 1, #bigger number here moves it further up in plot space
-      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.1, #text size
-      font = 2) #2 = bold
-
-plot(model, which = 3, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
-title(xlab = "Site Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Row")
-mtext("C", 
-      side = 3, #3 for the top margin
-      line = 1, #bigger number here moves it further up in plot space
-      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.1, #text size
-      font = 2) #2 = bold
-
-plot(model, which = 4, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
-title(xlab = "Species Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Column")
-mtext("D", 
-      side = 3, #3 for the top margin
-      line = 1, #bigger number here moves it further up in plot space
-      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.1, #text size
-      font = 2) #2 = bold
-plot(model, which = 5, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
-title(xlab = "Linear Predictors", ylab = expression(sqrt("Dunn-Smyth-Residuals")), main = "Scale-Location")
-mtext("E", 
-      side = 3, #3 for the top margin
-      line = 1, #bigger number here moves it further up in plot space
-      adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-      cex = 1.1, #text size
-      font = 2) #2 = bold
-#reset par
-par(mfrow = c(1,1))
-#dev.off()
+#save same layout as an svg - DON'T USE SVG FOR THIS: TOO MANY DOTS AND MAKES WORD CRASH
+# #svg("performance_layout.svg", width = 6.5, height = 6)
+# #set up 2x2 grid
+# par(mfrow = c(3,2))
+# #first plot
+# plot(model, which = 1, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
+# #custom titles to make things capitalized
+# title(xlab = "Linear Predictors", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Linear Predictors")   
+# #annotate letter label
+# mtext("A", 
+#       side = 3, #3 for the top margin
+#       line = 1, #bigger number here moves it further up in plot space
+#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.1, #text size
+#       font = 2) #2 = bold
+# #same thing for the rest of the plots  
+# plot(model, which = 2, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
+# title(xlab = "Theoretical Quantiles", ylab = "Dunn-Smyth-Residuals", main = "Normal Q-Q")
+# mtext("B", 
+#       side = 3, #3 for the top margin
+#       line = 1, #bigger number here moves it further up in plot space
+#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.1, #text size
+#       font = 2) #2 = bold
+# 
+# plot(model, which = 3, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
+# title(xlab = "Site Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Row")
+# mtext("C", 
+#       side = 3, #3 for the top margin
+#       line = 1, #bigger number here moves it further up in plot space
+#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.1, #text size
+#       font = 2) #2 = bold
+# 
+# plot(model, which = 4, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
+# title(xlab = "Species Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Column")
+# mtext("D", 
+#       side = 3, #3 for the top margin
+#       line = 1, #bigger number here moves it further up in plot space
+#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.1, #text size
+#       font = 2) #2 = bold
+# plot(model, which = 5, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
+# title(xlab = "Linear Predictors", ylab = expression(sqrt("Dunn-Smyth-Residuals")), main = "Scale-Location")
+# mtext("E", 
+#       side = 3, #3 for the top margin
+#       line = 1, #bigger number here moves it further up in plot space
+#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
+#       cex = 1.1, #text size
+#       font = 2) #2 = bold
+# #reset par
+# par(mfrow = c(1,1))
+# #dev.off()
 
 #VARIANCE PARTITIONING----------------------------------
 #calculate variation explained by environment vs. residual
+
+#colors for my variance partitioning where I want random lake effect to be gray
+vp_colors <- c(
+  "#4D4D4D",
+  "#F0E442",
+  "#E69F00",
+  "#D55E00",
+  "#56B4E9",
+  #"#0072B2",
+  "#004987"
+)
 
 #average of all species
 VP <- VP(model)
@@ -208,10 +210,9 @@ plot(VP, col = cb_colors, main = "", xlab = "Taxon", ylab = "Variance Proportion
 VP.df <- as.data.frame(VP[["PropExplainedVarSp"]]) %>% 
   rename("Environmental Axis 1" = "CLV1:X/CLV1^2",
          "Environmental Axis 2" = "CLV2:X/CLV2^2",
-         "Environmental Axis 3" = "CLV3:X/CLV3^2",
          "Residual Axis 1" = "LV1/LV1^2",
          "Residual Axis 2" = "LV2/LV2^2",
-         #"Residual Axis 3" = "LV3/LV3^2",
+         "Residual Axis 3" = "LV3/LV3^2",
          "Random Lake Effect" = "Row random effect: lake"
          )
 VP.df <- VP.df %>% 
@@ -280,10 +281,10 @@ VP.fish.zoop <- VP.df %>%
   group_by(group) %>% 
   summarize(`Environmental Axis 1` = mean(`Environmental Axis 1`),
             `Environmental Axis 2` = mean(`Environmental Axis 2`),
-            `Environmental Axis 3` = mean(`Environmental Axis 3`),
+            #`Environmental Axis 3` = mean(`Environmental Axis 3`),
             `Residual Axis 1` = mean(`Residual Axis 1`),
             `Residual Axis 2` = mean(`Residual Axis 2`),
-            #`Residual Axis 3` = mean(`Residual Axis 3`),
+            `Residual Axis 3` = mean(`Residual Axis 3`),
             `Random Lake Effect` = mean(`Random Lake Effect`),
             .groups = 'drop')
 
@@ -490,22 +491,28 @@ coef_opt_tol <- full_join(coef_opt, species_tol, by = "taxon")
 coef_opt_tol_prec <- coef_opt_tol %>% 
   mutate(CLV1_prec = 1/(CLV1_tol^2),
          CLV2_prec = 1/(CLV2_tol^2),
-         CLV3_prec = 1/(CLV3_tol^2),
+        # CLV3_prec = 1/(CLV3_tol^2),
          LV1_prec = 1/(LV1_tol^2),
          LV2_prec = 1/(LV2_tol^2),
-        # LV3_prec = 1/(LV3_tol^2)
+         LV3_prec = 1/(LV3_tol^2)
          )
+
+
+#extract optima standard errors
+#THIS DOESN'T WORK BECAUSE I HAVE TO DO CONDITIONAL STARDARD ERROR BY HAND:  
+#optima_se <- optima(model, sd.errors = TRUE)
+
 #try to get standard errors for my optima
 #can I hand calculate my optima?
 coef_opt_tol_prec$opt_test <- -coef_opt_tol_prec$CLV1_coef/(2*coef_opt_tol_prec$`CLV1^2_coef`)
 coef_opt_tol_prec$test <- coef_opt_tol_prec$CLV1_opt-coef_opt_tol_prec$opt_test
 #YES!
 #now scale the standard errors the same way - this gives me CONDITIONAL STANDARD ERROR - because it ignores the uncertainty of the quadratic term
-optima_se <- optima(model, sd.errors = TRUE)
 coef_opt_tol_prec$CLV1_opt_se <- coef_opt_tol_prec$CLV1_coef_se/abs(2*coef_opt_tol_prec$`CLV1^2_coef`)
-coef_opt_tol_prec$CLV2_opt_se <- coef_opt_tol_prec$CLV2_coef_se/abs(2*coef_opt_tol_prec$`CLV2^2_coef`)
-coef_opt_tol_prec$CLV3_opt_se <- coef_opt_tol_prec$CLV3_coef_se/abs(2*coef_opt_tol_prec$`CLV3^2_coef`)
+#coef_opt_tol_prec$CLV2_opt_se <- coef_opt_tol_prec$CLV2_coef_se/abs(2*coef_opt_tol_prec$`CLV2^2_coef`)
+#coef_opt_tol_prec$CLV3_opt_se <- coef_opt_tol_prec$CLV3_coef_se/abs(2*coef_opt_tol_prec$`CLV3^2_coef`)
 coef_opt_tol_prec$LV1_opt_se <- coef_opt_tol_prec$LV1_coef_se/abs(2*coef_opt_tol_prec$`LV1^2_coef`)
+coef_opt_tol_prec$LV2_opt_se <- coef_opt_tol_prec$LV2_coef_se/abs(2*coef_opt_tol_prec$`LV2^2_coef`)
 
 # #plot optima for CLV1 and 3 (the quadratic ones) and color by the linear coefficient of CLV2 (linear response to that one)
 # CLV1_CLV3_old <- ggplot(data = coef_opt_tol_prec, aes(x = CLV1_opt, y = CLV3_opt))+
@@ -621,97 +628,154 @@ rownames(env_arrows) <- c("CDOM", "Area", "Depth", "Secchi", "Degree Days", "Lit
 # CLV1_CLV3_biplot
 # #ggsave("clv1v3_optima_biplot.png", plot = CLV1_CLV3_biplot, width = 6.5, height = 8, units = "in", dpi = 600)
 
-#biplot with color for linear CLV2
-#get colors
-puor_colors <- rev(RColorBrewer::brewer.pal(11, "PuOr"))
+#THIS IS FOR OLD MODEL, COMMENTING OUT INSTEAD OF DELETING:
+# #biplot with color for linear CLV2
+# #get colors
+# puor_colors <- rev(RColorBrewer::brewer.pal(11, "PuOr"))
+# #define zoom limits
+# ymin <- -12.6
+# ymax <- 12.6
+# xmin <- -1.6
+# xmax <- 1.3
+# #figure out which CIs are too long for the zoom
+# opt_plot_data_biplot <- opt_plot_data %>% 
+#   #calcualte upper and lower confidence limits
+#   mutate(CLV1_opt_low = CLV1_opt-(1.96*CLV1_opt_se),
+#          CLV1_opt_high = CLV1_opt+(1.96*CLV1_opt_se),
+#          CLV3_opt_low = CLV3_opt-(1.96*CLV3_opt_se),
+#          CLV3_opt_high = CLV3_opt+(1.96*CLV3_opt_se)) %>% 
+#   #figure out which are too long
+#   mutate(arrow_ymax = ifelse(CLV3_opt_high > ymax, ymax, NA),
+#          arrow_ymin = ifelse(CLV3_opt_low < ymin, ymin, NA),
+#          arrow_xmax = ifelse(CLV1_opt_high > xmax, xmax, NA),
+#          arrow_xmin = ifelse(CLV1_opt_low < xmin, xmin, NA))
+# 
+# CLV1_CLV3_biplot_CLV2color <- ggplot(data = opt_plot_data_biplot, aes(x = CLV1_opt, y = CLV3_opt))+
+#   #make conditional confidence interval cross-hairs
+#   geom_errorbar(aes(xmin = CLV1_opt_low, xmax = CLV1_opt_high), width = 0, linewidth = 0.2, color = "gray85")+
+#   geom_errorbar(aes(ymin = CLV3_opt_low, ymax = CLV3_opt_high), width = 0, linewidth = 0.2, color = "gray85")+
+#   #add arrows the end of the confidence intervals outside plot range
+#   geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = CLV1_opt, yend = arrow_ymax), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+#   geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = CLV1_opt, yend = arrow_ymin), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+#   geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = arrow_xmax, yend = CLV3_opt), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+#   geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = arrow_xmin, yend = CLV3_opt), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+#   #add env arrows
+#   geom_segment(data = as.data.frame(env_arrows),
+#                aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
+#                arrow = arrow(length = unit(0.2, "cm")), color = "#FFA6B6") +
+#   geom_text(data = as.data.frame(env_arrows),
+#             aes(x = CLV1*8.7, y = CLV3*8.7, label = rownames(env_arrows)), color = "#FFA6B6", fontface = "bold", size = 4.5) +
+#   #make points colored by CLV2
+#   geom_point(aes(fill = CLV2_coef), size = 3, color = "black", stroke = 0.25,  shape = 21)+
+#   scale_fill_gradientn(colors = puor_colors, values = scales:: rescale(c(-4,0,3)), limits = c(-4,3), , oob = scales::squish, breaks = c(-4, 0, 3), labels = c("<-4", "0", "3"))+
+#   #plot optima with numbers as species and then have a key!
+#   #geom_text(aes(label = abbrv_names), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
+#   geom_text_repel(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt, label = abbrv_names), size = 3, max.overlaps = Inf, min.segment.length = 0, segment.size = 0.25) +
+#   #make invisible points with colors as the label to force the number key
+#   labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "CLV2 Linear Coefficient")+
+#   #coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = FALSE)+ #this zooms in on the part of the plot where the points are
+#   theme_classic()+
+#   #format these large legends
+#   guides(fill = guide_colorbar(order = 1, title.position = "top", title.hjust = 0.5, barwidth = unit(6, "cm"), barheight = unit(0.5, "cm")))+
+#   theme(legend.text = element_text(size = 9),
+#         legend.title = element_text(size = 10, face = "bold"),
+#         legend.position = "bottom")
+# CLV1_CLV3_biplot_CLV2color
+# 
+# #make layout with the CLV2 loadings
+# clv2_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV2), y = CLV2))+
+#   geom_col()+
+#   labs(x = "Environmental Variable", y = "CLV2 Canonical Coefficient")+
+#   theme_classic(base_size = 11)+
+#   coord_flip()
+# #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+# clv2_loadings
+# 
+# CLV_layout_map <- "
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# AAAAAAAAAAAAAAAAAAA
+# #BBBBBBBB##########
+# #BBBBBBBB##########
+# #BBBBBBBB##########
+# "
+# 
+# all_CLV_layout <- CLV1_CLV3_biplot_CLV2color + clv2_loadings +
+#   plot_layout(design = CLV_layout_map)+ 
+#   plot_annotation(tag_levels = 'A') &
+#   theme(plot.tag = element_text(size = 12, face = "bold"),
+#         plot.tag.position = c(0.1, 1))
+# all_CLV_layout
+# #ggsave("all_CLV_layout.png", plot = all_CLV_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+# #ggsave("all_CLV_layout.svg", plot = all_CLV_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+
+
+
+#MUTATNT CLV1 opt v. CLV2 LINEAR COEFFICIENT
 #define zoom limits
-ymin <- -12.6
-ymax <- 12.6
-xmin <- -1.6
-xmax <- 1.3
+ymin <- -3
+ymax <- 4
+xmin <- -23
+xmax <- 14
 #figure out which CIs are too long for the zoom
-opt_plot_data_biplot <- opt_plot_data %>% 
+opt_plot_data_biplot <- opt_plot_data %>%
   #calcualte upper and lower confidence limits
   mutate(CLV1_opt_low = CLV1_opt-(1.96*CLV1_opt_se),
          CLV1_opt_high = CLV1_opt+(1.96*CLV1_opt_se),
-         CLV3_opt_low = CLV3_opt-(1.96*CLV3_opt_se),
-         CLV3_opt_high = CLV3_opt+(1.96*CLV3_opt_se)) %>% 
+         CLV2_coef_low = CLV2_coef-(1.96*CLV2_coef_se),
+         CLV2_coef_high = CLV2_coef+(1.96*CLV2_coef_se)) %>%
   #figure out which are too long
-  mutate(arrow_ymax = ifelse(CLV3_opt_high > ymax, ymax, NA),
-         arrow_ymin = ifelse(CLV3_opt_low < ymin, ymin, NA),
+  mutate(arrow_ymax = ifelse(CLV2_coef_high > ymax, ymax, NA),
+         arrow_ymin = ifelse(CLV2_coef_low < ymin, ymin, NA),
          arrow_xmax = ifelse(CLV1_opt_high > xmax, xmax, NA),
          arrow_xmin = ifelse(CLV1_opt_low < xmin, xmin, NA))
 
-CLV1_CLV3_biplot_CLV2color <- ggplot(data = opt_plot_data_biplot, aes(x = CLV1_opt, y = CLV3_opt))+
+CLV1_CLV2_mutant_biplot <- ggplot(data = opt_plot_data_biplot, aes(x = CLV1_opt, y = CLV2_coef))+
+  geom_hline(yintercept = 0, linewidth = 2, color = "gray60")+
+  geom_vline(xintercept = 0, linewidth = 2, color = "gray60")+
   #make conditional confidence interval cross-hairs
   geom_errorbar(aes(xmin = CLV1_opt_low, xmax = CLV1_opt_high), width = 0, linewidth = 0.2, color = "gray85")+
-  geom_errorbar(aes(ymin = CLV3_opt_low, ymax = CLV3_opt_high), width = 0, linewidth = 0.2, color = "gray85")+
+  geom_errorbar(aes(ymin = CLV2_coef_low, ymax = CLV2_coef_high), width = 0, linewidth = 0.2, color = "gray85")+
   #add arrows the end of the confidence intervals outside plot range
-  geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = CLV1_opt, yend = arrow_ymax), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
-  geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = CLV1_opt, yend = arrow_ymin), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
-  geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = arrow_xmax, yend = CLV3_opt), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
-  geom_segment(aes(x = CLV1_opt, y = CLV3_opt, xend = arrow_xmin, yend = CLV3_opt), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+  geom_segment(aes(x = CLV1_opt, y = CLV2_coef, xend = CLV1_opt, yend = arrow_ymax), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+  geom_segment(aes(x = CLV1_opt, y = CLV2_coef, xend = CLV1_opt, yend = arrow_ymin), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+  geom_segment(aes(x = CLV1_opt, y = CLV2_coef, xend = arrow_xmax, yend = CLV2_coef), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
+  geom_segment(aes(x = CLV1_opt, y = CLV2_coef, xend = arrow_xmin, yend = CLV2_coef), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
   #add env arrows
   geom_segment(data = as.data.frame(env_arrows),
-               aes(x = 0, y = 0, xend = CLV1*8, yend = CLV3*8), # Multiplied to make arrows visible
-               arrow = arrow(length = unit(0.2, "cm")), color = "#FFA6B6") +
+               aes(x = 0, y = 0, xend = CLV1*7, yend = CLV2*7), # Multiplied to make arrows visible
+               arrow = arrow(length = unit(0.2, "cm")), color = "blue") +
   geom_text(data = as.data.frame(env_arrows),
-            aes(x = CLV1*8.7, y = CLV3*8.7, label = rownames(env_arrows)), color = "#FFA6B6", fontface = "bold", size = 4.5) +
+            aes(x = CLV1*7.4, y = CLV2*7.4, label = rownames(env_arrows)), color = "blue", size = 4.5) +
   #make points colored by CLV2
-  geom_point(aes(fill = CLV2_coef), size = 3, color = "black", stroke = 0.25,  shape = 21)+
-  scale_fill_gradientn(colors = puor_colors, values = scales:: rescale(c(-4,0,3)), limits = c(-4,3), , oob = scales::squish, breaks = c(-4, 0, 3), labels = c("<-4", "0", "3"))+
+  geom_point(size = 3, color = "black", fill = "black", stroke = 0.25,  shape = 21)+
+  #scale_fill_gradientn(colors = puor_colors, values = scales:: rescale(c(-4,0,3)), limits = c(-4,3), , oob = scales::squish, breaks = c(-4, 0, 3), labels = c("<-4", "0", "3"))+
   #plot optima with numbers as species and then have a key!
   #geom_text(aes(label = abbrv_names), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
-  geom_text_repel(data = opt_plot_data, aes(x = CLV1_opt, y = CLV3_opt, label = abbrv_names), size = 3, max.overlaps = Inf, min.segment.length = 0, segment.size = 0.25) +
+  geom_text_repel(data = opt_plot_data, aes(x = CLV1_opt, y = CLV2_coef, label = abbrv_names), size = 3, max.overlaps = Inf, min.segment.length = 0, segment.size = 0.25) +
   #make invisible points with colors as the label to force the number key
-  labs(x = "CLV1 Optimum", y = "CLV3 Optimum", fill = "CLV2 Linear Coefficient")+
-  #coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = FALSE)+ #this zooms in on the part of the plot where the points are
+  labs(x = "CLV1 Optimum", y = "CLV3 Lineaer Coefficient")+
+  coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = FALSE)+ #this zooms in on the part of the plot where the points are
   theme_classic()+
   #format these large legends
   guides(fill = guide_colorbar(order = 1, title.position = "top", title.hjust = 0.5, barwidth = unit(6, "cm"), barheight = unit(0.5, "cm")))+
   theme(legend.text = element_text(size = 9),
         legend.title = element_text(size = 10, face = "bold"),
         legend.position = "bottom")
-CLV1_CLV3_biplot_CLV2color
-
-#make layout with the CLV2 loadings
-clv2_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV2), y = CLV2))+
-  geom_col()+
-  labs(x = "Environmental Variable", y = "CLV2 Canonical Coefficient")+
-  theme_classic(base_size = 11)+
-  coord_flip()
-#scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
-clv2_loadings
-
-CLV_layout_map <- "
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAA
-#BBBBBBBB##########
-#BBBBBBBB##########
-#BBBBBBBB##########
-"
-
-all_CLV_layout <- CLV1_CLV3_biplot_CLV2color + clv2_loadings +
-  plot_layout(design = CLV_layout_map)+ 
-  plot_annotation(tag_levels = 'A') &
-  theme(plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.1, 1))
-all_CLV_layout
-#ggsave("all_CLV_layout.png", plot = all_CLV_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-#ggsave("all_CLV_layout.svg", plot = all_CLV_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-
+CLV1_CLV2_mutant_biplot
+#ggsave("CLV1_CLV2_mutant_biplot.png", plot = CLV1_CLV2_mutant_biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+#ggsave("CLV1_CLV2_mutant_biplot.svg", plot = CLV1_CLV2_mutant_biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
 
  
 # #add error bars wih 95% confidence intervals based on CONDITIONAL standard errors
@@ -800,10 +864,10 @@ all_CLV_layout
 
 #a caterpillar plot for CLV2 combined with the canonical coefficient plot for that axis
 opt_plot_data_CLV2 <- opt_plot_data %>% 
-  mutate(lower = CLV2_opt-(1.96*CLV2_opt_se),
-         upper = CLV2_opt+(1.96*CLV2_opt_se),
+  mutate(lower = CLV2_coef-(1.96*CLV2_coef_se),
+         upper = CLV2_coef+(1.96*CLV2_coef_se),
          sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-CLV2_plot_forlayout <- ggplot(data = opt_plot_data_CLV2, aes(x = CLV2_opt, y = Species))+
+CLV2_plot_forlayout <- ggplot(data = opt_plot_data_CLV2, aes(x = CLV2_coef, y = Species))+
   scale_y_discrete(limits = rev)+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
@@ -841,7 +905,8 @@ CLV2_layout
 opt_plot_data_CLV1 <- opt_plot_data %>% 
   mutate(lower = CLV1_opt-(1.96*CLV1_opt_se),
          upper = CLV1_opt+(1.96*CLV1_opt_se),
-         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+         #determine if greater than 10 or not - to interpret linearly
+         linear = ifelse(CLV1_opt < -10 | CLV1_opt > 10, "yes", "no"))
 CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = Species))+
   scale_y_discrete(limits = rev)+
   #vertical line at 0
@@ -849,7 +914,9 @@ CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = S
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(color = group), size = 3, shape = 16)+
+  geom_point(aes(color = group, shape = linear), size = 3)+
+  scale_shape_manual(values = c("no" = 16, "yes" = 1))+
+  guides(shape = "none")+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
   labs(x = "CLV1 Optimum", y = "Taxon", color = "")+
   #scale_x_continuous(limits = c(-19, 22))+
@@ -875,42 +942,42 @@ CLV1_layout
 #ggsave("clv1_layout.svg", plot = CLV1_layout, width = 6.5, height = 8, units = "in", dpi = 600)
 
 
-opt_plot_data_CLV3 <- opt_plot_data %>% 
-  mutate(lower = CLV3_opt-(1.96*CLV3_opt_se),
-         upper = CLV3_opt+(1.96*CLV3_opt_se),
-         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-CLV3_plot_forlayout <- ggplot(data = opt_plot_data_CLV3, aes(x = CLV3_opt, y = Species))+
-  scale_y_discrete(limits = rev)+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(color = group), size = 3, shape = 16)+
-  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV3 Optimum", y = "Taxon", color = "")+
-  #coord_cartesian(xlim = c(-19, 22))+
-  theme_classic(base_size = 11)+
-  theme(legend.position = "right")
-CLV3_plot_forlayout
-clv3_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV3), y = CLV3))+
-  geom_col()+
-  labs(x = "Environmental Variable", y = "CLV3 Canonical Coefficient")+
-  theme_classic(base_size = 11)+
-  coord_flip()
-  #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
-clv3_loadings
-
-CLV3_layout <- clv3_loadings / plot_spacer() / CLV3_plot_forlayout +
-  plot_layout(height = c(1, 0.05, 3))+ 
-  plot_annotation(tag_levels = 'A') &
-  theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
-        plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.33, 1)) 
-CLV3_layout
-#ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-#ggsave("clv3_layout.svg", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-
+# opt_plot_data_CLV3 <- opt_plot_data %>% 
+#   mutate(lower = CLV3_opt-(1.96*CLV3_opt_se),
+#          upper = CLV3_opt+(1.96*CLV3_opt_se),
+#          sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+# CLV3_plot_forlayout <- ggplot(data = opt_plot_data_CLV3, aes(x = CLV3_opt, y = Species))+
+#   scale_y_discrete(limits = rev)+
+#   #vertical line at 0
+#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+#   #95% confidence intervals
+#   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
+#   #point estimate
+#   geom_point(aes(color = group), size = 3, shape = 16)+
+#   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+#   labs(x = "CLV3 Optimum", y = "Taxon", color = "")+
+#   #coord_cartesian(xlim = c(-19, 22))+
+#   theme_classic(base_size = 11)+
+#   theme(legend.position = "right")
+# CLV3_plot_forlayout
+# clv3_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV3), y = CLV3))+
+#   geom_col()+
+#   labs(x = "Environmental Variable", y = "CLV3 Canonical Coefficient")+
+#   theme_classic(base_size = 11)+
+#   coord_flip()
+#   #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+# clv3_loadings
+# 
+# CLV3_layout <- clv3_loadings / plot_spacer() / CLV3_plot_forlayout +
+#   plot_layout(height = c(1, 0.05, 3))+ 
+#   plot_annotation(tag_levels = 'A') &
+#   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
+#         plot.tag = element_text(size = 12, face = "bold"),
+#         plot.tag.position = c(0.33, 1)) 
+# CLV3_layout
+# #ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+# #ggsave("clv3_layout.svg", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+# 
 
 
 
@@ -1015,14 +1082,16 @@ CLV3_layout
 opt_plot_data_LV1 <- opt_plot_data %>% 
   mutate(lower = LV1_opt-(1.96*LV1_opt_se),
          upper = LV1_opt+(1.96*LV1_opt_se),
-         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+         linear = ifelse(LV1_opt < -10 | LV1_opt > 10, "yes", "no"))
 LV1_combo <- ggplot(data = opt_plot_data_LV1, aes(x = LV1_opt, y = abbrv_names))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(color = group), size = 2.5, shape = 16)+
+  geom_point(aes(color = group, shape = linear), size = 2.5)+
+  scale_shape_manual(values = c("no" = 16, "yes" = 1))+
+  guides(shape = "none")+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
   labs(x = "LV1 Optimum", y = NULL, color = "")+
   theme_classic(base_size = 11)+
@@ -1032,20 +1101,20 @@ LV1_combo <- ggplot(data = opt_plot_data_LV1, aes(x = LV1_opt, y = abbrv_names))
 LV1_combo
 
 opt_plot_data_LV2 <- opt_plot_data %>% 
-  mutate(lower = LV2_coef-(1.96*LV2_coef_se),
-         upper = LV2_coef+(1.96*LV2_coef_se),
-         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-LV2_combo <- ggplot(data = opt_plot_data_LV2, aes(x = LV2_coef, y = abbrv_names))+
+  mutate(lower = LV2_opt-(1.96*LV2_opt_se),
+         upper = LV2_opt+(1.96*LV2_opt_se),
+         linear = ifelse(LV2_opt < -10 | LV2_opt > 10, "yes", "no"))
+LV2_combo <- ggplot(data = opt_plot_data_LV2, aes(x = LV2_opt, y = abbrv_names))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
   #point estimate
-  geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
+  geom_point(aes(color = group, shape = linear), size = 2.5, stroke = 0.75)+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  scale_shape_manual(values = c("no" = 16, "yes" = 1))+
   guides(shape = "none")+
-  labs(x = "LV2 Linear Coefficient", y = NULL, color = "")+
+  labs(x = "LV2 Optimum", y = NULL, color = "")+
   theme_classic(base_size = 11)+
   theme(legend.position = "none")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -1056,31 +1125,31 @@ LV2_combo <- ggplot(data = opt_plot_data_LV2, aes(x = LV2_coef, y = abbrv_names)
   coord_flip()
 LV2_combo
 
-# opt_plot_data_LV3 <- opt_plot_data %>% 
-#   mutate(lower = LV3_coef-(1.96*LV3_coef_se),
-#          upper = LV3_coef+(1.96*LV3_coef_se),
-#          sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-# LV3_combo <- ggplot(data = opt_plot_data_LV3, aes(x = LV3_coef, y = abbrv_names, LV3_coef))+
-#   #vertical line at 0
-#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-#   #95% confidence intervals
-#   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
-#   #point estimate
-#   geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
-#   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-#   scale_shape_manual(values = c("no" = 1, "yes" = 16))+
-#   guides(shape = "none")+
-#   labs(x = "LV3 Linear Coefficient", y = "Taxon", color = "")+
-#   theme_classic(base_size = 11)+
-#   theme(legend.position = "bottom",
-#         legend.title = element_blank(),
-#         legend.margin = margin(t = 0,0,0,0, unit = "pt"))+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-#   coord_flip()
-# LV3_combo
+opt_plot_data_LV3 <- opt_plot_data %>%
+  mutate(lower = LV3_coef-(1.96*LV3_coef_se),
+         upper = LV3_coef+(1.96*LV3_coef_se),
+         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+LV3_combo <- ggplot(data = opt_plot_data_LV3, aes(x = LV3_coef, y = abbrv_names, LV3_coef))+
+  #vertical line at 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none")+
+  labs(x = "LV3 Linear Coefficient", y = "Taxon", color = "")+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.margin = margin(t = 0,0,0,0, unit = "pt"))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_flip()
+LV3_combo
 
 
-all_LV <- (LV1_combo / LV2_combo) +
+all_LV <- (LV1_combo / LV2_combo / LV3_combo) +
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(10,5,5,5), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
@@ -1517,7 +1586,7 @@ rand_lake_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_rand_lake, shape = 21, alpha = 0.9, color = "black", aes(fill = `Lake Random Intercept`), size = 3, )+
   #scale_fill_distiller(palette = "RdBu", direction = 1, limits = c(-1,1), , oob = scales::squish, breaks = c(-1, 0, 1), labels = c("<-1", "0", ">1"))+
-  scale_fill_viridis_c(option = "inferno", direction = -1)+
+  scale_fill_viridis_c(option = "inferno", direction = 1)+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()+
   annotation_scale(location = "tr", width_hint = 0.25, style = "ticks", pad_x = unit(1, "in"), pad_y = unit(0.7, "in"), text_cex = 1)+
@@ -1631,7 +1700,7 @@ study_lakes_sf_x <- left_join(study_lakes_sf_rand_lake, x_lake_avg, by = "lake_n
 CDOM_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = CDOM), size = 2)+
-  scale_fill_viridis_c(option = "inferno", direction = -1)+
+  scale_fill_viridis_c(option = "inferno", direction = 1)+
   labs(fill = "CDOM\n(a440/m)")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
@@ -1641,7 +1710,7 @@ CDOM_map
 area_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Lake Area`), size = 2)+
-  scale_fill_viridis_c(option = "inferno", direction = -1)+
+  scale_fill_viridis_c(option = "inferno", direction = 1)+
   labs(fill = "Lake\nArea\n(log(ha))")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
@@ -1650,7 +1719,7 @@ area_map
 depth_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Maximum Depth`), size = 2)+
-  scale_fill_viridis_c(option = "inferno", direction = -1)+
+  scale_fill_viridis_c(option = "inferno", direction = 1)+
   labs(fill = "Maximum\nDepth\n(m)")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
@@ -1659,7 +1728,7 @@ depth_map
 secchi_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = Secchi), size = 2)+
-  scale_fill_viridis_c(option = "inferno", direction = -1)+
+  scale_fill_viridis_c(option = "inferno", direction = 1)+
   labs(fill = "Secchi\nDepth\n(m)")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
@@ -1668,7 +1737,7 @@ secchi_map
 dd_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Degree Days`), size = 2)+
-  scale_fill_viridis_c(option = "inferno", direction = -1)+
+  scale_fill_viridis_c(option = "inferno", direction = 1)+
   labs(fill = "Degree\nDays")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
@@ -1677,7 +1746,7 @@ dd_map
 photic_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Photic Proportion`), size = 2)+
-  scale_fill_viridis_c(option = "inferno", direction = -1)+
+  scale_fill_viridis_c(option = "inferno", direction = 1)+
   labs(fill = "Littoral\nZone\n(logit(prop))")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
@@ -1686,7 +1755,7 @@ photic_map
 precip_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Annual Precipitation`), size = 2)+
-  scale_fill_viridis_c(option = "inferno", direction = -1)+
+  scale_fill_viridis_c(option = "inferno", direction = 1)+
   labs(fill = "Annual\nPrecipitation\n(mm)")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
@@ -1695,7 +1764,7 @@ precip_map
 swf_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Spiny Water Flea Presence`), size = 2)+
-  scale_fill_manual(values = c("no" = "#FCA50A", "yes" = "#000004"))+
+  scale_fill_manual(values = c("yes" = "#FCA50A", "no" = "#000004"))+
   labs(fill = "Spiny\nWater\nFlea\nPresence")+
   guides(fill = guide_legend(reverse = TRUE))+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
@@ -1705,7 +1774,7 @@ swf_map
 zm_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Zebra Mussel Presence`), size = 2)+
-  scale_fill_manual(values = c("no" = "#FCA50A", "yes" = "#000004"))+
+  scale_fill_manual(values = c("yes" = "#FCA50A", "no" = "#000004"))+
   labs(fill = "Zebra\nMussel\nPresence")+
   guides(fill = guide_legend(reverse = TRUE))+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
@@ -2056,7 +2125,20 @@ env.var.quant <- lakeyears %>%
   select(secchi.meters.MPCA.Jul.to.Sept, gdd.year.5c, precip_5yr_avg_mm, CDOM.lake.avg, area_ha, depth.max.m, photic_prop_secchi.meters.MPCA.Jul.to.Sept)
 
 env.var.cat <- lakeyears %>% 
-  select(SpinyWaterflea.yn, ZebraMussel.yn)
+  select(SpinyWaterflea.yn, ZebraMussel.yn, lake_name, parentdow.year)
+
+#how many lake-years and lakes for each invader
+swf <- env.var.cat %>% 
+  filter(SpinyWaterflea.yn == "yes")
+(unique(swf$lake)) #10
+(unique(swf$parentdow.year)) #64
+
+zm <- env.var.cat %>% 
+  filter(ZebraMussel.yn == "yes")
+(unique(zm$lake)) #8
+(unique(zm$parentdow.year)) #33
+
+
 
 #calculate stats for the quantitative ones
 env.var.quant.long <- pivot_longer(env.var.quant, cols = everything(), names_to = "variable", values_to = "value")
