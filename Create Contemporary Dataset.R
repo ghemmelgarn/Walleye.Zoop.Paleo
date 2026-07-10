@@ -2595,9 +2595,19 @@ rm(zoop, zoop_biom_month_mean, zoop_biom_year_mean, zoop_clean_taxa, zoop_comple
 #write.csv(Join21, file = "Data/Output/Contemporary_Dataset_2026_04_06.csv", row.names = FALSE)
 
 
+#FIX THE RED AND VERMILION INVASIVE SPECIES 7/9/26.... ahhhhhh
+#because I used full dows instead of parentdows for Red, Verm, and Hill, the invasive species did not join properly for those lakes
+data <- read.csv("Data/Input/Contemporary_Dataset_2026_04_06.csv")
 
+data.update <- data %>% 
+  mutate(ZebraMussel.inv.year = ifelse(lake_name == "Red (Upper Red)" | lake_name == "Red (Lower Red)", 2019, ZebraMussel.inv.year),
+         ZebraMussel.yn = ifelse((lake_name == "Red (Upper Red)" | lake_name == "Red (Lower Red)") & Year >= 2019, "yes", ZebraMussel.yn),
+         ZebraMussel.ysi = ifelse(((lake_name == "Red (Upper Red)" | lake_name == "Red (Lower Red)") & (ZebraMussel.inv.year - Year <= 0)), Year - ZebraMussel.inv.year, ZebraMussel.ysi),
+         SpinyWaterflea.inv.year = ifelse(lake_name == "West Vermilion" | lake_name == "East Vermilion", 2015, SpinyWaterflea.inv.year),
+         SpinyWaterflea.yn = ifelse((lake_name == "West Vermilion" | lake_name == "East Vermilion") & Year >= 2015, "yes", SpinyWaterflea.yn),
+         SpinyWaterFlea.ysi = ifelse(((lake_name == "West Vermilion" | lake_name == "East Vermilion") & (SpinyWaterflea.inv.year - Year <= 0)), Year - SpinyWaterflea.inv.year, SpinyWaterFlea.ysi))
 
-
+#write.csv(data.update, file = "Data/Output/Contemporary_Dataset_2026_07_09.csv", row.names = FALSE)
 
 
 
