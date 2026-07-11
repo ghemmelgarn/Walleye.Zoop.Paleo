@@ -20,6 +20,10 @@ library(cowplot) #layouts for maps
 library(scales) #something with the maps
 library(legendry) #to manually set axis tick marks
 library(ggExtra) #for ggMarginal plots
+library(grid) #for special annotations
+library(ggtext) #for special annotations
+library(gridtext) #for special annotations
+library(geomtextpath) #for text on lines
 
 #SETUP---------------------------------------------------
 #read in model
@@ -730,7 +734,7 @@ xmin <- -23
 xmax <- 14
 #figure out which CIs are too long for the zoom
 opt_plot_data_biplot <- opt_plot_data %>%
-  #calcualte upper and lower confidence limits
+  #calculate upper and lower confidence limits
   mutate(CLV1_opt_low = CLV1_opt-(1.96*CLV1_opt_se),
          CLV1_opt_high = CLV1_opt+(1.96*CLV1_opt_se),
          CLV2_coef_low = CLV2_coef-(1.96*CLV2_coef_se),
@@ -739,43 +743,98 @@ opt_plot_data_biplot <- opt_plot_data %>%
   mutate(arrow_ymax = ifelse(CLV2_coef_high > ymax, ymax, NA),
          arrow_ymin = ifelse(CLV2_coef_low < ymin, ymin, NA),
          arrow_xmax = ifelse(CLV1_opt_high > xmax, xmax, NA),
-         arrow_xmin = ifelse(CLV1_opt_low < xmin, xmin, NA))
+         arrow_xmin = ifelse(CLV1_opt_low < xmin, xmin, NA)) %>% 
+  #clip the regular lines too
+  mutate(CLV1_opt_low_clip = ifelse(CLV1_opt_low < xmin, xmin, CLV1_opt_low),
+         CLV1_opt_high_clip = ifelse(CLV1_opt_high > xmax, xmax, CLV1_opt_high),
+         CLV2_coef_low_clip = ifelse(CLV2_coef_low < ymin, ymin, CLV2_coef_low),
+         CLV2_coef_high_clip = ifelse(CLV2_coef_high > ymax, ymax, CLV2_coef_high)) %>% 
+  #significance of CLV2 confidence intervals
+  mutate(sig = ifelse(CLV2_coef_low <= 0 & CLV2_coef_high >= 0, "no", "yes"))
 
 CLV1_CLV2_mutant_biplot <- ggplot(data = opt_plot_data_biplot, aes(x = CLV1_opt, y = CLV2_coef))+
-  geom_hline(yintercept = 0, linewidth = 2, color = "gray60")+
-  geom_vline(xintercept = 0, linewidth = 2, color = "gray60")+
-  #make conditional confidence interval cross-hairs
-  geom_errorbar(aes(xmin = CLV1_opt_low, xmax = CLV1_opt_high), width = 0, linewidth = 0.2, color = "gray85")+
-  geom_errorbar(aes(ymin = CLV2_coef_low, ymax = CLV2_coef_high), width = 0, linewidth = 0.2, color = "gray85")+
+  #separate quadrants
+  geom_hline(yintercept = 0, linewidth = 2, color = "gray65")+
+  geom_vline(xintercept = 0, linewidth = 2, color = "gray65")+
+  #vertical lines at -10 and 10
+  geom_vline(xintercept = 10, linetype = "dashed", color = "red", size = 0.5) +
+  geom_vline(xintercept = -10, linetype = "dashed", color = "red", size = 0.5) +
+  #make conditional confidence interval cross-hairs for the ones that don't go outside the plot area
+  geom_errorbar(aes(xmin = CLV1_opt_low_clip, xmax = CLV1_opt_high_clip), width = 0, linewidth = 0.2, color = "gray85")+
+  geom_errorbar(aes(ymin = CLV2_coef_low_clip, ymax = CLV2_coef_high_clip), width = 0, linewidth = 0.2, color = "gray85")+
   #add arrows the end of the confidence intervals outside plot range
   geom_segment(aes(x = CLV1_opt, y = CLV2_coef, xend = CLV1_opt, yend = arrow_ymax), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
   geom_segment(aes(x = CLV1_opt, y = CLV2_coef, xend = CLV1_opt, yend = arrow_ymin), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
   geom_segment(aes(x = CLV1_opt, y = CLV2_coef, xend = arrow_xmax, yend = CLV2_coef), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
   geom_segment(aes(x = CLV1_opt, y = CLV2_coef, xend = arrow_xmin, yend = CLV2_coef), color = "gray85", linewidth = 0.2, arrow = arrow(length = unit(0.15, "cm")))+
   #add env arrows
-  geom_segment(data = as.data.frame(env_arrows),
-               aes(x = 0, y = 0, xend = CLV1*7, yend = CLV2*7), # Multiplied to make arrows visible
-               arrow = arrow(length = unit(0.2, "cm")), color = "blue") +
-  geom_text(data = as.data.frame(env_arrows),
-            aes(x = CLV1*7.4, y = CLV2*7.4, label = rownames(env_arrows)), color = "blue", size = 4.5) +
-  #make points colored by CLV2
-  geom_point(size = 3, color = "black", fill = "black", stroke = 0.25,  shape = 21)+
+  # geom_segment(data = as.data.frame(env_arrows),
+  #              aes(x = 0, y = 0, xend = CLV1*7, yend = CLV2*7), # Multiplied to make arrows visible
+  #              arrow = arrow(length = unit(0.2, "cm")), color = "blue") +
+  # geom_text(data = as.data.frame(env_arrows),
+  #           aes(x = CLV1*7.4, y = CLV2*7.4, label = rownames(env_arrows)), color = "blue", size = 4.5) +
+  #make points colored by groupa and shape if CLV2 is signficant or not
+  geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none")+
   #scale_fill_gradientn(colors = puor_colors, values = scales:: rescale(c(-4,0,3)), limits = c(-4,3), , oob = scales::squish, breaks = c(-4, 0, 3), labels = c("<-4", "0", "3"))+
   #plot optima with numbers as species and then have a key!
   #geom_text(aes(label = abbrv_names), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
   geom_text_repel(data = opt_plot_data, aes(x = CLV1_opt, y = CLV2_coef, label = abbrv_names), size = 3, max.overlaps = Inf, min.segment.length = 0, segment.size = 0.25) +
   #make invisible points with colors as the label to force the number key
-  labs(x = "CLV1 Optimum", y = "CLV3 Lineaer Coefficient")+
-  coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = FALSE)+ #this zooms in on the part of the plot where the points are
+  labs(x = "CLV1 Optimum", y = "CLV2 Lineaer Coefficient")+
+  coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = FALSE, clip = "off")+ #this zooms in on the part of the plot where the points are
   theme_classic()+
   #format these large legends
   guides(fill = guide_colorbar(order = 1, title.position = "top", title.hjust = 0.5, barwidth = unit(6, "cm"), barheight = unit(0.5, "cm")))+
   theme(legend.text = element_text(size = 9),
-        legend.title = element_text(size = 10, face = "bold"),
-        legend.position = "bottom")
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.direction = "vertical",
+        legend.background = element_rect(color = "gray95", fill = "transparent", linewidth = 0.5),
+        #legend.justification = c(0,0),
+        plot.margin = margin(b = 2, l = 80, t = 5.5, r = 5.5))+
+  #text annotations to help with interpretation
+  #coord_cartesian(clip = "off")+
+  annotation_custom(grob = richtext_grob(
+      text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(-) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; Resilient to SWF<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Cooler<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher Clarity<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Larger Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher CDOM</i>",
+      hjust = 0,
+      vjust = 1,
+      gp = gpar(col = "gray50", fontsize = 9)),
+    xmin = -Inf, xmax = -Inf, ymin = -Inf, ymax = -Inf)+
+  annotation_custom(grob = richtext_grob(
+    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(+) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; No SWF<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Warmer<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower Clarity<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Smaller Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower CDOM</i>",
+    hjust = 1,
+    vjust = 1,
+    halign = 0,
+    gp = gpar(col = "gray50", fontsize = 9)),
+    xmin = Inf, xmax = Inf, ymin = -Inf, ymax = -Inf)+
+  annotation_custom(grob = richtext_grob(
+    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(+) Linear Preference:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; Deeper<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Littoral Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower CDOM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Smaller Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Resilient to ZM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Less Precipitation</i>",
+    hjust = 1,
+    vjust = 1,
+    halign = 0,
+    gp = gpar(col = "gray50", fontsize = 9)),
+    xmin = -Inf, xmax = -Inf, ymin = Inf, ymax = Inf)+
+  annotation_custom(grob = richtext_grob(
+    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(-) Linear Preference:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; Shallower<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Pelagic Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher CDOM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Larger Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; No ZM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Precipitation</i>",
+    hjust = 1,
+    vjust = 0,
+    halign = 0,
+    gp = gpar(col = "gray50", fontsize = 9)),
+    xmin = -Inf, xmax = -Inf, ymin = -Inf, ymax = -Inf)+
+  #annotate what the zeroes mean
+  annotate(geom = "text", label = "0 = Average Lake", x = 0, y = -2.2, vjust = -0.5, angle = 90, color = "gray50", size = 9/.pt, fontface = "italic")+
+  annotate(geom = "text", label = "0 = No Effect", x = -20, y = 0, vjust = -0.5, color = "gray50", size = 9/.pt, fontface = "italic")+
+  #annotate what the red lines mean
+  annotate(geom = "text", label = "Interpretable Optima Limit", x = 10, y = -2, vjust = -0.5, angle = 90, color = "red", size = 9/.pt, fontface = "italic")+
+  annotate(geom = "text", label = "Interpretable Optima Limit", x = -10, y = -2, vjust = -0.5, angle = 90, color = "red", size = 9/.pt, fontface = "italic")
+  
 CLV1_CLV2_mutant_biplot
 #ggsave("CLV1_CLV2_mutant_biplot.png", plot = CLV1_CLV2_mutant_biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
 #ggsave("CLV1_CLV2_mutant_biplot.svg", plot = CLV1_CLV2_mutant_biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
 
  
 # #add error bars wih 95% confidence intervals based on CONDITIONAL standard errors
@@ -911,6 +970,9 @@ CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = S
   scale_y_discrete(limits = rev)+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #vertical lines at -10 and 10
+  geom_vline(xintercept = 10, linetype = "dashed", color = "red", size = 0.2) +
+  geom_vline(xintercept = -10, linetype = "dashed", color = "red", size = 0.2) +
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
   #point estimate
