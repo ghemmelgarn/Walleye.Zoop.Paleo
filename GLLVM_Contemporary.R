@@ -6420,7 +6420,7 @@ AICc(model_aslo_precip_logarea_logit_4RR_4LV)
 
 
 
-#THIS IS THE ONE-----------------------------
+#This was thesis model #2 but retired when I corrected SWF--------------------------
 #Looks great
 
 model_aslo_precip_logarea_3RR_3LV_logit <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
@@ -6433,7 +6433,7 @@ model_aslo_precip_logarea_3RR_3LV_logit <- gllvm(y = y_raw_trout_nocopepod, X = 
 beep()
 warnings_3RR_3LV <- warnings()
 saveRDS(model_aslo_precip_logarea_3RR_3LV_logit, file = "Models/model_aslo_precip_logarea_3RR_3LV_logit_SWFcorrected.rds")
-model_aslo_precip_logarea_3RR_3LV_logit <- readRDS("Models/model_aslo_precip_logarea_3RR_3LV_logit.rds")
+model_aslo_precip_logarea_3RR_3LV_logit <- readRDS("Models/model_aslo_precip_logarea_3RR_3LV_logit_SWFcorrected.rds")
 plot(model_aslo_precip_logarea_3RR_3LV_logit) 
 #decent
 #get residual correlations
@@ -6459,8 +6459,8 @@ corrplot(Env[order.single(Env), order.single(Env)],
 VP(model_aslo_precip_logarea_3RR_3LV_logit)
 AICc(model_aslo_precip_logarea_3RR_3LV_logit)
 
-
-#better performance than 3,3 but higher AIC
+#THIS IS THE ONE-------------------------
+# way better performance than 3,3 but higher AIC - going with this one, performance is more important!!
 model_aslo_precip_logarea_2RR_3LV_logit <- gllvm(y = y_raw_trout_nocopepod, X = x_scale_trout, studyDesign = studyDesignData_trout,
                                                  lv.formula = ~ CDOM + log.Area + Max_Depth + Secchi + GDD + logit.Photic + Precip + SWF + ZM,
                                                  row.eff = ~(1|lake),
@@ -6470,8 +6470,8 @@ model_aslo_precip_logarea_2RR_3LV_logit <- gllvm(y = y_raw_trout_nocopepod, X = 
                                                  trace = TRUE)
 beep()
 warnings_2RR_3LV <- warnings()
-saveRDS(model_aslo_precip_logarea_2RR_3LV_logit, file = "model_aslo_precip_logarea_2RR_3LV_logit_SWFcorrected.rds")
-model_aslo_precip_logarea_2RR_3LV_logit <- readRDS("model_aslo_precip_logarea_2RR_3LV_logit_SWFcorrected.rds")
+saveRDS(model_aslo_precip_logarea_2RR_3LV_logit, file = "Models/model_aslo_precip_logarea_2RR_3LV_logit_SWFcorrected.rds")
+model_aslo_precip_logarea_2RR_3LV_logit <- readRDS("Models/model_aslo_precip_logarea_2RR_3LV_logit_SWFcorrected.rds")
 plot(model_aslo_precip_logarea_2RR_3LV_logit) 
 #really good except bad for walleye
 #get residual correlations
