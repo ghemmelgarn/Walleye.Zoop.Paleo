@@ -319,6 +319,15 @@ VP_layout
 #ggsave("VP_layout.svg", plot = VP_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
 
 
+#calculate combined % of variance explained by LVs by taxon
+VP.df.LVcombo <- VP.df %>% 
+  mutate(LV.all = `Residual Axis 1` + `Residual Axis 2` + `Residual Axis 3`,
+         CLV.all = `Environmental Axis 1` + `Environmental Axis 2`)
+
+VP.df.LVcombo.cent <- VP.df.LVcombo %>% 
+  filter(abbrv_names == "LMB" | abbrv_names == "BLC" | abbrv_names == "PMK" | abbrv_names == "BLG" | abbrv_names == "RKB" | abbrv_names == "HSF" | abbrv_names == "SMB" | abbrv_names == "WAE")
+
+
 #GOODNESS OF FIT------------------------------------------------------------
 #okay, but how much of the variation is actually explained by the model?
 
@@ -1148,6 +1157,9 @@ opt_plot_data_LV1 <- opt_plot_data %>%
 LV1_combo <- ggplot(data = opt_plot_data_LV1, aes(x = LV1_opt, y = abbrv_names))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #vertical lines at -10 and 10
+  geom_vline(xintercept = 10, linetype = "dashed", color = "red", size = 0.2) +
+  geom_vline(xintercept = -10, linetype = "dashed", color = "red", size = 0.2) +
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
   #point estimate
@@ -1169,6 +1181,9 @@ opt_plot_data_LV2 <- opt_plot_data %>%
 LV2_combo <- ggplot(data = opt_plot_data_LV2, aes(x = LV2_opt, y = abbrv_names))+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #vertical lines at -10 and 10
+  geom_vline(xintercept = 10, linetype = "dashed", color = "red", size = 0.2) +
+  geom_vline(xintercept = -10, linetype = "dashed", color = "red", size = 0.2) +
   #95% confidence intervals
   geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
   #point estimate
@@ -1244,7 +1259,7 @@ intercept_se <- intercept %>%
 intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = Species))+
   scale_y_discrete(limits = rev)+
   #vertical line at 0
-  #geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
   #95% confidence intervals
   geom_errorbar(aes(xmin = beta0-(1.96*beta0_se), xmax = beta0+(1.96*beta0_se)), width = 0.4, linewidth = 0.2)+
   #point estimate
@@ -1462,6 +1477,85 @@ corrplot(Theta[cor.order, cor.order],
 # #dev.off()
 
 
+#what proportions of correlations are positive vs. negative?
+env_corr_prop <- as.data.frame(Env) %>% 
+  rbind(group) %>% 
+  mutate(Species = c(rownames(Env), NA),
+         group = c(group, NA))
+
+fish_fish <- env_corr_prop %>% 
+  filter(group == "Fish" | is.na(group)) %>% 
+  select(which(env_corr_prop["38",] == "Fish" & !is.na(env_corr_prop["38",]))) %>% 
+  filter(BLC != "Fish")%>% 
+  mutate(across(everything(), as.numeric))
+fish_fish <- as.matrix(fish_fish)
+diag(fish_fish) <- NA
+fish_fish <- as.numeric(unlist(fish_fish))
+fish_fish_env_prop_pos <- (sum(fish_fish > 0, na.rm = TRUE)/(sum(fish_fish > 0, na.rm = TRUE)+sum(fish_fish < 0, na.rm = TRUE)))
+fish_fish_env_prop_pos
+
+zoop_zoop <- env_corr_prop %>% 
+  filter(group == "Zooplankton" | is.na(group)) %>% 
+  select(which(env_corr_prop["38",] == "Zooplankton" & !is.na(env_corr_prop["38",]))) %>% 
+  filter(`Alona spp.` != "Zooplankton")%>% 
+  mutate(across(everything(), as.numeric))
+zoop_zoop <- as.matrix(zoop_zoop)
+diag(zoop_zoop) <- NA
+zoop_zoop <- as.numeric(unlist(zoop_zoop))
+zoop_zoop_env_prop_pos <- (sum(zoop_zoop > 0, na.rm = TRUE)/(sum(zoop_zoop > 0, na.rm = TRUE)+sum(zoop_zoop < 0, na.rm = TRUE)))
+zoop_zoop_env_prop_pos
+
+fish_zoop <- env_corr_prop %>% 
+  filter(group == "Fish" | is.na(group)) %>% 
+  select(which(env_corr_prop["38",] == "Zooplankton" & !is.na(env_corr_prop["38",]))) %>% 
+  filter(`Alona spp.` != "Zooplankton")%>% 
+  mutate(across(everything(), as.numeric))
+fish_zoop <- as.matrix(fish_zoop) #you do want the diagonal on this one because nothing is compared to itself
+fish_zoop <- as.numeric(unlist(fish_zoop))
+fish_zoop_env_prop_pos <- (sum(fish_zoop > 0, na.rm = TRUE)/(sum(fish_zoop > 0, na.rm = TRUE)+sum(fish_zoop < 0, na.rm = TRUE)))
+fish_zoop_env_prop_pos
+
+
+res_corr_prop <- as.data.frame(Theta) %>% 
+  rbind(group) %>% 
+  mutate(Species = c(rownames(Theta), NA),
+         group = c(group, NA))
+
+fish_fish <- res_corr_prop %>% 
+  filter(group == "Fish" | is.na(group)) %>% 
+  select(which(res_corr_prop["38",] == "Fish" & !is.na(res_corr_prop["38",]))) %>% 
+  filter(`Black Crappie` != "Fish") %>% 
+  mutate(across(everything(), as.numeric))
+fish_fish <- as.matrix(fish_fish)
+diag(fish_fish) <- NA
+fish_fish <- as.numeric(unlist(fish_fish))
+fish_fish_res_prop_pos <- (sum(fish_fish > 0, na.rm = TRUE)/(sum(fish_fish > 0, na.rm = TRUE)+sum(fish_fish < 0, na.rm = TRUE)))
+fish_fish_res_prop_pos
+
+zoop_zoop <- res_corr_prop %>% 
+  filter(group == "Zooplankton" | is.na(group)) %>% 
+  select(which(res_corr_prop["38",] == "Zooplankton" & !is.na(res_corr_prop["38",]))) %>% 
+  filter(`Alona spp.` != "Zooplankton")%>% 
+  mutate(across(everything(), as.numeric))
+zoop_zoop <- as.matrix(zoop_zoop)
+diag(zoop_zoop) <- NA
+zoop_zoop <- as.numeric(unlist(zoop_zoop))
+zoop_zoop_res_prop_pos <- (sum(zoop_zoop > 0, na.rm = TRUE)/(sum(zoop_zoop > 0, na.rm = TRUE)+sum(zoop_zoop < 0, na.rm = TRUE)))
+zoop_zoop_res_prop_pos
+
+fish_zoop <- res_corr_prop %>% 
+  filter(group == "Fish" | is.na(group)) %>% 
+  select(which(res_corr_prop["38",] == "Zooplankton" & !is.na(res_corr_prop["38",]))) %>% 
+  filter(`Alona spp.` != "Zooplankton")%>% 
+  mutate(across(everything(), as.numeric))
+fish_zoop <- as.matrix(fish_zoop) #you do want the diagonal on this one because nothing is compared to itself
+fish_zoop <- as.numeric(unlist(fish_zoop))
+fish_zoop_res_prop_pos <- (sum(fish_zoop > 0, na.rm = TRUE)/(sum(fish_zoop > 0, na.rm = TRUE)+sum(fish_zoop < 0, na.rm = TRUE)))
+fish_zoop_res_prop_pos
+
+  
+
+
 #ENV-RES BIPLOTS-------------------------------------------------------------
 
 #run correlation matrix and species optima prep code first
@@ -1478,6 +1572,11 @@ WAE.corr <- cbind(WAE.env, WAE.res) %>%
          highlight.spp = "Walleye",
          res = ifelse(Species == "WAE", NA, res),
          env = ifelse(Species == "WAE", NA, env))
+
+#make a centrchid color key
+WAE.corr.grp <- WAE.corr %>% 
+  mutate(group2 = ifelse(WAE.corr$Species == "LMB" | WAE.corr$Species == "BLC" | WAE.corr$Species == "PMK" | WAE.corr$Species == "BLG" | 
+                            WAE.corr$Species == "RKB" | WAE.corr$Species == "HSF" | WAE.corr$Species == "SMB", "Centrarchid",  "Other"))
 
 #NOT DOING SIGNIFICANCE - BUT INCOMPLETE CODE FROM TRYING IT HERE:
               # #I can't easily get significance here
@@ -1532,19 +1631,25 @@ WAE.corr <- cbind(WAE.env, WAE.res) %>%
               # WAE.plot.data <- left_join(WAE.corr, Sig.join, by = "Species")
 
 
-WAE.biplot <- ggplot(data = WAE.corr, aes(x = env, y = res))+
+WAE.biplot <- ggplot(data = WAE.corr.grp, aes(x = env, y = res))+
   geom_hline(yintercept = 0, color = "gray70")+
   geom_vline(xintercept = 0, color = "gray70")+
-  annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
-  annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
-  annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
-  annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
-  geom_point(size = 3)+
-  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.2) +
-  labs(x = "Environmental Correlation", y = "Residual Correlation")+
+  # annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold")+
+  geom_point(size = 3, aes(color = group2))+
+  scale_color_manual(values = c("#882255", "gray80"))+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.3, min.segment.length = 0, segment.size = 0.25) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation", color = NULL)+
   scale_y_continuous(limits = c(-1,1))+
   scale_x_continuous(limits = c(-1,1))+
-  theme_classic(base_size = 11)
+  theme_classic(base_size = 11)+
+  theme(legend.position = "bottom")
 WAE.biplot
 
 #ggsave(filename = "Walleye_env_res_biplot.png", plot = WAE.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
@@ -1552,50 +1657,79 @@ WAE.biplot
 
 
 #make one for LMB
-#make a dataframe of the walleye correlations to all other species 
-LMB.env <- as.data.frame(Env) %>% 
-  select(LMB) %>% 
+#make a dataframe of the walleye correlations to all other species
+LMB.env <- as.data.frame(Env) %>%
+  select(LMB) %>%
   rename(env = LMB)
-LMB.res <- as.data.frame(Theta) %>% 
-  select(LMB)%>% 
+LMB.res <- as.data.frame(Theta) %>%
+  select(LMB)%>%
   rename(res = LMB)
-LMB.corr <- cbind(LMB.env, LMB.res) %>% 
+LMB.corr <- cbind(LMB.env, LMB.res) %>%
   mutate(Species = rownames(LMB.env),
          highlight.spp = "Largemouth Bass",
          res = ifelse(Species == "LMB", NA, res),
          env = ifelse(Species == "LMB", NA, env))
 
-
-LMB.biplot <- ggplot(data = LMB.corr, aes(x = env, y = res))+
-  geom_hline(yintercept = 0, color = "gray70")+
-  geom_vline(xintercept = 0, color = "gray70")+
-  annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
-  annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
-  annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
-  annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
-  geom_point(size = 3)+
-  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.2) +
-  labs(x = "Environmental Correlation", y = "Residual Correlation")+
-  scale_y_continuous(limits = c(-1,1))+
-  scale_x_continuous(limits = c(-1,1))+
-  theme_classic(base_size = 11)
-LMB.biplot
-
-#ggsave(filename = "LMB_env_res_biplot.png", plot = LMB.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
-#ggsave(filename = "LMB_env_res_biplot.svg", plot = LMB.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+# 
+# LMB.biplot <- ggplot(data = LMB.corr, aes(x = env, y = res))+
+#   geom_hline(yintercept = 0, color = "gray70")+
+#   geom_vline(xintercept = 0, color = "gray70")+
+#   annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+#   annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+#   annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+#   annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+#   geom_point(size = 3)+
+#   geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.2) +
+#   labs(x = "Environmental Correlation", y = "Residual Correlation")+
+#   scale_y_continuous(limits = c(-1,1))+
+#   scale_x_continuous(limits = c(-1,1))+
+#   theme_classic(base_size = 11)
+# LMB.biplot
+# 
+# #ggsave(filename = "LMB_env_res_biplot.png", plot = LMB.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+# #ggsave(filename = "LMB_env_res_biplot.svg", plot = LMB.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
 
 #make one with both combined
 WAE.LMB.corr <- rbind(WAE.corr, LMB.corr)
 
-WAE.LMB.biplot <- ggplot(data = WAE.LMB.corr, aes(x = env, y = res))+
+# WAE.LMB.biplot <- ggplot(data = WAE.LMB.corr, aes(x = env, y = res))+
+#   geom_hline(yintercept = 0, color = "gray70")+
+#   geom_vline(xintercept = 0, color = "gray70")+
+#   annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold", size = 3.2)+
+#   annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold", size = 3.2)+
+#   annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold", size = 3.2)+
+#   annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold", size = 3.2)+
+#   geom_point(size = 2)+
+#   geom_text_repel(aes(label = Species), size = 3, force = 0.2, box.padding = 0.2) +
+#   labs(x = "Environmental Correlation", y = "Residual Correlation")+
+#   scale_y_continuous(limits = c(-1,1))+
+#   scale_x_continuous(limits = c(-1,1))+
+#   theme_classic(base_size = 11)+
+#   facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
+#   theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
+#         strip.background = element_rect(linewidth = 0.5, color = "black"))
+# WAE.LMB.biplot
+# 
+# #ggsave(filename = "WAE_LMB_env_res_biplot.png", plot = WAE.LMB.biplot, width = 5, height = 8, units = "in", dpi = 600)
+# #ggsave(filename = "WAE_LMB_env_res_biplot.svg", plot = WAE.LMB.biplot, width = 5, height = 8, units = "in", dpi = 600)
+
+
+#make one with both combined but JUST RELATIONSHIPS WITH ZOOPS
+WAE.LMB.corr.grp <- WAE.LMB.corr %>% 
+  rename(abbrv_names = Species)
+WAE.LMB.corr.grp <- left_join(WAE.LMB.corr.grp, master.names, by = "abbrv_names")
+WAE.LMB.corr.zoop <- WAE.LMB.corr.grp %>% 
+  filter(group == "Zooplankton")
+
+WAE.LMB.biplot.zoop <- ggplot(data = WAE.LMB.corr.zoop, aes(x = env, y = res))+
   geom_hline(yintercept = 0, color = "gray70")+
   geom_vline(xintercept = 0, color = "gray70")+
   annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold", size = 3.2)+
   annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold", size = 3.2)+
   annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold", size = 3.2)+
   annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold", size = 3.2)+
-  geom_point(size = 2)+
-  geom_text_repel(aes(label = Species), size = 3, force = 0.2, box.padding = 0.2) +
+  geom_point(size = 2, alpha = 0.5)+
+  geom_text_repel(aes(label = abbrv_names), size = 3, force = 0.2, box.padding = 0.3, min.segment.length = 0, segment.size = 0.25) +
   labs(x = "Environmental Correlation", y = "Residual Correlation")+
   scale_y_continuous(limits = c(-1,1))+
   scale_x_continuous(limits = c(-1,1))+
@@ -1603,10 +1737,10 @@ WAE.LMB.biplot <- ggplot(data = WAE.LMB.corr, aes(x = env, y = res))+
   facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
   theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
         strip.background = element_rect(linewidth = 0.5, color = "black"))
-WAE.LMB.biplot
+WAE.LMB.biplot.zoop
 
-#ggsave(filename = "WAE_LMB_env_res_biplot.png", plot = WAE.LMB.biplot, width = 5, height = 8, units = "in", dpi = 600)
-#ggsave(filename = "WAE_LMB_env_res_biplot.svg", plot = WAE.LMB.biplot, width = 5, height = 8, units = "in", dpi = 600)
+#ggsave(filename = "WAE_LMB_env_res_biplot_zoop.png", plot = WAE.LMB.biplot.zoop, width = 5, height = 8, units = "in", dpi = 600)
+#ggsave(filename = "WAE_LMB_env_res_biplot_zoop.svg", plot = WAE.LMB.biplot.zoop, width = 5, height = 8, units = "in", dpi = 600)
 
 
 
@@ -1643,12 +1777,14 @@ rand.lake$lake_name <- gsub(".", " ", rand.lake$lake_name, fixed = TRUE)
 study_lakes_sf_rand_lake <- left_join(study_lakes_sf, rand.lake, by = "lake_name") %>% 
   rename(`Lake Random Intercept` = Rand_Effect_Value)
 
+#get colors
+puor_colors <- rev(RColorBrewer::brewer.pal(11, "PuOr"))
 
 rand_lake_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
   geom_sf(data = study_lakes_sf_rand_lake, shape = 21, alpha = 0.9, color = "black", aes(fill = `Lake Random Intercept`), size = 3, )+
-  #scale_fill_distiller(palette = "RdBu", direction = 1, limits = c(-1,1), , oob = scales::squish, breaks = c(-1, 0, 1), labels = c("<-1", "0", ">1"))+
-  scale_fill_viridis_c(option = "inferno", direction = 1)+
+  scale_fill_gradientn(colors = puor_colors, values = scales:: rescale(c(-1.6,0,1.2)), limits = c(-1.6,1.2), , oob = scales::squish, breaks = c(-1.6, 0, 1.2), labels = c("-1.6", "0", "1.2"))+
+  #scale_fill_viridis_c(option = "inferno", direction = 1)+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()+
   annotation_scale(location = "tr", width_hint = 0.25, style = "ticks", pad_x = unit(1, "in"), pad_y = unit(0.7, "in"), text_cex = 1)+
@@ -1661,22 +1797,24 @@ rand_lake_map
 #ggsave(filename = "random_effect_map.png", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 600)
 #ggsave(filename = "random_effect_map.svg", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 600)
 
-rand_lake_map_lab <- ggplot()+
-  geom_sf(data = minnesota, fill = "white")+
-  geom_sf(data = study_lakes_sf_rand_lake, shape = 21, alpha = 0.9, color = "black", aes(fill = `Lake Random Intercept`), size = 3, )+
-  scale_fill_distiller(palette = "RdBu", direction = 1, limits = c(-1,1), , oob = scales::squish, breaks = c(-1, 0, 1), labels = c("<-1", "0", ">1"))+
-  geom_text_repel(data = study_lakes_sf_rand_lake, aes(label = lake_name, geometry = geometry), stat = "sf_coordinates")+
-  coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
-  theme_void()+
-  annotation_scale(location = "tr", width_hint = 0.25, style = "ticks", pad_x = unit(1, "in"), pad_y = unit(0.7, "in"), text_cex = 1)+
-  annotation_north_arrow(location = "tr", which_north = "grid", style = north_arrow_fancy_orienteering(), pad_x = unit(0.4, "in"), pad_y = unit(0.55, "in"), height = unit(1, "cm"), width = unit(1, "cm"))+
-  labs(fill = "Lake\nRandom\nIntercept")+
-  theme(legend.title = element_text(size = 12, face = "bold"),
-        legend.text = element_text(size = 12),
-        legend.margin = margin(t = 10, r = 15, b = -100, l = -100, unit = "pt"),)
-rand_lake_map_lab
-#ggsave(filename = "random_effect_map_labeled.png", plot = rand_lake_map_lab, width = 7, height = 7, units = "in", dpi = 600)
-#ggsave(filename = "random_effect_map_labeled.svg", plot = rand_lake_map_lab, width = 7, height = 7, units = "in", dpi = 600)
+
+# #a version with lake names labeled- not updated with the final formatting and colors
+# rand_lake_map_lab <- ggplot()+
+#   geom_sf(data = minnesota, fill = "white")+
+#   geom_sf(data = study_lakes_sf_rand_lake, shape = 21, alpha = 0.9, color = "black", aes(fill = `Lake Random Intercept`), size = 3, )+
+#   scale_fill_distiller(palette = "RdBu", direction = 1, limits = c(-1,1), , oob = scales::squish, breaks = c(-1, 0, 1), labels = c("<-1", "0", ">1"))+
+#   geom_text_repel(data = study_lakes_sf_rand_lake, aes(label = lake_name, geometry = geometry), stat = "sf_coordinates")+
+#   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
+#   theme_void()+
+#   annotation_scale(location = "tr", width_hint = 0.25, style = "ticks", pad_x = unit(1, "in"), pad_y = unit(0.7, "in"), text_cex = 1)+
+#   annotation_north_arrow(location = "tr", which_north = "grid", style = north_arrow_fancy_orienteering(), pad_x = unit(0.4, "in"), pad_y = unit(0.55, "in"), height = unit(1, "cm"), width = unit(1, "cm"))+
+#   labs(fill = "Lake\nRandom\nIntercept")+
+#   theme(legend.title = element_text(size = 12, face = "bold"),
+#         legend.text = element_text(size = 12),
+#         legend.margin = margin(t = 10, r = 15, b = -100, l = -100, unit = "pt"),)
+# rand_lake_map_lab
+# #ggsave(filename = "random_effect_map_labeled.png", plot = rand_lake_map_lab, width = 7, height = 7, units = "in", dpi = 600)
+# #ggsave(filename = "random_effect_map_labeled.svg", plot = rand_lake_map_lab, width = 7, height = 7, units = "in", dpi = 600)
 
 
 
