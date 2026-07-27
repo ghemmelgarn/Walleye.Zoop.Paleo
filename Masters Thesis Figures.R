@@ -807,27 +807,27 @@ CLV1_CLV2_mutant_biplot <- ggplot(data = opt_plot_data_biplot, aes(x = CLV1_opt,
   #text annotations to help with interpretation
   #coord_cartesian(clip = "off")+
   annotation_custom(grob = richtext_grob(
-      text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(-) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; Resilient to SWF<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Cooler<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher Clarity<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Larger Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher CDOM</i>",
+      text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(-) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; SWF Present<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Cooler<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher Clarity<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Larger Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher CDOM</i>",
       hjust = 0,
       vjust = 1,
       gp = gpar(col = "gray50", fontsize = 9)),
     xmin = -Inf, xmax = -Inf, ymin = -Inf, ymax = -Inf)+
   annotation_custom(grob = richtext_grob(
-    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(+) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; No SWF<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Warmer<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower Clarity<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Smaller Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower CDOM</i>",
+    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(+) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; SWF Absent<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Warmer<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower Clarity<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Smaller Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower CDOM</i>",
     hjust = 1,
     vjust = 1,
     halign = 0,
     gp = gpar(col = "gray50", fontsize = 9)),
     xmin = Inf, xmax = Inf, ymin = -Inf, ymax = -Inf)+
   annotation_custom(grob = richtext_grob(
-    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(+) Linear Preference:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; Deeper<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Littoral Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower CDOM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Smaller Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Resilient to ZM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Less Precipitation</i>",
+    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(+) Linear Preference:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; Deeper<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Littoral Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower CDOM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Smaller Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; ZM Present<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Less Precipitation</i>",
     hjust = 1,
     vjust = 1,
     halign = 0,
     gp = gpar(col = "gray50", fontsize = 9)),
     xmin = -Inf, xmax = -Inf, ymin = Inf, ymax = Inf)+
   annotation_custom(grob = richtext_grob(
-    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(-) Linear Preference:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; Shallower<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Pelagic Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher CDOM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Larger Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; No ZM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Precipitation</i>",
+    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(-) Linear Preference:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; Shallower<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Pelagic Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher CDOM<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Larger Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; ZM Absent<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; More Precipitation</i>",
     hjust = 1,
     vjust = 0,
     halign = 0,
@@ -1649,7 +1649,10 @@ WAE.biplot <- ggplot(data = WAE.corr.grp, aes(x = env, y = res))+
   scale_y_continuous(limits = c(-1,1))+
   scale_x_continuous(limits = c(-1,1))+
   theme_classic(base_size = 11)+
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom")+
+  facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
+  theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
+        strip.background = element_rect(linewidth = 0.5, color = "black"))
 WAE.biplot
 
 #ggsave(filename = "Walleye_env_res_biplot.png", plot = WAE.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
@@ -2316,6 +2319,11 @@ lakes <- lakeyears %>%
             lakeyear_n = n(),
             .groups = "drop")
 
+
+#how many lakes were stocked
+stock <- lakeyears %>% 
+  filter(stock.yn == "yes")
+unique(stock$lake_name)
 
 #VARIABLE TABLE INFO------------------------------------
 
