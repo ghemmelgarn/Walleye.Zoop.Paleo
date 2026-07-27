@@ -27,7 +27,7 @@ library(foreign) #to read in .dbf files
 library(stringr)
 library(gridExtra) #to export multiple plots together as .tiff files
 library(terra) #for raster work with the precipitation and depth data
-library(tidyterra) # to plot rasters with ggplot2
+#library(tidyterra) # to plot rasters with ggplot2
 library(maps) #to get basic map for GIS check plot
 library(zoo) #to calculate rolling averages
 
@@ -1705,6 +1705,12 @@ Join18 <- left_join(Join17, stock.yes, by = c("parentdow", "Year"))
 #give the lake-years without young fish stocking a no instead of NA
 Join18.no <- Join18 %>% 
   mutate(stock.yn = ifelse(is.na(stock.yn), "no", stock.yn))
+
+#see which of my lakes were stocked with young walleye at any time
+stock.fry.year.wae <- stock.fry.year %>% 
+  filter(FISH_SPECIES_ABBREV == 'WAE')
+
+sort(unique(stock.fry.year.wae$LAKE_NAME))
 
 
 #keep dataset clean
