@@ -792,7 +792,7 @@ CLV1_CLV2_mutant_biplot <- ggplot(data = opt_plot_data_biplot, aes(x = CLV1_opt,
   #geom_text(aes(label = abbrv_names), size = 3, fontface = "bold", hjust = 0.5, vjust = 0.5, family = "sans")+
   geom_text_repel(data = opt_plot_data, aes(x = CLV1_opt, y = CLV2_coef, label = abbrv_names), size = 3, max.overlaps = Inf, min.segment.length = 0, segment.size = 0.25) +
   #make invisible points with colors as the label to force the number key
-  labs(x = "CLV1 Optimum", y = "CLV2 Lineaer Coefficient")+
+  labs(x = "CLV1 Optimum", y = "CLV2 Linear Coefficient")+
   coord_cartesian(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = FALSE, clip = "off")+ #this zooms in on the part of the plot where the points are
   theme_classic()+
   #format these large legends
