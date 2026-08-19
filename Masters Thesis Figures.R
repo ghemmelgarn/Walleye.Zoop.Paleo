@@ -807,13 +807,13 @@ CLV1_CLV2_mutant_biplot <- ggplot(data = opt_plot_data_biplot, aes(x = CLV1_opt,
   #text annotations to help with interpretation
   #coord_cartesian(clip = "off")+
   annotation_custom(grob = richtext_grob(
-      text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(-) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; SWF Present<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Cooler<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher Clarity<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Larger Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher CDOM</i>",
+      text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(-) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; SWF Present<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Cooler<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher Secchi Depth<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Larger Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Higher CDOM</i>",
       hjust = 0,
       vjust = 1,
       gp = gpar(col = "gray50", fontsize = 9)),
     xmin = -Inf, xmax = -Inf, ymin = -Inf, ymax = -Inf)+
   annotation_custom(grob = richtext_grob(
-    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(+) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; SWF Absent<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Warmer<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower Clarity<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Smaller Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower CDOM</i>",
+    text = "<span style='font-size: 12pt;'> <br><b><span style='font-size: 9.5pt;'>(+) Niche Optimum:</b><br><i><span style='color: transparent; font-size: 9pt;'>mm</span><span style='font-size: 9pt;'>&bull; SWF Absent<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Warmer<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower Secchi Depth<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Smaller Area<br><span style='color: transparent;'>mm</span><span style='font-size: 9pt;'>&bull; Lower CDOM</i>",
     hjust = 1,
     vjust = 1,
     halign = 0,
