@@ -2320,11 +2320,6 @@ lakes <- lakeyears %>%
             .groups = "drop")
 
 
-#how many lakes were stocked
-stock <- lakeyears %>% 
-  filter(stock.yn == "yes")
-unique(stock$lake_name)
-
 #VARIABLE TABLE INFO------------------------------------
 
 #only making a table with variables I actually used
@@ -2409,3 +2404,67 @@ spp.lake.count$species = rownames(spp.lake.count)
 
 #add this lake count to the stat dataframe
 spp.stat <- full_join(spp.stat, spp.lake.count, by = "species")
+
+
+#stocking in lake-years / study lakes - all taxa and wae?----------------------------
+#Read in stocking data
+stock <- read.csv("Data/Input/Result_28.csv")
+#read in model data
+lakeyears <- read.csv("Data/Input/GLLVM_Complete_Dataset.csv")
+
+#add parentdow column to stocking data - MODIFIED FOR THIS DATA
+#vermilion and hill sub-basins are listed together (dow ending in 00), so need to modify their parentdows to get it to join to my data
+stock.parentdow <- stock %>% 
+  mutate(parentdow = case_when(
+    (stock$UNIQUE_IDENTIFIER == "1014202" | stock$UNIQUE_IDENTIFIER == "1014201" | stock$UNIQUE_IDENTIFIER == "4003502" | stock$UNIQUE_IDENTIFIER == "4003501") ~ substr(stock$UNIQUE_IDENTIFIER, 1, 7),   #takes care of North and Red lakes (7 characters)
+    (stock$UNIQUE_IDENTIFIER == "69037802" | stock$UNIQUE_IDENTIFIER == "69037801") ~ substr(stock$UNIQUE_IDENTIFIER, 1, 8),  #takes care of Vermilion (different because 8 characters)
+    (nchar(stock$UNIQUE_IDENTIFIER) == 7 & (stock$UNIQUE_IDENTIFIER != "1014202" & stock$UNIQUE_IDENTIFIER != "1014201" & stock$UNIQUE_IDENTIFIER != "4003502" & stock$UNIQUE_IDENTIFIER != "4003501")) ~ substr(stock$UNIQUE_IDENTIFIER, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
+    (nchar(stock$UNIQUE_IDENTIFIER) == 8 & (stock$UNIQUE_IDENTIFIER != "69037802" & stock$UNIQUE_IDENTIFIER != "69037801")) ~ substr(stock$UNIQUE_IDENTIFIER, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
+  )) %>% 
+  #modifies vermilion and hill:
+  mutate(parentdow = ifelse(UNIQUE_IDENTIFIER == "1014200", "1014201",
+                            ifelse(UNIQUE_IDENTIFIER == "69037800", "69037801", parentdow)
+  ))
+
+#join to my dataset
+stock.parentdow <- stock.parentdow %>% 
+  mutate(parentdow = as.numeric(parentdow))
+stock.lakes <- left_join(lakeyears, stock.parentdow, by = "parentdow") %>% 
+  select(parentdow, parentdow.year, Year, lake_name, LAKE_NAME, COMMON_NAME, NAME, STOCKING_DATE, STOCKING_YEAR, FISH_QUANTITY, UNIT_OF_MEASURE) %>% 
+  filter(!is.na(COMMON_NAME))
+
+#lakes with any stocking of any species at any time
+unique(stock.lakes$lake_name)
+
+#lakes with walleye stocking at any age at any time
+stock.lakes.wae <- stock.lakes %>% 
+  filter(COMMON_NAME == "walleye")
+unique(stock.lakes.wae$lake_name)
+
+#lakes with walleye fry stocking at any time
+stock.lakes.wae.fry <- stock.lakes %>% 
+  filter(COMMON_NAME == "walleye") %>% 
+  filter(NAME == "Fry" | NAME == "Fryling" | NAME == "Egg")
+unique(stock.lakes.wae.fry$lake_name)
+
+#lake-years with any stocking of any species
+stock.lakeyear <- stock.lakes %>% 
+  filter(Year == STOCKING_YEAR)
+unique(stock.lakeyear$lake_name)
+unique(stock.lakeyear$parentdow.year)
+
+#lake-years with walleye stocking at any age
+stock.lakeyear.wae <- stock.lakeyear %>% 
+  filter(COMMON_NAME == "walleye")
+unique(stock.lakeyear.wae$lake_name)
+unique(stock.lakeyear.wae$parentdow.year)
+
+#lake-years with walleye fry stocking
+stock.lakeyear.wae.fry <- stock.lakeyear.wae %>% 
+  filter(NAME == "Fry" | NAME == "Fryling" | NAME == "Egg")
+unique(stock.lakeyear.wae.fry$lake_name)
+unique(stock.lakeyear.wae.fry$parentdow.year)
+
+
+
+
