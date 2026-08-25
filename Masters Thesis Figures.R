@@ -300,7 +300,7 @@ VP.fish.zoop.long <- pivot_longer(VP.fish.zoop, cols = "Environmental Axis 1":"R
 VP_fish_zoop <- ggplot(data = VP.fish.zoop.long, aes(x = group, y =Proportion, fill = `Variance Component`))+
   geom_col()+
   scale_fill_manual(values = vp_colors)+
-  labs(x = "Trophic Level", y = "Variance Proportion", fill = "")+
+  labs(x = "Taxon Group", y = "Variance Proportion", fill = "")+
   theme_classic(base_size = 11)+
   theme(legend.position = "none")+
   coord_flip()+
@@ -2466,5 +2466,145 @@ unique(stock.lakeyear.wae.fry$lake_name)
 unique(stock.lakeyear.wae.fry$parentdow.year)
 
 
+
+
+
+#zoop length vs. predictors-------------------------------
+#Just because Heidi asked about this in revisions
+
+#read in model data
+lakeyears <- read.csv("Data/Input/GLLVM_Complete_Dataset.csv")
+
+#all zoop v temp
+ggplot(data = lakeyears, aes(x = gdd.year.5c, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+#maybe slight but high scatter
+
+#cladocerans v temp
+ggplot(data = lakeyears, aes(x = gdd.year.5c, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+#maybe slight but high scatter
+
+#all zoop v area
+ggplot(data = lakeyears, aes(x = area_ha, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v area
+ggplot(data = lakeyears, aes(x = area_ha, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#all zoop v secchi
+ggplot(data = lakeyears, aes(x = secchi.meters.MPCA.Jul.to.Sept, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v secchi
+ggplot(data = lakeyears, aes(x = secchi.meters.MPCA.Jul.to.Sept, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+
+#all zoop v precip
+ggplot(data = lakeyears, aes(x = precip_5yr_avg_mm, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v precip
+ggplot(data = lakeyears, aes(x = precip_5yr_avg_mm, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+
+#all zoop v cdom
+ggplot(data = lakeyears, aes(x = CDOM.lake.avg, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v cdom
+ggplot(data = lakeyears, aes(x = CDOM.lake.avg, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+#maybe actually a relationship with CDOM here??
+
+#all zoop v max depth
+ggplot(data = lakeyears, aes(x = depth.max.m, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v max depth
+ggplot(data = lakeyears, aes(x = depth.max.m, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+
+#all zoop v mean depth
+ggplot(data = lakeyears, aes(x = depth.mean.m, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v mean depth
+ggplot(data = lakeyears, aes(x = depth.mean.m, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+
+#all zoop v littoral prop
+ggplot(data = lakeyears, aes(x = photic_prop_secchi.meters.MPCA.Jul.to.Sept, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v littoral prop
+ggplot(data = lakeyears, aes(x = photic_prop_secchi.meters.MPCA.Jul.to.Sept, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+
+#all zoop v swf
+ggplot(data = lakeyears, aes(x = SpinyWaterflea.yn, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v swf
+ggplot(data = lakeyears, aes(x = SpinyWaterflea.yn, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+
+#all zoop v zm
+ggplot(data = lakeyears, aes(x = ZebraMussel.yn, y = mean_length_all_zoop)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+#cladocerans v zm
+ggplot(data = lakeyears, aes(x = ZebraMussel.yn, y = mean_length_clad)) +
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+
+#maybe relationships with cdom, depth littoral area, zebra mussels - SOME OF THESE ARE ALSO RELATED TO WALLEYE...
 
 
