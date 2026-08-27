@@ -15,7 +15,7 @@ library(stringr)
 
 #read in data and make N/A, NA, or an empty cell all read in as NA
 #update file with new data as needed
-Sed_Data <- read.csv("Data/Input/Sediment_Zoop_ID_20260619.csv", na.strings = c("N/A", "NA", ""))
+Sed_Data <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_Zoop_ID_20260827.csv", na.strings = c("N/A", "NA", ""))
 
 #Fix spelling errors and rename columns
 Sed_Data <- Sed_Data %>% 
@@ -1864,9 +1864,8 @@ Sample_summary <- Slide_Count %>%
           #turn NA values into 0
           Individual_Count_by_Taxa_Wide[is.na(Individual_Count_by_Taxa_Wide)] <- 0 
 
-#write.csv(Individual_Count_by_Taxa_Wide, file = paste0("Data/Output/Sediment_Zoop_Taxa_Count", Sys.Date(), ".csv"), row.names = FALSE)
-#write.csv(Sample_summary, file = paste0("Data/Output/Sediment_Zoop_Sample_Summary", Sys.Date(), ".csv"), row.names = FALSE)
-          
+write.csv(Individual_Count_by_Taxa_Wide, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/Individual_Count_by_Taxa_", Sys.Date(), ".csv"), row.names = FALSE)
+write.csv(Sample_summary, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/Individual_Count_", Sys.Date(), ".csv"), row.names = FALSE)
 
           
 #-------------------------------------------------------------------------------------------------------------
@@ -1935,4 +1934,4 @@ measured.remain.count <- reduce(df.to.join, full_join, by = c("LakeName", "Taxa"
 measured.remain.count[is.na(measured.remain.count)] <- 0
 
 #save as a csv file
-#write.csv(measured.remain.count, file = paste0("Data/Output/Sediment_Zoop_Measured_Remain_Count", Sys.Date(), ".csv"))
+write.csv(measured.remain.count, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/Sediment_Zoop_Measured_Remain_Count_", Sys.Date(), ".csv"))
