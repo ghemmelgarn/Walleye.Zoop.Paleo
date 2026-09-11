@@ -15,7 +15,7 @@ library(stringr)
 
 #read in data and make N/A, NA, or an empty cell all read in as NA
 #update file with new data as needed
-Sed_Data <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_Zoop_ID_20260827.csv", na.strings = c("N/A", "NA", ""))
+Sed_Data <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_Zoop_ID_20260828.csv", na.strings = c("N/A", "NA", ""))
 
 #Fix spelling errors and rename columns
 Sed_Data <- Sed_Data %>% 
