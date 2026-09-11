@@ -1300,8 +1300,8 @@ rm(depth, depth_all, depth_data, depth_LowRed, depth_m, depth_max_mean, depth_Ra
 #START HERE TO LOAD IN SAVED DATA THAT THE CODE ABOVE EXTRACTS
 precip <- read.csv("Data/Input/Annual_precip_inches_contemp_lakes.csv")
 
-#need to calculate a 10-year running average of total annual precipitation for each lake year
-#this is the average of the 10 years before the observed year, INCLUDING the observed year
+#need to calculate a 5-year running average of total annual precipitation for each lake year
+#this is the average of the 5 years before the observed year, INCLUDING the observed year
 
 #get data into long format
 precip.long <- precip %>% 
@@ -2298,7 +2298,6 @@ zoop_incl <- read.csv("Data/Input/Zoop_Survey_Pelagic_Inclusion_Table.csv")
 #get just the zoop surveys in the inclusion table
 zoop_filter <- left_join(zoop_incl, zoop_parentdow, by = c("parentdow.year", "sample_id"))
 
-#Check for any lake names that don't match
 zoop_filter$NAME.MATCH <- zoop_filter$lake_name == zoop_filter$lake_name.y
 table(zoop_filter$NAME.MATCH)
 #Looks good
@@ -2619,9 +2618,336 @@ data.update <- data %>%
 
 
 
+#ADD SWF QUANTITATIVE---------------------------------------------------------------------
+
+#read in previous version of dataset
+data.old <- read.csv("Data/Input/Contemporary_Dataset_2026_07_10.csv")
+
+
+#read in quantitative SWF data from Kylie
+swf.crane <- read.csv("Data/Input/SWF/Crane swf densities.csv")
+swf.greenwood <- read.csv("Data/Input/SWF/Greenwood swf densities.csv")
+swf.kab <- read.csv("Data/Input/SWF/Kab swf densities.csv")
+swf.LoTW <- read.csv("Data/Input/SWF/LoTW swf densities.csv")
+swf.LV <- read.csv("Data/Input/SWF/LV swf densities.csv")
+swf.MilleLacs <- read.csv("Data/Input/SWF/MilleLacs swf densities.csv")
+swf.Nam <- read.csv("Data/Input/SWF/Nam swf densities.csv")
+swf.Rainy <- read.csv("Data/Input/SWF/Rainy swf densities.csv")
+swf.SP <- read.csv("Data/Input/SWF/SP swf densities.csv")
+swf.Trout <- read.csv("Data/Input/SWF/Trout swf densities.csv")
+swf.Vermilion <- read.csv("Data/Input/SWF/Vermilion swf densities.csv")
+
+
+#info about data from Kylie:
+  #Swf_den are # per cubic meter. 
+  #You will have to join the data with the zoop sample ID by lake-sample date-site. 
+  #The extracts for Trout and Greenwood swf can be found in the attached .xlsx. 
+  #We do triplicate tows so you will see multiple data for the same sample date-stie. 
+  #I've also done the measurements for these lakes so there's some biomass info. 
+
+
+#separate east and west Vermilion by site number
+swf.Vermilion.split <- swf.Vermilion %>% 
+  mutate(LakeID= ifelse(Site == 1 | Site == 2 | Site == 3, "East Vermilion",
+                          ifelse(Site == 4 | Site == 5 | Site == 6, "West Vermilion", "CHECK")))
+  
+#fix columns so they all match, greenwood and trout need their dates reformatted too
+swf.greenwood.colmatch <- swf.greenwood %>% 
+  rename(LakeID = lake_basin,
+         Year = year,
+         Date = sample_date,
+         Site = site_number) %>% 
+  select(-swf_bio, -month) %>% 
+  mutate(Date = paste0(substr(Date, 6,7), "/", substr(Date, 9,10), "/", substr(Date, 1,4)))
+
+swf.trout.colmatch <- swf.Trout %>% 
+  rename(LakeID = lake_basin,
+         Year = year,
+         Date = sample_date,
+         Site = site_number) %>% 
+  select(-swf_bio, -month)%>% 
+  mutate(Date = paste0(substr(Date, 6,7), "/", substr(Date, 9,10), "/", substr(Date, 1,4)))
+
+swf.LoTW.colmatch <- swf.LoTW %>% 
+  select(-Remarks)
+
+swf.MilleLacs.colmatch <- swf.MilleLacs %>% 
+  select(-Remarks)
+
+#join all of these individual datasets together
+swf.all <- rbind(swf.crane, swf.greenwood.colmatch, swf.kab, 
+                 swf.LoTW.colmatch, swf.LV, swf.MilleLacs.colmatch, swf.Nam, 
+                 swf.Rainy, swf.SP, swf.trout.colmatch, swf.Vermilion.split)
+
+#create columns for month, day, and year separately
+swf.dates <- swf.all %>%
+  mutate(year = as.numeric(sub(".*/", "", Date))) %>% 
+  mutate(month = as.numeric(sub("/.*", "", Date))) %>%
+  mutate(day = as.numeric(sub("^[^/]+/([^/]+)/.*$", "\\1", Date))) %>% 
+  #get rid of old date columns
+  select(-Date, -Year)
+
+#explore the data a little bit for sampling coverage
+# #are there the same number of tows at each site in each lake on each day?
+# swf_day_site_tows <- swf.dates %>%
+#   #give each row a unique number
+#   mutate(unique = 1:2820) %>% 
+#   group_by(LakeID, year, month, day, Site) %>%
+#   #count how many unique numbers there are in each lake-month
+#   summarize(count = n_distinct(unique), .groups = 'drop')
+# #NO THERE ARE NOT - a little duplication triplication like Kylie warned me about
+# 
+# #what about same number of days sampled in each month?
+# swf_month_days <- swf.dates %>%
+#   group_by(LakeID, year, month) %>%
+#   #count how many unique numbers there are in each lake-month
+#   summarize(count = n_distinct(day), .groups = 'drop')
+# #a few lakes sampled more frequently than once a month
+# 
+# #are all the lake-years sampled May-Sept?
+# swf_months <- swf.dates %>%
+#   group_by(LakeID, year) %>%
+#   #count how many unique numbers there are in each lake-month
+#   summarize(count = n_distinct(month), .groups = 'drop')
+# #no - but let's isolate the lake-years in my dataset
+# 
+# #get a list of lake-years in my dataset
+# swf.incl.table <- data.old %>% 
+#   select(lake_name, Year) %>% 
+#   rename(LakeID = lake_name,
+#          year = Year)
+# #left join the swf data to it
+# swf.join <- left_join(swf.incl.table, swf.dates, by = c("LakeID", "year"))
+# #get rid of rows without swf data
+# swf.lakeyears <- swf.join %>% 
+#   filter(!is.na(swf_den))
+# 
+# #now are all the lake-years sampled May-Sept?
+# swf_months2 <- swf.lakeyears %>%
+#   group_by(LakeID, year) %>%
+#   #count how many unique numbers there are in each lake-month
+#   summarize(count = n_distinct(month), .groups = 'drop')
+# swf.lakeyears2 <- swf.lakeyears %>% 
+#   mutate(lakeyear = paste0(LakeID, year))
+# #all have at least 5 months
+# table(swf.lakeyears2$lakeyear, swf.lakeyears2$month)
+# #YES! all are sampled May-Sept (makes sense, they passed the original zoop data filters)
+
+
+#need to get data for Voyaguers National Park lakes post-2021 from the regular zoop dataset
+zoop <- read.csv("Data/Input/ZoopDB_data_20251016.csv")
+
+#filter the lake-years I want and remove any shallow epilimnion tows
+zoop.swf <- zoop %>% 
+  mutate(year = substr(sample_date, 1, 4)) %>% 
+  filter(((lake_name == "Rainy" | lake_name == "Sand Point" | lake_name == "Namakan" | lake_name == "Kabetogama") & year == 2024) | 
+           (lake_name == "Sand Point" & year == 2022)) %>% 
+  #Remove the shallow VNP samples:
+  filter(!((lake_name == "Rainy" & site_number == 1) | 
+             (lake_name == "Namakan" & site_number == 1) | 
+             (lake_name == "Sand Point" & site_number == 1)))
+#I used lake name and just hand-checked that the DOWs are correct - they are
+           
+#need to make sure all species have a row for all tows - even if the biomass value is 0 so that my means calculate correctly
+#How many rows should I end up with?
+n_distinct(zoop.swf$lake_name, zoop.swf$year, zoop.swf$sample_date, zoop.swf$sample_id)
+length(unique(zoop.swf$species))
+#we have 81 tows and they should each have 21 species so we should end up with a data frame that has 81 * 21 = 1701 rows
+#make all the empty rows you need, preserve the groups you need to average and other data you still want in each row, and fill the data values with 0 for the new rows
+zoop.swf.complete <- complete(data = zoop.swf, nesting(lake_name, sample_date, year, site_number, sample_id), species, fill = list(density = 0, biomass = 0, number_pct = 0, weight_pct = 0, mean_weight = 0, mean_length = 0, count = 0), explicit = FALSE)
+#The number of rows looks good!
+
+#now filter to just bythotrephes
+zoop.swf.filter <- zoop.swf.complete %>% 
+  filter(species == "Bythotrephes longimanus")
+
+#format to match the rest of the data
+zoop.swf.format <- zoop.swf.filter %>% 
+  rename(LakeID = lake_name,
+         Site = site_number,
+         swf_den = density) %>% 
+  mutate(month = as.numeric(substr(sample_date, 6,7)),
+         day = as.numeric(substr(sample_date, 9,10)),
+         year = as.numeric(year))%>% 
+  select(LakeID, Site, swf_den, year, month, day)
+
+#rowbind to the rest of the swf data
+swf.all.VNP <- rbind(swf.dates, zoop.swf.format)
+
+
+#PLAN: average the same way we did the zoops, by month and then by year
+
+#first need to average tow densities in each month in each lake-year (across all sites and sampling days and potential replicates)
+swf.month.mean <- swf.all.VNP %>%
+  group_by(LakeID, year, month) %>%
+  summarize(swf_den = mean(swf_den), .groups = 'drop') 
+
+#only keep the May-Sept samples (same as what we did for the rest of the zoops)
+swf.month.filter <- swf.month.mean %>% 
+  filter(month == 5 | month == 6 | month == 7 | month == 8 | month == 9)
+
+#average monthly densities to get average biomass in each lake-year for each species
+swf.year.mean <- swf.month.filter %>%
+  group_by(LakeID, year) %>%
+  summarize(swf_den = mean(swf_den), .groups = 'drop') %>% 
+  #also rename columns for joining to big dataset
+  rename(lake_name = LakeID,
+         Year = year,
+         SpinyWaterflea.density = swf_den)
+
+#join this back to the big dataset
+data.old.swf <- left_join(data.old, swf.year.mean, by = c("lake_name", "Year")) %>% 
+  relocate(SpinyWaterflea.density, .after = SpinyWaterflea.yn) %>% 
+  #make NA values to uninvaded lakes have a 0 swf density
+  mutate(SpinyWaterflea.density = ifelse(SpinyWaterflea.yn == "no", 0, SpinyWaterflea.density))
+
+#simplified dataset for checking that this makes sense and we have complete data coverage in invaded lakes
+swf.check <- data.old.swf %>% 
+  select(lake_name, Year, SpinyWaterflea.inv.year, SpinyWaterFlea.ysi, SpinyWaterflea.yn, SpinyWaterflea.density)
+#looks good - all lake-years have a density estimate that are marked as invaded, lakeyears marked as uninvaded are NA or 0 - PERFECT
+
+
+
+#keep env clean
+rm(swf.all, swf.all.VNP, swf.check, swf.crane, swf.dates, swf.greenwood, swf.greenwood.colmatch, swf.kab,
+   swf.LoTW, swf.LoTW.colmatch, swf.LV, swf.MilleLacs, swf.MilleLacs.colmatch, swf.month.filter, swf.month.mean,
+   swf.Nam, swf.Rainy, swf.SP, swf.Trout, swf.trout.colmatch, swf.Vermilion, swf.Vermilion.split, swf.year.mean,
+   zoop, zoop.swf, zoop.swf.complete, zoop.swf.filter, zoop.swf.format)
+
+
+
+
+
+#UPDATE: STOCKING DATA-----------------------------------------------------------------------
+#this adds a column
+#before we just calculated walleye stocking yes/no in the given lake-year
+#this adds a walleye-stocking yes/no in ANY OF THE 5 YEARS (5-year rolling) prior to the lake-year, including the lake-year itself
+#the idea is to get a metric of active walleye stocking or not, acknowledging the time lag from stocking to gillnet recruitment
+
+#TO DO:
+  #get complete stocking data
+  #check on east/west verm and north/south hill - see note below
+
+
+#Read in data
+stock <- read.csv("Data/Input/Result_28.csv")
+
+#let's limit this list to just my lakes to see what we are working with here
+#get a list of parentdows of my lakes - NEED TO RUN THE CREATION OF INCLUSION TABLE AT BEGINNING OF SCRIPT
+parentdow <- Incl.Table.Final %>% 
+  select(parentdow) %>% 
+  unique()
+
+#add parentdow column to stocking data - MODIFIED FOR THIS DATA
+#vermilion and hill sub-basins are listed together (dow ending in 00), so need to modify their parentdows to get it to join to my data
+stock.parentdow <- stock %>% 
+  mutate(parentdow = case_when(
+    (stock$UNIQUE_IDENTIFIER == "1014202" | stock$UNIQUE_IDENTIFIER == "1014201" | stock$UNIQUE_IDENTIFIER == "4003502" | stock$UNIQUE_IDENTIFIER == "4003501") ~ substr(stock$UNIQUE_IDENTIFIER, 1, 7),   #takes care of North and Red lakes (7 characters)
+    (stock$UNIQUE_IDENTIFIER == "69037802" | stock$UNIQUE_IDENTIFIER == "69037801") ~ substr(stock$UNIQUE_IDENTIFIER, 1, 8),  #takes care of Vermilion (different because 8 characters)
+    (nchar(stock$UNIQUE_IDENTIFIER) == 7 & (stock$UNIQUE_IDENTIFIER != "1014202" & stock$UNIQUE_IDENTIFIER != "1014201" & stock$UNIQUE_IDENTIFIER != "4003502" & stock$UNIQUE_IDENTIFIER != "4003501")) ~ substr(stock$UNIQUE_IDENTIFIER, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
+    (nchar(stock$UNIQUE_IDENTIFIER) == 8 & (stock$UNIQUE_IDENTIFIER != "69037802" & stock$UNIQUE_IDENTIFIER != "69037801")) ~ substr(stock$UNIQUE_IDENTIFIER, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
+  )) %>% 
+  #CHANGE THIS - I THINK I NEED STOCKING IN BOTH BASINS FOR THESE
+  #modifies vermilion and hill (no data on red anyways):
+  mutate(parentdow = ifelse(UNIQUE_IDENTIFIER == "1014200", "1014201",
+                            ifelse(UNIQUE_IDENTIFIER == "69037800", "69037801", parentdow)
+  ))
+
+#isolate my lakes
+stock.mylakes <- left_join(parentdow, stock.parentdow, by = "parentdow")
+
+#what species do we have
+table(stock.mylakes$COMMON_NAME)
+
+#what units of measure do we have
+unique(stock.mylakes$UNIT_OF_MEASURE)
+
+
+
+#THE NEW PART: Yes or no walleye stocking of any age at any time during the 5 years up to and including a given lake-year
+
+#filter to just walleye
+stock.wae <- stock.mylakes %>% 
+  filter(COMMON_NAME == "walleye")
+
+#get one row for each lake-year, with a 1 in the stocking column for all stocked lake-years
+stock.wae.lakeyear <- stock.wae %>% 
+  group_by(parentdow, LAKE_NAME, STOCKING_YEAR) %>% 
+  summarize(wae.yn = 1, .groups = 'drop')
+
+#complete dataset with the lake-years not in the dataset and give them 0s for the stocking column
+#how many years do we have? = 38
+length(unique(stock.wae.lakeyear$STOCKING_YEAR))
+#how many lakes do we have? = 26
+length(unique(stock.wae.lakeyear$LAKE_NAME))
+#38*26 = should end up with 988 rows!
+stock.complete <- complete(data = stock.wae.lakeyear, nesting(parentdow, LAKE_NAME), STOCKING_YEAR, fill = list(wae.yn = 0), explicit = FALSE)
+#and I got 988 rows! yay!!
+
+
+#get a 5-year rolling sum to get the number of the previous 5 lake-years that were stocked in a lake
+#using the zoo package for the rolling average sum
+stock.sum5 <- stock.complete %>% 
+  group_by(parentdow, LAKE_NAME) %>%
+  mutate(
+    wae.5yr.sum = rollapply(wae.yn, width = 5, 
+                                  FUN = function(x) sum(x, na.rm = TRUE), 
+                                  fill = "extend", 
+                                  align = "right") #NEED TO FINISH THIS
+  ) %>% 
+  ungroup()
+#width = 5 means I get 5 years
+#fill = extend means that the first 5 years where there isn't enough data will get the same value as the first year that has all the data available - this is fine because I don't need these first 4 years for anything, the stocking data starts 1988 and my dataset starts 1999
+#including the na.rm = True means that when data is missing, it calculates the mean of the years it has available within the 5 year period - shouldn't matter because nothing is missing
+#align = right means that selected year is last year (eg. year 2000 uses data from 1996–2000)
+
+
+#turn stocking into yes or no for the 5-year period
+stock.sum5.yn <- stock.sum5 %>% 
+  mutate(wae.stock.5yr.yn = ifelse(wae.5yr.sum > 0, "yes", "no"))
+
+#isolate just columns to join and format for join
+stock.join <- stock.sum5.yn %>% 
+  mutate(Year = STOCKING_YEAR,
+         parentdow = as.numeric(parentdow)) %>% 
+  select(parentdow, Year, wae.stock.5yr.yn)
+
+#join with dataset
+data.old.swf.stock <- left_join(data.old.swf, stock.join, by = c("parentdow", "Year")) %>% 
+  relocate(wae.stock.5yr.yn, .after = stock.yn) %>% 
+  mutate(wae.stock.5yr.yn = ifelse(is.na(wae.stock.5yr.yn), "no", wae.stock.5yr.yn))
+
+#simplified dataset to check it worked right
+stock.check <- data.old.swf.stock %>% 
+  select(lake_name, parentdow, Year, stock.yn, wae.stock.5yr.yn)
+
+
+#keep env. clean
+rm(parentdow, stock, stock.check, stock.complete, stock.join, stock.mylakes, stock.parentdow,
+   stock.sm5, stock.sum5.yn, stock.wae, stock.wae.lakeyear)
+
+
+
+#SAVE UPDATED DATASET------------------------------------------------------
+
+#UPDATE THE DATE HERE BEFORE YOU SAVE
+#write.csv(data.old.swf.stock, file = "Data/Output/Contemporary_Dataset_2026_FINISHDATE.csv", row.names = FALSE)
+
+
+
+
+
+
+
+
+
+
+
 
 
 #ZOOPS WITH COPEPODS -------------------------------------------------------------------------
+#ENDED UP NOT USING THIS BECAUSE I HAD NO LAKES WITHOUT WALLEYE AND IMMATURES WERE STILL A PROBLEM
+
 
 #read in the zoop data
 zoop <- read.csv("Data/Input/ZoopDB_data_20251016.csv")
