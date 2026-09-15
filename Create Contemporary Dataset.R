@@ -1628,6 +1628,8 @@ rm(temp, temp.positive, temp.subbasin.check, temp.year)
 
 #STOCKING DATA-----------------------------------------------------------------------
 
+#I LEARNED THAT THIS STOCKING DATA IS INCOMPLETE - DO NOT USE
+
 #Read in data
 stock <- read.csv("Data/Input/Result_28.csv")
 
@@ -2824,13 +2826,73 @@ rm(swf.all, swf.all.VNP, swf.check, swf.crane, swf.dates, swf.greenwood, swf.gre
 #this adds a walleye-stocking yes/no in ANY OF THE 5 YEARS (5-year rolling) prior to the lake-year, including the lake-year itself
 #the idea is to get a metric of active walleye stocking or not, acknowledging the time lag from stocking to gillnet recruitment
 
-#TO DO:
-  #get complete stocking data
-  #check on east/west verm and north/south hill - see note below
+#THE OLD STOCKING DATA I HAD WAS INCOMPLETE - DO NOT USE
+#first thing is to rename the old stocking yes/no column - I want to keep it so I can see how much changes with this better data
+data.old.swf.stockrename <- data.old.swf %>% 
+  rename(stock.yn.INCOMPLETE= stock.yn)
+
+#Read in better data - there are two files with different date ranges
+stock1 <- read.csv("Data/Input/mn_wae_stocking_1988_to_2022.csv")
+stock2 <- read.csv("Data/Input/mn_wae_stocking_2023_01_01_to_2026_05_29.csv")
+
+#get stock2 format to match stock1 and rowbind them together
+    #parse_number is same as as.numeric but deals with the commas in the numbers    
+    stock2.num <- stock2 %>% 
+      mutate(Number.of.Fish = parse_number(Number.of.Fish)) 
+    
+    #sum together multiple stocking events for each lake-year
+    stock2.lakeyear <- stock2.num %>% 
+      group_by(DOW.Kittle, Year, Water.Body.Type, Life.Stage) %>% 
+      summarize(Number.of.Fish = sum(Number.of.Fish), .groups = 'drop')
+    
+    #pivot wider
+    stock2.pivot <- pivot_wider(stock2.lakeyear, names_from = "Life.Stage", values_from = "Number.of.Fish", values_fill = 0)
+
+    #format
+    stock2.format <- stock2.pivot %>% 
+      filter(Water.Body.Type == "Lake") %>% 
+      mutate(DOW = as.numeric(paste0((substr(DOW.Kittle, 1,2)), (substr(DOW.Kittle, 4,7)), (substr(DOW.Kittle, 9,10))))) %>% 
+      select(DOW, Year, FRY, FGL, ADL, YRL, FRL) %>% 
+      mutate(fry.pa = ifelse(FRY > 0, 1, 0),
+             fgl.pa = ifelse(FGL > 0, 1, 0),
+             adl.pa = ifelse(ADL > 0, 1, 0),
+             yrl.pa = ifelse(YRL > 0, 1, 0),
+             frl.pa = ifelse(FRL > 0, 1, 0))
+    
+    #rowbind
+    stock.all <- rbind(stock1, stock2.format)
+      
+
+#duplicate vermilion, hill to adjust their parentdows
+#red was only stocked prior to 2004 and my data starts with red in 2012 (plus Red gets filtered out pre-modeling) so not worrying about it
+stock.hill1 <- stock.all %>% 
+  filter(DOW == 1014200) %>% 
+  mutate(DOW = 1014201)
+stock.hill2 <- stock.all %>% 
+  filter(DOW == 1014200) %>% 
+  mutate(DOW = 1014202)
+stock.verm1 <- stock.all %>% 
+  filter(DOW == 69037800) %>% 
+  mutate(DOW = 69037801)
+stock.verm2 <- stock.all %>% 
+  filter(DOW == 69037800) %>% 
+  mutate(DOW = 69037802)
+      
+#replace the updated dows for these lakes
+stock.split <- stock.all %>% 
+  filter(DOW != 1014200 & DOW != 69037800) %>% 
+  rbind(stock.hill1, stock.hill2, stock.verm1, stock.verm2)
 
 
-#Read in data
-stock <- read.csv("Data/Input/Result_28.csv")
+#make parentdows to match my data
+stock.parentdow <- stock.split %>%
+  mutate(parentdow = case_when(
+    (stock.split$DOW == "1014202" | stock.split$DOW == "1014201") ~ substr(stock.split$DOW, 1, 7),   #takes care of Hill lake (7 characters)
+    (stock.split$DOW == "69037802" | stock.split$DOW == "69037801") ~ substr(stock.split$DOW, 1, 8),  #takes care of Vermilion (different because 8 characters)
+    (nchar(stock.split$DOW) == 7 & (stock.split$DOW != "01014202" & stock.split$DOW != "01014201")) ~ substr(stock.split$DOW, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
+    (nchar(stock.split$DOW) == 8 & (stock.split$DOW != "69037802" & stock.split$DOW != "69037801")) ~ substr(stock.split$DOW, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
+  ))
+
 
 #let's limit this list to just my lakes to see what we are working with here
 #get a list of parentdows of my lakes - NEED TO RUN THE CREATION OF INCLUSION TABLE AT BEGINNING OF SCRIPT
@@ -2838,57 +2900,34 @@ parentdow <- Incl.Table.Final %>%
   select(parentdow) %>% 
   unique()
 
-#add parentdow column to stocking data - MODIFIED FOR THIS DATA
-#vermilion and hill sub-basins are listed together (dow ending in 00), so need to modify their parentdows to get it to join to my data
-stock.parentdow <- stock %>% 
-  mutate(parentdow = case_when(
-    (stock$UNIQUE_IDENTIFIER == "1014202" | stock$UNIQUE_IDENTIFIER == "1014201" | stock$UNIQUE_IDENTIFIER == "4003502" | stock$UNIQUE_IDENTIFIER == "4003501") ~ substr(stock$UNIQUE_IDENTIFIER, 1, 7),   #takes care of North and Red lakes (7 characters)
-    (stock$UNIQUE_IDENTIFIER == "69037802" | stock$UNIQUE_IDENTIFIER == "69037801") ~ substr(stock$UNIQUE_IDENTIFIER, 1, 8),  #takes care of Vermilion (different because 8 characters)
-    (nchar(stock$UNIQUE_IDENTIFIER) == 7 & (stock$UNIQUE_IDENTIFIER != "1014202" & stock$UNIQUE_IDENTIFIER != "1014201" & stock$UNIQUE_IDENTIFIER != "4003502" & stock$UNIQUE_IDENTIFIER != "4003501")) ~ substr(stock$UNIQUE_IDENTIFIER, 1, 5), #this gets 5 digits from the DOWs that have 7 characters and are not those identified before
-    (nchar(stock$UNIQUE_IDENTIFIER) == 8 & (stock$UNIQUE_IDENTIFIER != "69037802" & stock$UNIQUE_IDENTIFIER != "69037801")) ~ substr(stock$UNIQUE_IDENTIFIER, 1, 6) #this gets 6 digits from the DOWs that have 8 characters and are not those identified before
-  )) %>% 
-  #CHANGE THIS - I THINK I NEED STOCKING IN BOTH BASINS FOR THESE
-  #modifies vermilion and hill (no data on red anyways):
-  mutate(parentdow = ifelse(UNIQUE_IDENTIFIER == "1014200", "1014201",
-                            ifelse(UNIQUE_IDENTIFIER == "69037800", "69037801", parentdow)
-  ))
-
 #isolate my lakes
 stock.mylakes <- left_join(parentdow, stock.parentdow, by = "parentdow")
-
-#what species do we have
-table(stock.mylakes$COMMON_NAME)
-
-#what units of measure do we have
-unique(stock.mylakes$UNIT_OF_MEASURE)
-
 
 
 #THE NEW PART: Yes or no walleye stocking of any age at any time during the 5 years up to and including a given lake-year
 
-#filter to just walleye
-stock.wae <- stock.mylakes %>% 
-  filter(COMMON_NAME == "walleye")
+#add a column with a 1 for all rows to show that some walleye stocking occurred and get rid of the other columns
+stock.mylakes.yn <- stock.mylakes %>% 
+  mutate(wae.yn = ifelse(!is.na(Year), 1, 0)) %>% 
+  select(parentdow, Year, wae.yn) %>% 
+  #give the NA years a random year so the complete function works right
+  mutate(Year = ifelse(is.na(Year), 2020, Year))
 
-#get one row for each lake-year, with a 1 in the stocking column for all stocked lake-years
-stock.wae.lakeyear <- stock.wae %>% 
-  group_by(parentdow, LAKE_NAME, STOCKING_YEAR) %>% 
-  summarize(wae.yn = 1, .groups = 'drop')
 
 #complete dataset with the lake-years not in the dataset and give them 0s for the stocking column
-#how many years do we have? = 38
-length(unique(stock.wae.lakeyear$STOCKING_YEAR))
-#how many lakes do we have? = 26
-length(unique(stock.wae.lakeyear$LAKE_NAME))
-#38*26 = should end up with 988 rows!
-stock.complete <- complete(data = stock.wae.lakeyear, nesting(parentdow, LAKE_NAME), STOCKING_YEAR, fill = list(wae.yn = 0), explicit = FALSE)
-#and I got 988 rows! yay!!
+#how many years do we have? = 39
+length(unique(stock.mylakes.yn$Year))
+#how many lakes do we have? = 43
+length(unique(stock.mylakes.yn$parentdow))
+#39*43 = should end up with 1677 rows!
+stock.complete <- complete(data = stock.mylakes.yn, nesting(parentdow), Year, fill = list(wae.yn = 0), explicit = FALSE)
+#and I got 1677 rows! yay!!
 
 
 #get a 5-year rolling sum to get the number of the previous 5 lake-years that were stocked in a lake
 #using the zoo package for the rolling average sum
 stock.sum5 <- stock.complete %>% 
-  group_by(parentdow, LAKE_NAME) %>%
+  group_by(parentdow) %>%
   mutate(
     wae.5yr.sum = rollapply(wae.yn, width = 5, 
                                   FUN = function(x) sum(x, na.rm = TRUE), 
@@ -2902,29 +2941,154 @@ stock.sum5 <- stock.complete %>%
 #align = right means that selected year is last year (eg. year 2000 uses data from 1996–2000)
 
 
-#turn stocking into yes or no for the 5-year period
+#turn stocking into yes or no for the 5-year period and make a yes/no for the exact lake-year tambien
 stock.sum5.yn <- stock.sum5 %>% 
-  mutate(wae.stock.5yr.yn = ifelse(wae.5yr.sum > 0, "yes", "no"))
+  mutate(wae.stock.5yr.yn = ifelse(wae.5yr.sum > 0, "yes", "no"),
+         wae.stock.yn = ifelse(wae.yn > 0, "yes", "no"))
+
 
 #isolate just columns to join and format for join
 stock.join <- stock.sum5.yn %>% 
-  mutate(Year = STOCKING_YEAR,
-         parentdow = as.numeric(parentdow)) %>% 
-  select(parentdow, Year, wae.stock.5yr.yn)
+  mutate(parentdow = as.numeric(parentdow)) %>% 
+  select(parentdow, Year, wae.stock.yn, wae.stock.5yr.yn)
 
 #join with dataset
-data.old.swf.stock <- left_join(data.old.swf, stock.join, by = c("parentdow", "Year")) %>% 
-  relocate(wae.stock.5yr.yn, .after = stock.yn) %>% 
+data.old.swf.stock <- left_join(data.old.swf.stockrename, stock.join, by = c("parentdow", "Year")) %>% 
+  relocate(wae.stock.5yr.yn, .after = stock.yn.INCOMPLETE) %>% 
+  relocate(wae.stock.yn, .before = wae.stock.5yr.yn) %>% 
   mutate(wae.stock.5yr.yn = ifelse(is.na(wae.stock.5yr.yn), "no", wae.stock.5yr.yn))
 
 #simplified dataset to check it worked right
 stock.check <- data.old.swf.stock %>% 
-  select(lake_name, parentdow, Year, stock.yn, wae.stock.5yr.yn)
+  select(lake_name, parentdow, Year, stock.yn.INCOMPLETE, wae.stock.yn, wae.stock.5yr.yn)
+#I checked this against lakefinder and it all looks good
 
 
 #keep env. clean
-rm(parentdow, stock, stock.check, stock.complete, stock.join, stock.mylakes, stock.parentdow,
-   stock.sm5, stock.sum5.yn, stock.wae, stock.wae.lakeyear)
+rm(parentdow, data.old.swf.stockrename, stock1, stock2, stock.all, stock.check, stock.complete, stock.join, stock.hill1, stock.hill2, 
+   stock.verm1, stock.verm2, stock.mylakes, stock.mylakes.yn, stock.parentdow, stock.split, stock2.format, stock2.lakeyear, stock2.num,
+   stock2.pivot, stock.sum5, stock.sum5.yn)
+
+
+
+
+
+
+#TEMP Mean/Deviation-----------------------------------------------------------
+#read in temp data
+temp <- read.csv("Data/Input/Contemp_Lake_Daily_Air_Temps_1989_2024.csv")
+
+#calcular mean temp para cada dia
+temp$tmean <- (temp$tmax + temp$tmin)/2
+
+#calculate GDD for each day (base = 5 degrees C)
+temp$gdd.day.5c <- temp$tmean - 5
+
+#sum the growing degree days for each lake in each year
+#first have to isolate the year
+temp$Year <- as.numeric(substr(temp$date, 1, 4))
+
+#drop gdd values that are negative
+temp.positive <- temp %>% 
+  filter(gdd.day.5c > 0)
+
+#calculate the sum of the positive gdd thoughtout the year and make parentdow character for joins
+temp.year <- temp.positive %>%
+  group_by(parentdow, Year) %>%
+  summarize(gdd.year.5c = sum(gdd.day.5c), .groups = 'drop') %>% 
+  mutate(parentdow = as.character(parentdow))
+
+
+#isolate years in my dataset
+temp.myyears <- temp.year %>% 
+  filter(Year >= 1999 & Year <= 2024)
+#calculate mean by lake across these years
+temp.year.mean <- temp.myyears %>% 
+  group_by(parentdow) %>% 
+  summarize(gdd.lake.mean = mean(gdd.year.5c), .groups = 'drop')
+#join this mean back to the data
+temp.mean <- left_join(temp.myyears, temp.year.mean, by = "parentdow")
+#calculate annual deviation from the mean
+temp.mean.dev <- temp.mean %>% 
+  mutate(gdd.year.dev = gdd.year.5c - gdd.lake.mean) %>% 
+  #get rid of the lake-year gdd column because that is already in dataset
+  select(-gdd.year.5c) %>% 
+  #make parentdow numeric for join
+  mutate(parentdow = as.numeric(parentdow))
+
+#Join to data
+data.update <- left_join(data.old.swf.stock, temp.mean.dev, by = c("parentdow", "Year")) %>% 
+  relocate(gdd.lake.mean, .after = gdd.year.5c) %>% 
+  relocate(gdd.year.dev, .after = gdd.lake.mean)
+
+
+#keep environment clean
+rm(temp, temp.positive, temp.subbasin.check, temp.year, temp.mean, temp.mean.dev, temp.myyears, temp.year.mean)
+
+
+
+
+
+
+
+
+
+#Precip Mean/Deviation----------------------------------------------------------
+
+
+precip <- read.csv("Data/Input/Annual_precip_inches_contemp_lakes.csv")
+
+#instead of the 5-year rolling average (as above), getting a 1999-2024 mean and then annual deviations from that mean
+
+#get data into long format
+precip.long <- precip %>% 
+  mutate(X2022_annual_precip_smoothed = NA) %>% #add a blank 2022 column for the data I am missing
+  relocate(X2022_annual_precip_smoothed, .after = X2021_annual_precip_smoothed) %>% 
+  select(-X) %>% #get rid of stupid ID number column that was auto generated
+  pivot_longer(cols = starts_with("X"), names_to = "precip.year", values_to = "Precip.in") %>% 
+  select(-lake_lat_decdeg, -lake_lon_decdeg, - parentdow) %>% #get rid of lat/long columns here and parentdow (will compliate average and joins)
+  mutate(precip.year = substr(precip.year, 2, 5)) #isolate just the year for the year column not the whole old column name
+
+
+#isolate years in my dataset
+precip.myyears <- precip.long %>% 
+  filter(precip.year >= 1999 & precip.year <= 2024)
+#calculate mean by lake across these years
+precip.year.mean <- precip.myyears %>% 
+  group_by(lake_name) %>% 
+  summarize(precip.lake.mean = mean(Precip.in, na.rm = TRUE), .groups = 'drop')
+#join this mean back to the data
+precip.mean <- left_join(precip.myyears, precip.year.mean, by = "lake_name")
+#calculate annual deviation from the mean
+precip.mean.dev <- precip.mean %>% 
+  mutate(precip.year.dev = Precip.in - precip.lake.mean)
+
+#convert to mm
+precip.mean.dev.mm <- precip.mean.dev %>% 
+  mutate(precip.mm = Precip.in * 25.4,
+         precip.lake.mean.mm = precip.lake.mean * 25.4,
+         precip.year.dev.mm = precip.year.dev  * 25.4,
+         Year = as.numeric(precip.year)) %>%  #reformat year to match rest of data
+  select(-Precip.in, -precip.lake.mean, -precip.year.dev, -precip.year)  #get rid of columns you don't want to join
+
+
+
+#Join to data
+data.update2 <- left_join(data.update, precip.mean.dev.mm, by = c("lake_name", "Year")) %>% 
+  relocate(precip.mm, .after = precip_5yr_avg_mm) %>%
+  relocate(precip.lake.mean.mm, .after = precip.mm) %>% 
+  relocate(precip.year.dev.mm, .after = precip.lake.mean.mm)
+
+
+#keep environment clean
+rm(precip.avg, precip, precip.long, precip.mm.avg, precip.mean, precip.mean.dev, precip.mean.dev.mm, precip.myyears, precip.year.mean)
+
+
+#Secchi Mean/Deviation------------------------------------------------------------
+
+
+
+
 
 
 
