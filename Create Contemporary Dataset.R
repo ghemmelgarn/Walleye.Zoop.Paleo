@@ -3086,16 +3086,72 @@ rm(precip.avg, precip, precip.long, precip.mm.avg, precip.mean, precip.mean.dev,
 
 #Secchi Mean/Deviation------------------------------------------------------------
 
+#import filtered and formatted water quality data pulled from WQP on 11-24-2025
+#Created in the "Pull Water Quality Data" script
+#THIS ONLY CALCUALTES A MPCA Jul-Sept lake mean from 1999-2024 and then annual deviations from that mean - this is the secchi metric that matches the cdom and what I use in the model
+#does NOT require all 3 months to be present
+
+secchi.data <- read.csv("Data/Input/WQP_1998-2025_Secchi_20251124_FILTERED_FORMATTED.csv")
 
 
+#get rid of column: x and make parentdow character
+secchi.data.clean <- secchi.data %>% 
+  select(-X) %>% 
+  mutate(parentdow = as.character(parentdow))
 
+#get a list of parentdows from the inclusion table
+parentdow.incl <- as.data.frame(unique(Incl.Table.Final$parentdow)) %>% 
+  rename(parentdow = 'unique(Incl.Table.Final$parentdow)')
+#join the MPCA secchi data to the ilist of parentdows, preserving all secchi rows, AND ALL YEARS
+WQ.join <- parentdow.incl %>%
+  left_join(secchi.data.clean, by = "parentdow")
+
+#remove any rows with a secchi_meters value of 0
+#this does not take out any NA values - preserves lakes that don't have secchi data in this dataset
+WQ.join.clean <- filter(WQ.join, secchi_meters != 0 | is.na(secchi_meters))
+
+
+#Make another MPCA column with July to September mean, not restrictive on how many months present (more equivalent to remote sensed data)
+#filter out only July, August, Sept samples
+WQ.late.summer <- WQ.join.clean %>%
+  filter(month == "7" | month == "8" | month == "9")
+#summarize the mean of the selected secchi data for each lake/year and filter to only 1999-2024 
+secchi.lakeyear.mean <- WQ.late.summer %>%
+  group_by(parentdow, year) %>%
+  summarize(secchi.meters.MPCA.Jul.to.Sept = mean(secchi_meters), .groups = 'drop') %>% 
+  filter(year >= 1999 & year <= 2024)
+#note that some lake/years are missing because not enough data for them (or none at all)
+
+#get a 1999-2024 lake mean with available years
+secchi.lake.mean <- secchi.lakeyear.mean %>% 
+  group_by(parentdow) %>%
+  summarize(secchi.lake.mean.meters = mean(secchi.meters.MPCA.Jul.to.Sept), .groups = 'drop')
+
+#join back to the lakeyear data
+secchi.all.means <- left_join(secchi.lakeyear.mean, secchi.lake.mean, by = "parentdow")
+
+#calculate annual deviation from the mean, remove duplicate column that is already in dataset, format for join
+secchi.mean.dev <- secchi.all.means %>% 
+  mutate(secchi.year.dev.meters = secchi.meters.MPCA.Jul.to.Sept - secchi.lake.mean.meters) %>% 
+  select(-secchi.meters.MPCA.Jul.to.Sept) %>% 
+  mutate(parentdow = as.numeric(parentdow)) %>% 
+  rename(Year = year)
+
+
+#Join to data
+data.update3 <- left_join(data.update2, secchi.mean.dev, by = c("parentdow", "Year")) %>% 
+  relocate(secchi.lake.mean.meters, .after = secchi.meters.MPCA.Jul.to.Sept) %>%
+  relocate(secchi.year.dev.meters, .after = secchi.lake.mean.meters)
+
+#remove unneeded intermediate data frames to keep environment clean
+rm(secchi.data, secchi.all.means, WQ.join, WQ.join.clean, WQ.late.summer, secchi.mean2, secchi.data.clean,
+   secchi.lake.mean, secchi.lakeyear.mean, secchi.mean.dev)
 
 
 
 #SAVE UPDATED DATASET------------------------------------------------------
 
-#UPDATE THE DATE HERE BEFORE YOU SAVE
-#write.csv(data.old.swf.stock, file = "Data/Output/Contemporary_Dataset_2026_FINISHDATE.csv", row.names = FALSE)
+write.csv(data.update3, file = "Data/Output/Contemporary_Dataset_2026_09_30.csv", row.names = FALSE)
 
 
 
