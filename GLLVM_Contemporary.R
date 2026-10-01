@@ -1,4 +1,4 @@
-#this script runs GLLVM modes on the contemporary data
+#this script runs GLLVM modes on the contemporary data and includes the final model used for my master's thesis
 
 #libraries
 library(gllvm)
