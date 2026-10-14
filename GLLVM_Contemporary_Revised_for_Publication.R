@@ -33,6 +33,7 @@ TMB::openmp(parallel::detectCores()-1, DLL = "gllvm", autopar = TRUE)
     #secchi (MPCA jul-sept mean) 1999-2024 lake mean and lake-year deviation from mean
     #categorical walleye stocking yes/no in the last 5 years
     #mean depth instead of littoral proportion
+    #SWF NOT a covariate anymore - now part of y matrix
   #SAME AS BEFORE:
     #zebra mussel presence/absence
     #lake surface area
@@ -108,6 +109,8 @@ x_scale <- x %>%
          depth.mean = as.numeric(scale(depth.mean)))
 
 
+#list of covariatse to copy later: secchi.mean, secchi.dev, gdd.mean, gdd.dev, precip.mean, precip.dev, cdom, log.area, depth.max, depth.mean, wae.stock, zm
+
 #set x_scale as a dataframe for rownames later
 x_scale <- as.data.frame(x_scale)
 
@@ -122,11 +125,12 @@ x_scale <- as.data.frame(x_scale)
 data.daphnia <- data.filter %>% 
   mutate(Daphnia.small.rare = rowSums(across(c(Daphnia.rosea, Daphnia.ambigua, Daphnia.sp.)))) %>% 
   select(-Daphnia.rosea, -Daphnia.ambigua, -Daphnia.sp.) %>% 
-  relocate(Daphnia.small.rare, .after = Daphnia.retrocurva)
+  relocate(Daphnia.small.rare, .after = Daphnia.retrocurva) %>% 
+  relocate(SpinyWaterflea.density, .after = YEP.CPUE) #put the spiny water fleas between the fish and the zoops
 
 #get the max value for each taxa in each lake (will be 0 if never present)
 lake.spp <- data.daphnia %>% 
-  group_by(lake_name) %>% 
+  group_by(lake_name) %>%
   summarize(across(BIB.CPUE:nauplii, max),
             .groups = 'drop')
 #for each taxa, count the number of lakes where it has a value greater than 0 in at least one year
@@ -142,6 +146,7 @@ spp <- data.daphnia %>%
   select(BIB.CPUE:nauplii)
 #proportion of zeroes in species data
 spp_prop_0 <- colSums(spp == 0, na.rm = TRUE)/nrow(spp)
+spp_prop_0
 #isolate proportions of zeroes over 95%
 spp_prop_0_0.95 <- spp_prop_0[spp_prop_0 > 0.95]
 #make this a vector of names
@@ -158,8 +163,8 @@ y.matrix <- spp %>%
 #what's left?
 names(y.matrix)
 
-# #look at magnitude of fish vs. zoop data
-# mag.plot.data <- spp.filter %>%
+# #look at magnitude of fish vs. SWp vs. zoop data
+# mag.plot.data <- y.matrix %>%
 #   pivot_longer(cols = everything(), names_to = "species", values_to = "abundance") %>%
 #   mutate(group = ifelse(str_ends(species, "CPUE"), "fish", "zoop"))
 # mag.plot.raw <- ggplot(data = mag.plot.data, aes(x = species, y = abundance, color = group))+
@@ -172,7 +177,7 @@ names(y.matrix)
 #   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
 #   scale_y_continuous(limits = c(0,5))
 # mag.plot.raw.zoom
-# #actually looks okay, not transforming at all
+# #actually looks okay, not transforming at all, even with SWF
 
 
 #set N as number of lake-years and N.taxa as number of taxa in response matrix
@@ -194,7 +199,9 @@ rownames(studyDesignData) <- paste0(data.filter$lake_name, data.filter$Year)
 #save the x matrix with only the desired coefficients for use later
 x_save <- x_scale %>%
   mutate(wae.stock = ifelse(wae.stock == "yes", 1, 0),
-         zm = ifelse(zm == "yes", 1, 0))
+         zm = ifelse(zm == "yes", 1, 0),
+         lake_name = data.filter$lake_name,
+         year = data.filter$Year)
 #write.csv(x_save, "Data/Input/gllvm_x_matrix_standardized_Pub_Rev.csv", row.names = FALSE)
 
 #save a version that is NOT standardized
