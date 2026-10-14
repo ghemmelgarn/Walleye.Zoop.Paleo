@@ -219,4 +219,173 @@ x_save_raw <- x %>%
 
 
 
+
 #MODELS--------------------------------------------------------------------------
+#I AM GOING TO HAVE A "model_name" FOR ALL MY DIAGNOSTIC THINGS SO I CAN JUST ADJUST THE NAME ONCE INSTEAD OF A MILLION TIMES
+
+
+#start simple, no predictors, have random lake effect, NO quadratic structure, tweedie distribution letting R determine power, no latent variables, no random structure of the latent variables
+model_rev_1 <- gllvm(y = y.matrix, studyDesign = studyDesignData,
+                                                 row.eff = ~(1|lake), num.lv = 0, family = "tweedie", Power = NULL,
+                                                 trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_1, file = "Models/model_rev_1.rds")
+#set current name for exploration
+model_name <- model_rev_1
+#notes
+  #diagnostics looked good, a little funky in QQ and slight fan in residuals vs linear predictors
+  #can't examine much without lvs or predictors
+  #AICc = 15033.67
+
+
+
+#add in one latent variable
+model_rev_2 <- gllvm(y = y.matrix, studyDesign = studyDesignData,
+                     row.eff = ~(1|lake), num.lv = 1, family = "tweedie", Power = NULL,
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_2, file = "Models/model_rev_2.rds")
+#set current name for exploration
+model_name <- model_rev_2
+#notes
+  #diagnostics looked great
+  #residual corrplot collapsed - need more LV
+  #AICc = 14041.12
+
+
+
+#try 2 latent variables, at this point have to make it try multiple times to converge but just doing 5
+model_rev_3 <- gllvm(y = y.matrix, studyDesign = studyDesignData,
+                     row.eff = ~(1|lake), num.lv = 2, family = "tweedie", Power = NULL,
+                     control.start = list(n.init = 5, jitter.var = 0.1),
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_3, file = "Models/model_rev_3.rds")
+#set current name for exploration
+model_name <- model_rev_3
+#notes
+  #diagnostics look great
+  #residual correlations are less collapsed but still chunky
+  #AICc = 13543.32
+
+
+
+#try 3 latent variables
+model_rev_4 <- gllvm(y = y.matrix, studyDesign = studyDesignData,
+                     row.eff = ~(1|lake), num.lv = 3, family = "tweedie", Power = NULL,
+                     control.start = list(n.init = 5, jitter.var = 0.1),
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_4, file = "Models/model_rev_4.rds")
+#set current name for exploration
+model_name <- model_rev_4
+#notes
+  #got a convergence error but not going to worry about it right now ("In se.gllvm(out) :27 parameter(s) have negative variance estimates (lambda x26, sigmaLV x1). The model likely has not converged - consider re-fitting.")
+  #diagnostics look great
+  #residual correlations look great
+  #AICc = 13354.28
+
+
+
+#try 4 latent variables
+model_rev_5 <- gllvm(y = y.matrix, studyDesign = studyDesignData,
+                     row.eff = ~(1|lake), num.lv = 4, family = "tweedie", Power = NULL,
+                     control.start = list(n.init = 5, jitter.var = 0.1),
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_5, file = "Models/model_rev_5.rds")
+#set current name for exploration
+model_name <- model_rev_5
+#notes
+  #no convergence error here
+  #diagnostics are okay but have some shooting stars going on
+  #residual corrplot looks good
+  #AICc = 13025.7
+
+#ALRIGHT, THE AICc IS STILL DROPPING BUT THIS IS NOT WHY WE ARE HERE, LETS GET SOME PREDICTORS ROLLING!!
+
+#add predictors but 0 LV
+model_rev_6 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                     formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                     row.eff = ~(1|lake), num.lv = 0, family = "tweedie", Power = NULL,
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_6, file = "Models/model_rev_6.rds")
+#set current name for exploration
+model_name <- model_rev_6
+#notes
+  #so many shooting stars, QQ not great, the walleye (species 21) are being problematic
+  #AICc = 12576.41
+  #so this model is way better with predictors but we don't have any LVs to really look at yet
+
+#simple predictors and 1 LV
+model_rev_7 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                     formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                     row.eff = ~(1|lake), num.lv = 1, family = "tweedie", Power = NULL,
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_7, file = "Models/model_rev_7.rds")
+#set current name for exploration
+model_name <- model_rev_7
+#notes
+  #diagnostics still have a lot of shooting stars and QQ is bendy, walleye are a problem especially in residuals vs. row
+  #corrplot collapsed, need more LV
+  #AICc = 12171.34
+
+
+
+#simple predictors and 2 LV, back to multiple inits
+model_rev_8 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                     formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                     row.eff = ~(1|lake), num.lv = 2, family = "tweedie", Power = NULL,
+                     control.start = list(n.init = 5, jitter.var = 0.1),
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_8, file = "Models/model_rev_8.rds")
+#set current name for exploration
+model_name <- model_rev_8
+#notes
+  #no convergence warnings
+  #diagnostic plots are awful
+  #shooting stars getting worse, walleye still a problem - this is telling me I need to go back to the quadratic structure and multivariate predictors
+  #QQ off the line a lot
+  #residual corrplot looks okay but walleye and yellow perch predicted very differently (the walleye are not predicted well I can tell by diagnostic plots)
+  #AICc = 12023.74
+
+
+
+#DIAGNOSTICS ON A MODEL-------------------------------------
+
+#set the model you want to explore to "model_name"
+
+#diagnostics
+par(mfrow = c(3,2))
+plot(model_name) 
+par(mfrow = c(1,1))
+#looks great
+#check power
+model_name$Power
+#get residual correlations
+Theta <- getResidualCor(model_name)
+corrplot(Theta[order.single(Theta), order.single(Theta)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
+
+#summaries
+summary(model_name)
+VP(model_name)
+AICc(model_name)
+
+
