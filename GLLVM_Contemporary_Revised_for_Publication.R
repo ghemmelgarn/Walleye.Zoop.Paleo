@@ -361,6 +361,83 @@ model_name <- model_rev_8
   #AICc = 12023.74
 
 
+#simple predictors and 3 LV
+model_rev_9 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                     formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                     row.eff = ~(1|lake), num.lv = 3, family = "tweedie", Power = NULL,
+                     control.start = list(n.init = 5, jitter.var = 0.1),
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_9, file = "Models/model_rev_9.rds")
+#set current name for exploration
+model_name <- model_rev_9
+#notes
+  #the diagnostics are still bad, shooting star continues, and walleye in residuals vs row are an abomination
+  #residual corrplot looks fine
+  #in VP, the LVs are explaining a very small amount of variance, mostly the predictors
+  #AICc = 11870.4
+
+
+#switch to concurrent ordination (again, not where I think I'll end up but let's be complete), 1 concurrent LV
+model_rev_10 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                     lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                     row.eff = ~(1|lake), num.lv.c =  1, family = "tweedie", Power = NULL,
+                     control.start = list(n.init = 5, jitter.var = 0.1),
+                     trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_10, file = "Models/model_rev_10.rds")
+#set current name for exploration
+model_name <- model_rev_10
+#notes
+  #diagnostic plots look great
+  #residual corrplot collapsed
+  #can't get Env corrplot with this structure
+  #AIcc = 13824.76
+
+
+
+#concurrent ordination, 2 LVs
+model_rev_11 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                      lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                      row.eff = ~(1|lake), num.lv.c =  2, family = "tweedie", Power = NULL,
+                      control.start = list(n.init = 5, jitter.var = 0.1),
+                      trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_11, file = "Models/model_rev_11.rds")
+#set current name for exploration
+model_name <- model_rev_11
+#notes
+  #diagnostics pretty good, walleye a little weird in scale-location but that's it
+  #residual corr looks good and walleye makes more sense, matches yellow perch
+  #AICc = 13213.7
+
+
+
+#concurrent ordination, 3 LVs
+model_rev_12 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                      lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                      row.eff = ~(1|lake), num.lv.c =  3, family = "tweedie", Power = NULL,
+                      control.start = list(n.init = 5, jitter.var = 0.1),
+                      trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_12, file = "Models/model_rev_12.rds")
+#set current name for exploration
+model_name <- model_rev_12
+#notes
+  #QQ great but the others have some shooting stars
+  #residual corrplot looks good
+  #AICc = 12794.1
+
+
+
+#lets switch into 
+
+
+
 
 #DIAGNOSTICS ON A MODEL-------------------------------------
 
@@ -373,7 +450,7 @@ par(mfrow = c(1,1))
 #looks great
 #check power
 model_name$Power
-#get residual correlations
+#get residual correlations - can only do when LVs are present
 Theta <- getResidualCor(model_name)
 corrplot(Theta[order.single(Theta), order.single(Theta)],
          diag = FALSE,
@@ -382,7 +459,15 @@ corrplot(Theta[order.single(Theta), order.single(Theta)],
          tl.cex = 0.5,
          t.srt = 45,
          tl.col = "red")
-
+#get correlations due to environment/covariates - can only do if you have random effects for covariates in the model (needs to be constrained or concurrent ordination) - run ?getEnvironCor for details!
+Env <- getEnvironCor(model_name)
+corrplot(Env[order.single(Env), order.single(Env)],
+         diag = FALSE,
+         type = "lower",
+         method = "square",
+         tl.cex = 0.5,
+         t.srt = 45,
+         tl.col = "red")
 #summaries
 summary(model_name)
 VP(model_name)
