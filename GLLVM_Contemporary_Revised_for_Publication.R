@@ -281,6 +281,7 @@ model_rev_4 <- gllvm(y = y.matrix, studyDesign = studyDesignData,
 beep()
 #save the model
 #saveRDS(model_rev_4, file = "Models/model_rev_4.rds")
+model_rev_4 <- readRDS(file = "Models/model_rev_4.rds")
 #set current name for exploration
 model_name <- model_rev_4
 #notes
@@ -332,6 +333,7 @@ model_rev_7 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
 beep()
 #save the model
 #saveRDS(model_rev_7, file = "Models/model_rev_7.rds")
+model_rev_7 <- readRDS(file = "Models/model_rev_7.rds")
 #set current name for exploration
 model_name <- model_rev_7
 #notes
@@ -407,6 +409,7 @@ model_rev_11 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
 beep()
 #save the model
 #saveRDS(model_rev_11, file = "Models/model_rev_11.rds")
+model_rev_11 <- readRDS(file = "Models/model_rev_11.rds")
 #set current name for exploration
 model_name <- model_rev_11
 #notes
@@ -432,10 +435,437 @@ model_name <- model_rev_12
   #residual corrplot looks good
   #AICc = 12794.1
 
+#ADDING IN THE RandomB covariance structure to stabilize model now!! - forgot that before
+#sticking with LV (not P) for RandomB because that's what worked well in the past for this data and makes ecological sense - shared random effect variance on an LV (environmental gradient) rather than each predictor separately
+#needed it to get models to converge...
+
+#START BY RERUNNING THIS WITH RANDOMB
+#lets switch into quadratic mode, concurrent ordination, 1 LV
+model_rev_13 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                      lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                      row.eff = ~(1|lake), 
+                      num.lv.c =  1, family = "tweedie", Power = NULL,
+                      randomB = "LV", quadratic = "LV",
+                      control.start = list(n.init = 5, jitter.var = 0.1),
+                      trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_13, file = "Models/model_rev_13.rds")
+model_rev_13 <- readRDS(file = "Models/model_rev_13.rds")
+#set current name for exploration
+model_name <- model_rev_13
+#notes
+  #for some reason it won't let me use the plot function on this model?? - so I can't see performance plots
+  #residual correlation somewhat collapsed into zeroes and ones but not completely
+  #env correlation plot looks good
+  #AICc = 13812.26
+  #no warnings when this ran
 
 
-#lets switch into 
 
+#quadratic response, concurrent ordination, 2 LVs
+model_rev_14 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                      lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                      row.eff = ~(1|lake), 
+                      num.lv.c =  2, family = "tweedie", Power = NULL,
+                      randomB = "LV", quadratic = "LV",
+                      control.start = list(n.init = 5, jitter.var = 0.05),
+                      trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_14, file = "Models/model_rev_14.rds")
+model_rev_14 <- readRDS(file = "Models/model_rev_14.rds")
+#set current name for exploration
+model_name <- model_rev_14
+#notes
+  #performance looks awesome
+  #residual correlations look good (not collapsed)
+  #env correlations almost all positive
+  #AICc = 13266.21
+
+
+#quadratic response, concurrent ordination, 3 LVs
+model_rev_15 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                      lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                      row.eff = ~(1|lake), 
+                      num.lv.c =  3, family = "tweedie", Power = NULL,
+                      randomB = "LV", quadratic = "LV",
+                      control.start = list(n.init = 5, jitter.var = 0.1),
+                      trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_15, file = "Models/model_rev_15.rds")
+#set current name for exploration
+model_name <- model_rev_15
+#notes
+  #performance plots look pretty good, very slight shooting stars
+  #residual correlation plot looks good
+  #env correlation plot looks good
+  #AICc = 12904.51
+
+#quadratic response, concurrent ordination, 4 LVs
+model_rev_16 <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                      lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                      row.eff = ~(1|lake), 
+                      num.lv.c =  4, family = "tweedie", Power = NULL,
+                      randomB = "LV", quadratic = "LV",
+                      control.start = list(n.init = 5, jitter.var = 0.1),
+                      trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_16, file = "Models/model_rev_16.rds")
+#set current name for exploration
+model_name <- model_rev_16
+#notes
+  #diagnostic plots look pretty darn good
+  #Residual correlation plot looks good
+  #Env correlation plot looks good
+  #AICc = 12689.58
+
+
+#NOT A QUADRATIC RESPONSE, hybrid ordination, try 1 to 3 LVs for each type in all combos
+
+# 1. Create an empty dataframe to hold our scoreboard
+not_quad_lv_results <- data.frame(num.RR = integer(), 
+                          num.lv = integer(),
+                          AICc=numeric())
+
+# 2. Set up the grid (testing 1 to 3 for both parameters)
+for (rr in 1:3) {
+  for (lv in 1:3) {
+    
+    # Print a message so you know it hasn't frozen
+    cat("Fitting model with num.RR =", rr, "and num.lv =", lv, "...\n")
+    
+    # 3. Use tryCatch to skip hard crashes
+    model_fit <- tryCatch({
+      
+      gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+            lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+            row.eff = ~(1|lake), 
+            num.RR =  rr, num.lv = lv, family = "tweedie", Power = NULL,
+            randomB = "LV",
+            control.start = list(n.init = 10, jitter.var = 0.1),
+            trace = TRUE)
+      
+    }, error = function(e) {
+      cat("  -> Model crashed during fitting. Skipping...\n")
+      return(NULL) 
+    })
+    
+    # 4. Safely extract the AICc and save it
+    if (!is.null(model_fit)) {
+      #save model
+      saveRDS(model_fit, file = paste0("Models/model_rev_17_", rr, "RR_", lv, "LV.rds"))
+      
+      #extract AICc
+      current_aicc <- tryCatch(AICc(model_fit), error = function(e) numeric(0))
+      
+      # ONLY add to the dataframe if current_aicc actually contains a number
+      if (length(current_aicc) > 0 && !is.na(current_aicc)) {
+        not_quad_lv_results <- rbind(not_quad_lv_results, 
+                             data.frame(num.RR = rr, num.lv = lv, AICc = current_aicc))
+        cat("  -> Success! AICc:", current_aicc, "\n")
+      } else {
+        cat("  -> Model fit, but AICc could not be calculated (singular fit). Skipping...\n")
+      }
+    }
+  }
+}
+
+# 5. Sort the scoreboard to put the best (lowest) AICc at the top!
+not_quad_lv_results <- not_quad_lv_results[order(not_quad_lv_results$AICc), ]
+print("--- GRID SEARCH COMPLETE ---")
+print(not_quad_lv_results)
+
+#best model without quadratic is 3RR and 3LV, with an AICc of 12437.46
+#Did not get to the point of AIC increasing again, so take this with caution, but is a lot better than next best model with AICc = 12557.90
+#lets investigate the performance of this model:
+model_rev_17_3RR_3LV <- readRDS(file = "Models/model_rev_17_3RR_3LV.rds")
+model_name <- model_rev_17_3RR_3LV
+#notes
+  #performance plots not good, qq not on line, we have shooting stars and walleye are consistently predicted low
+  #both corrplots look okay - not collapsed
+
+#test out the next best options here
+model_rev_17_3RR_2LV <- readRDS(file = "Models/model_rev_17_3RR_2LV.rds")
+model_name <- model_rev_17_3RR_2LV
+#notes
+  #okay performance plots look pretty decent - THERE IS HOPE
+  #both corrplots are acceptable
+  #AICc = 12557.9
+  #THIS IS AN OPTION
+
+
+
+model_rev_17_2RR_3LV <- readRDS(file = "Models/model_rev_17_2RR_3LV.rds")
+model_name <- model_rev_17_2RR_3LV
+#notes
+  #performance plots slightly worse than the 3RR 2LV version above this, but not totally awful
+  #both corrplots look okay
+  #AICc = 12656.32
+  #results look about the same as the previous model above too
+  #but the model above is slightly better so we should go with that one if we choose this structure
+
+
+
+#QUADRATIC RESPONSE, hybrid ordination, try 1 to 3 LVs for each type in all combos
+# 1. Create an empty dataframe to hold our scoreboard
+quad_lv_results <- data.frame(num.RR = integer(), 
+                                  num.lv = integer(),
+                                  AICc=numeric())
+
+# 2. Set up the grid (testing 1 to 3 for both parameters)
+for (rr in 1:3) {
+  for (lv in 1:3) {
+    
+    # Print a message so you know it hasn't frozen
+    cat("Fitting model with num.RR =", rr, "and num.lv =", lv, "...\n")
+    
+    # 3. Use tryCatch to skip hard crashes
+    model_fit <- tryCatch({
+      
+      gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+            lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+            row.eff = ~(1|lake), 
+            num.RR =  rr, num.lv = lv, family = "tweedie", Power = NULL,
+            randomB = "LV", quadratic = "LV",
+            control.start = list(n.init = 10, jitter.var = 0.1),
+            trace = TRUE)
+      
+    }, error = function(e) {
+      cat("  -> Model crashed during fitting. Skipping...\n")
+      return(NULL) 
+    })
+    
+    # 4. Safely extract the AICc and save it
+    if (!is.null(model_fit)) {
+      #save model
+      saveRDS(model_fit, file = paste0("Models/model_rev_18_", rr, "RR_", lv, "LV.rds"))
+      
+      #extract AICc
+      current_aicc <- tryCatch(AICc(model_fit), error = function(e) numeric(0))
+      
+      # ONLY add to the dataframe if current_aicc actually contains a number
+      if (length(current_aicc) > 0 && !is.na(current_aicc)) {
+        quad_lv_results <- rbind(quad_lv_results, 
+                                     data.frame(num.RR = rr, num.lv = lv, AICc = current_aicc))
+        cat("  -> Success! AICc:", current_aicc, "\n")
+      } else {
+        cat("  -> Model fit, but AICc could not be calculated (singular fit). Skipping...\n")
+      }
+    }
+  }
+}
+
+# 5. Sort the scoreboard to put the best (lowest) AICc at the top!
+quad_lv_results <- quad_lv_results[order(quad_lv_results$AICc), ]
+print("--- GRID SEARCH COMPLETE ---")
+print(quad_lv_results)
+#best model here is 1 RR and 3 LV (AICc = 12668.46), but only slightly better than 2RR and 3LV (12672.37)
+#I trust this more because increasing model complexity did start to make AICc go up again
+#investigate these two models
+
+model_rev_18_1RR_3LV <- readRDS(file = "Models/model_rev_18_1RR_3LV.rds")
+model_name <- model_rev_18_1RR_3LV
+#notes
+  #performance plots bad, qq is terrible, lots of shooting stars, but walleye not predicted consistently bad...
+  #residual correlations collapsed
+  #env correlations okay
+
+model_rev_18_2RR_3LV <- readRDS(file = "Models/model_rev_18_2RR_3LV.rds")
+model_name <- model_rev_18_2RR_3LV
+#notes
+  #performance better generally but walleye don't look great...
+  #residual correlations look good
+  #environmental correlations almost all positive
+
+#alright so the performance on exactly none of these is acceptable... lets try the third best quadratic option
+model_rev_18_3RR_2LV <- readRDS(file = "Models/model_rev_18_3RR_2LV.rds")
+model_name <- model_rev_18_3RR_2LV
+#notes
+  #performance is okay-ish but walleye still low
+  #residual performance is okay 
+  #environment is all positive = problem
+  #AICc = 12703.72
+
+#try one more
+model_rev_18_3RR_1LV <- readRDS(file = "Models/model_rev_18_3RR_1LV.rds")
+model_name <- model_rev_18_3RR_1LV
+#notes
+  #performance plots look good
+  #residuals totally collapsed - this won't work
+
+#try 2 and 2
+model_rev_18_2RR_2LV <- readRDS(file = "Models/model_rev_18_2RR_2LV.rds")
+model_name <- model_rev_18_2RR_2LV
+#notes
+  #performance plots are okay
+  #almost all correlations are positive in both corrplots
+  
+
+#ALRIGHT, SO THE QUADRATIC RESPONSE IS NO LONGER HELPFUL!!
+
+
+#only last thing to check is the concurrent ordination with the randomB = LV structure, with and without quadratic response
+
+#CONCURRENT ORD, RandomB = LV, QUADRATIC, 1 to 4 lvs
+#NOTE - I actually ran a few of these separately above but doing it again here to see if I get the same results and allowing more direct comparison
+# 1. Create an empty dataframe to hold our scoreboard
+conc_quad_results <- data.frame(num.lv.c = integer(),
+                              AICc=numeric())
+
+# 2. Set up the loop
+for (lv.c in 1:4) {
+    
+    # Print a message so you know it hasn't frozen
+    cat("Fitting model with num..v.c =", lv.c, "...\n")
+    
+    # 3. Use tryCatch to skip hard crashes
+    model_fit <- tryCatch({
+      
+      gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+            lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+            row.eff = ~(1|lake), 
+            num.lv.c = lv.c, family = "tweedie", Power = NULL,
+            randomB = "LV", quadratic = "LV",
+            control.start = list(n.init = 10, jitter.var = 0.1),
+            trace = TRUE)
+      
+    }, error = function(e) {
+      cat("  -> Model crashed during fitting. Skipping...\n")
+      return(NULL) 
+    })
+    
+    # 4. Safely extract the AICc and save it
+    if (!is.null(model_fit)) {
+      #save model
+      saveRDS(model_fit, file = paste0("Models/model_rev_19_", lv.c, "lv.c.rds"))
+      
+      #extract AICc
+      current_aicc <- tryCatch(AICc(model_fit), error = function(e) numeric(0))
+      
+      # ONLY add to the dataframe if current_aicc actually contains a number
+      if (length(current_aicc) > 0 && !is.na(current_aicc)) {
+        conc_quad_results <- rbind(conc_quad_results, 
+                                 data.frame(num.lv.c = lv.c, AICc = current_aicc))
+        cat("  -> Success! AICc:", current_aicc, "\n")
+      } else {
+        cat("  -> Model fit, but AICc could not be calculated (singular fit). Skipping...\n")
+      }
+    }
+  }
+beep()
+# 5. Sort the scoreboard to put the best (lowest) AICc at the top!
+conc_quad_results <- conc_quad_results[order(conc_quad_results$AICc), ]
+print("--- GRID SEARCH COMPLETE ---")
+print(conc_quad_results)
+
+#so this just shows what we would expect where more lvs are better, did not get to increasing again
+#lets look at best one
+model_rev_19_4lv.c <- readRDS(file = "Models/model_rev_19_4lv.c.rds")
+model_name <- model_rev_19_4lv.c
+#notes
+  #performance plots pretty good - maybe slight issue with species 13 which is NOP
+  #both corrplots look good
+  #AICc = 12698.7
+  #THIS IS THE OPTION FOR THIS MODEL STRUCTURE
+
+#lets see if we can get 5lvs to fit
+model_rev_19_5lv.c <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+                            lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+                            row.eff = ~(1|lake), 
+                            num.lv.c = 5, family = "tweedie", Power = NULL,
+                            randomB = "LV", quadratic = "LV",
+                            control.start = list(n.init = 10, jitter.var = 0.1),
+                            trace = TRUE)
+beep()
+#save the model
+#saveRDS(model_rev_19_5lv.c, file = "Models/model_rev_19_5lv.c.rds")
+#set current name for exploration
+model_name <- model_rev_19_5lv.c
+#notes
+  #performance plots bad, 4 was the best model
+  #residual correlations collapsed
+  #AICc = 12421.54
+
+
+#CONCURRENT ORD, RandomB = LV, NOT QUADRATIC, 1 to 4 lvs
+# 1. Create an empty dataframe to hold our scoreboard
+conc_results <- data.frame(num.lv.c = integer(),
+                                AICc=numeric())
+
+# 2. Set up the loop
+for (lv.c in 1:4) {
+  
+  # Print a message so you know it hasn't frozen
+  cat("Fitting model with num..v.c =", lv.c, "...\n")
+  
+  # 3. Use tryCatch to skip hard crashes
+  model_fit <- tryCatch({
+    
+    gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
+          lv.formula = ~ secchi.mean + secchi.dev + gdd.mean + gdd.dev + precip.mean + precip.dev + cdom + log.area + depth.max + depth.mean + wae.stock + zm,
+          row.eff = ~(1|lake), 
+          num.lv.c = lv.c, family = "tweedie", Power = NULL,
+          randomB = "LV",
+          control.start = list(n.init = 10, jitter.var = 0.1),
+          trace = TRUE)
+    
+  }, error = function(e) {
+    cat("  -> Model crashed during fitting. Skipping...\n")
+    return(NULL) 
+  })
+  
+  # 4. Safely extract the AICc and save it
+  if (!is.null(model_fit)) {
+    #save model
+    saveRDS(model_fit, file = paste0("Models/model_rev_20_", lv.c, "lv.c.rds"))
+    
+    #extract AICc
+    current_aicc <- tryCatch(AICc(model_fit), error = function(e) numeric(0))
+    
+    # ONLY add to the dataframe if current_aicc actually contains a number
+    if (length(current_aicc) > 0 && !is.na(current_aicc)) {
+      conc_results <- rbind(conc_results, 
+                                 data.frame(num.lv.c = lv.c, AICc = current_aicc))
+      cat("  -> Success! AICc:", current_aicc, "\n")
+    } else {
+      cat("  -> Model fit, but AICc could not be calculated (singular fit). Skipping...\n")
+    }
+  }
+}
+beep()
+# 5. Sort the scoreboard to put the best (lowest) AICc at the top!
+conc_results <- conc_results[order(conc_results$AICc), ]
+print("--- GRID SEARCH COMPLETE ---")
+print(conc_results)
+
+#same thing here, more lvs drops the AICc
+#lets look at best model
+model_rev_20_4lv.c <- readRDS(file = "Models/model_rev_20_4lv.c.rds")
+model_name <- model_rev_20_4lv.c
+#notes
+  #performancs plots bad, lots of shooting stars and underestimating walleye consistently
+  #corrplots look fine
+  #AICc = 12725.52
+
+#does fewer lvs have better performance?
+model_rev_20_3lv.c <- readRDS(file = "Models/model_rev_20_3lv.c.rds")
+model_name <- model_rev_20_3lv.c
+#notes
+  #performance plots better and probably acceptable
+  #both corrplots look fine
+  #AICc = 12930.9
+  #THIS IS THE OPTION FOR THIS MODEL STRUCTURE
+
+#what about 2 LVs
+model_rev_20_2lv.c <- readRDS(file = "Models/model_rev_20_2lv.c.rds")
+model_name <- model_rev_20_2lv.c
+#notes
+  #performance plots pretty good
+  #corrplots slightly chunky
+  #AICc = 13305.27
 
 
 
@@ -472,5 +902,4 @@ corrplot(Env[order.single(Env), order.single(Env)],
 summary(model_name)
 VP(model_name)
 AICc(model_name)
-
 
