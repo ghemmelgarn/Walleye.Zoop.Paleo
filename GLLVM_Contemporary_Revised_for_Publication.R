@@ -761,6 +761,8 @@ conc_quad_results <- conc_quad_results[order(conc_quad_results$AICc), ]
 print("--- GRID SEARCH COMPLETE ---")
 print(conc_quad_results)
 
+
+#THE FINAL MODEL-------------------------------------------------------
 #so this just shows what we would expect where more lvs are better, did not get to increasing again
 #lets look at best one
 model_rev_19_4lv.c <- readRDS(file = "Models/model_rev_19_4lv.c.rds")
@@ -770,6 +772,7 @@ model_name <- model_rev_19_4lv.c
   #both corrplots look good
   #AICc = 12698.7
   #THIS IS THE OPTION FOR THIS MODEL STRUCTURE
+  #YES THIS IS THE ONE, BECAUSE BERT SAYS CONCURRENT ORD IS BEST AND WE WANT THE QUADRATIC/UNIMODAL STRUCTURE BECAUSE IT MAKES ECOLOGICAL SENSE
 
 #lets see if we can get 5lvs to fit
 model_rev_19_5lv.c <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesignData,
@@ -782,6 +785,7 @@ model_rev_19_5lv.c <- gllvm(y = y.matrix, X = x_scale, studyDesign = studyDesign
 beep()
 #save the model
 #saveRDS(model_rev_19_5lv.c, file = "Models/model_rev_19_5lv.c.rds")
+model_rev_19_5lv.c <- readRDS(file = "Models/model_rev_19_5lv.c.rds")
 #set current name for exploration
 model_name <- model_rev_19_5lv.c
 #notes
