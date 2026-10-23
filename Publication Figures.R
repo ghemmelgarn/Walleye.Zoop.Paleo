@@ -26,9 +26,7 @@ library(gridtext) #for special annotations
 library(geomtextpath) #for text on lines
 
 #SETUP---------------------------------------------------
-#read in model - right now we have two options:
-#hybrid ordination, 3rr, 2lv, not quadratic:
-model1 <- readRDS(file = "Models/model_rev_17_3RR_2LV.rds")
+#read in model
 #concurrent ordination, 4lvc, quadratic:
 model2 <- readRDS(file = "Models/model_rev_19_4lv.c.rds")
 
