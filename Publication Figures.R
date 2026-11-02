@@ -28,9 +28,9 @@ library(geomtextpath) #for text on lines
 #SETUP---------------------------------------------------
 #read in model
 #concurrent ordination, 4lvc, quadratic:
-model2 <- readRDS(file = "Models/model_rev_19_4lv.c.rds")
+model <- readRDS(file = "Models/model_rev_19_4lv.c.rds")
 
-#Correct species names for nice plots and create a dataframe to easily apprend abbreviations when needed
+#Correct species names for nice plots and create a dataframe to easily append abbreviations when needed
 new_names <- c("Black Crappie", "Bluegill", "Bullhead", "Bowfin", "Burbot", "Cisco", "Common Carp", "Golden Shiner", "Hybrid Sunfish", "Lake Whitefish", 
                "Largemouth Bass", "Muskellunge", "Northern Pike", "Pumpkinseed", "Rainbow Smelt", "Redhorse", "Rock Bass", "Sauger", "Silver Lamprey", "Smallmouth Bass",
                "Walleye", "White Sucker", "Yellow Perch", "Bythotrephes spp.", "Alona spp.", "Bosmina longirostris", "Ceriodaphnia spp.", "Chydorus sphaericus",
@@ -52,21 +52,13 @@ group <- c("Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish", "Fish
 master.names<- as.data.frame(cbind(new_names, abbrv_names, group)) %>% 
   rename(Species = new_names)
 
-#model1
-colnames(model1$y) <- new_names
-rownames(model1$params$theta) <- new_names
-names(model1$params$beta0) <- new_names
-names(model1$params$phi) <- new_names
-names(model1$sd$beta0) <- new_names
-names(model1$sd$phi) <- new_names
+colnames(model$y) <- new_names
+rownames(model$params$theta) <- new_names
+names(model$params$beta0) <- new_names
+names(model$params$phi) <- new_names
+names(model$sd$beta0) <- new_names
+names(model$sd$phi) <- new_names
 
-#model2
-colnames(model2$y) <- new_names
-rownames(model2$params$theta) <- new_names
-names(model2$params$beta0) <- new_names
-names(model2$params$phi) <- new_names
-names(model2$sd$beta0) <- new_names
-names(model2$sd$phi) <- new_names
 
 #my chosen color-blind friendly palette frotm https://davidmathlogic.com/colorblind/#%23332288-%23117733-%2344AA99-%2388CCEE-%23DDCC77-%23CC6677-%23AA4499-%23882255
 cb_colors <- c(
@@ -84,10 +76,13 @@ cb_colors <- c(
 
 
 #MODEL POWER-----------------------------------
-model1$Power
-model2$Power
+model$Power
 
-AICc(model2)
+
+#MODEL SUMMARY--------------------
+summary(model)
+#note that this summary function works on personal laptop but not work laptop because of different gllvm versions
+#model was fit on personal laptop, so summary function works in same version of gllvm in which the model was fit
 
 #DIAGNOSTIC PLOTS----------------------------------------------------------
 #look at all
@@ -96,7 +91,7 @@ plot(model)
 plot(model, var.color = "black")
 
 #make and save a layout
-#png("performance_layout_m2.png", width = 6.5, height = 6, units = "in", res = 600)
+#png("performance_layout.png", width = 6.5, height = 6, units = "in", res = 600)
 #set up 2x2 grid
 par(mfrow = c(3,2))
 #first plot
@@ -150,94 +145,66 @@ mtext("E",
 par(mfrow = c(1,1))
 #dev.off()
 
-#save same layout as an svg - DON'T USE SVG FOR THIS: TOO MANY DOTS AND MAKES WORD CRASH
-# #svg("performance_layout.svg", width = 6.5, height = 6)
-# #set up 2x2 grid
-# par(mfrow = c(3,2))
-# #first plot
-# plot(model, which = 1, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
-# #custom titles to make things capitalized
-# title(xlab = "Linear Predictors", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Linear Predictors")   
-# #annotate letter label
-# mtext("A", 
-#       side = 3, #3 for the top margin
-#       line = 1, #bigger number here moves it further up in plot space
-#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.1, #text size
-#       font = 2) #2 = bold
-# #same thing for the rest of the plots  
-# plot(model, which = 2, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
-# title(xlab = "Theoretical Quantiles", ylab = "Dunn-Smyth-Residuals", main = "Normal Q-Q")
-# mtext("B", 
-#       side = 3, #3 for the top margin
-#       line = 1, #bigger number here moves it further up in plot space
-#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.1, #text size
-#       font = 2) #2 = bold
-# 
-# plot(model, which = 3, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black")
-# title(xlab = "Site Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Row")
-# mtext("C", 
-#       side = 3, #3 for the top margin
-#       line = 1, #bigger number here moves it further up in plot space
-#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.1, #text size
-#       font = 2) #2 = bold
-# 
-# plot(model, which = 4, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
-# title(xlab = "Species Index", ylab = "Dunn-Smyth-Residuals", main = "Residuals vs. Column")
-# mtext("D", 
-#       side = 3, #3 for the top margin
-#       line = 1, #bigger number here moves it further up in plot space
-#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.1, #text size
-#       font = 2) #2 = bold
-# plot(model, which = 5, cex = 0.7, lwd = 0.5, ann = FALSE, var.color = "black") 
-# title(xlab = "Linear Predictors", ylab = expression(sqrt("Dunn-Smyth-Residuals")), main = "Scale-Location")
-# mtext("E", 
-#       side = 3, #3 for the top margin
-#       line = 1, #bigger number here moves it further up in plot space
-#       adj = -0.05, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.1, #text size
-#       font = 2) #2 = bold
-# #reset par
-# par(mfrow = c(1,1))
-# #dev.off()
 
 #VARIANCE PARTITIONING----------------------------------
 #calculate variation explained by environment vs. residual
 
-#colors for my variance partitioning where I want random lake effect to be gray
+#OKAY RIGHT NOW I HAVE THIS AS EACH AXIS, BUT CAN I GET ENV vs. RESIDUAL PARTS OF EACH AXIS??
+
+#colors for my variance partitioning where I want random lake effect to be gray (checked on colorblind checker https://davidmathlogic.com/colorblind/#%23D4D4D-%236292BB-%2334C7A0-%239453A0-%23E2A826 )
 vp_colors <- c(
   "#4D4D4D",
-  "#F0E442",
-  "#E69F00",
-  "#D55E00",
+  "#E2A826",
   "#56B4E9",
-  #"#0072B2",
-  "#004987"
+  "#9453A0",
+  "#009069"
 )
+
+#use these colors of I decide to plot linear and quadratic separately:
+# vp_colors <- c(
+#   "#4D4D4D",
+#   "#CC79A7",
+#   "#753B5D",
+#   "#56B4E9",
+#   "#004987",
+#   "#E69F00",
+#   "#D55E00",
+#   "#04ECAD",
+#   "#009069"
+# )
 
 #average of all species
 VP <- VP(model)
 VP
 #plot by species base R
-plot(VP, col = cb_colors, main = "", xlab = "Taxon", ylab = "Variance Proportion", legend.text = NULL)
+plot(VP, col = vp_colors, main = "", xlab = "Taxon", ylab = "Variance Proportion", legend.text = NULL)
 #ggplot by species for publication
 #extract values as data frame
 VP.df <- as.data.frame(VP[["PropExplainedVarSp"]]) %>% 
-  rename("Environmental Axis 1" = "CLV1:X/CLV1^2",
-         "Environmental Axis 2" = "CLV2:X/CLV2^2",
-         "Residual Axis 1" = "LV1/LV1^2",
-         "Residual Axis 2" = "LV2/LV2^2",
-         "Residual Axis 3" = "LV3/LV3^2",
+  rename("Axis 1" = "CLV1:X/CLV1",
+         "Axis 2" = "CLV2:X/CLV2",
+         "Axis 3" = "CLV3:X/CLV3",
+         "Axis 4" = "CLV4:X/CLV4",
+         "Axis 1^2" = "CLV1^2",
+         "Axis 2^2" = "CLV2^2",
+         "Axis 3^2" = "CLV3^2",
+         "Axis 4^2" = "CLV4^2",
          "Random Lake Effect" = "Row random effect: lake"
          )
-VP.df <- VP.df %>% 
+VP.df.spp <- VP.df %>% 
   mutate(Species = rownames(VP.df))%>% 
   left_join(master.names, by = "Species")
+
+#add the variance of the linear and quadratic terms together
+VP.df.sum <- VP.df.spp %>% 
+  mutate(`Axis 1` = `Axis 1` + `Axis 1^2`,
+         `Axis 2` = `Axis 2` + `Axis 2^2`,
+         `Axis 3` = `Axis 3` + `Axis 3^2`,
+         `Axis 4` = `Axis 4` + `Axis 4^2`) %>% 
+  select(-`Axis 1^2`, -`Axis 2^2`, -`Axis 3^2`, -`Axis 4^2`)
+
 #pivot longer
-VP.df.long <- pivot_longer(VP.df, cols = "CLV:secchi.mean":"Row random effect: lake", names_to = "Variance Component", values_to = "Proportion") %>% 
+VP.df.long <- pivot_longer(VP.df.sum, cols = "Axis 1":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
   #make species a factor so I can put them in the order I want
   mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
                                               "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass", "Silver Lamprey",
@@ -248,38 +215,12 @@ VP.df.long <- pivot_longer(VP.df, cols = "CLV:secchi.mean":"Row random effect: l
                                               "Daphnia galeata mendotae", "Daphnia pulicaria", "Bythotrephes spp."))) %>% 
   #change variance component factor levels so I put them in the order I want
   mutate(`Variance Component` = factor(`Variance Component`, levels = c("Random Lake Effect",
-                                                                        "Residual Axis 3", "Residual Axis 2", "Residual Axis 1",
-                                                                        "Environmental Axis 3", "Environmental Axis 2", "Environmental Axis 1")))
+                                                                        "Axis 4^2", "Axis 4",
+                                                                        "Axis 3^2", "Axis 3",
+                                                                        "Axis 2^2", "Axis 2",
+                                                                        "Axis 1^2", "Axis 1")))
 
-#old versions of plots
-# VP_plot <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
-#   geom_col()+
-#   scale_fill_manual(values = vp_colors)+
-#   labs(x = "Taxon", y = "Variance Proportion", fill = "")+
-#   theme_classic(base_size = 11)+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
-#         legend.position = "top",
-#         legend.direction = "horizontal")+
-#   guides(fill = guide_legend(nrow = 2, byrow = TRUE, reverse = TRUE))
-# VP_plot
-# #save plot
-# #ggsave("VP_plot_top_legend.png", plot = VP_plot, width = 7, height = 6, units = "in", dpi = 600)
-# 
-# #make a version with the legend on the right
-# VP_plot_r <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
-#   geom_col()+
-#   scale_fill_manual(values = vp_colors)+
-#   labs(x = "Taxon", y = "Variance Proportion", fill = "")+
-#   theme_classic(base_size = 11)+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1),
-#         legend.text = element_text(size = 8),
-#         legend.box.margin = margin(0,0,0,-10))
-# VP_plot_r
-# #save plot
-# #ggsave("VP_plot.png", plot = VP_plot_r, width = 7, height = 6, units = "in", dpi = 600)
-# 
-# 
-#try swapping the axes
+#plot
 VP_plot_coordflip <- ggplot(data = VP.df.long, aes(x = Species, y =Proportion, fill = `Variance Component`))+
   geom_col()+
   scale_fill_manual(values = vp_colors)+
@@ -295,22 +236,24 @@ VP_plot_coordflip
 #ggsave("VP_plot_coordflip.png", plot = VP_plot_coordflip, width = 6.5, height = 6.5, units = "in", dpi = 600)
 
 #percentages split by fish and zoops
-VP.fish.zoop <- VP.df %>% 
+VP.fish.zoop <- VP.df.sum %>% 
   group_by(group) %>% 
-  summarize(`Environmental Axis 1` = mean(`Environmental Axis 1`),
-            `Environmental Axis 2` = mean(`Environmental Axis 2`),
-            #`Environmental Axis 3` = mean(`Environmental Axis 3`),
-            `Residual Axis 1` = mean(`Residual Axis 1`),
-            `Residual Axis 2` = mean(`Residual Axis 2`),
-            `Residual Axis 3` = mean(`Residual Axis 3`),
+  summarize(`Axis 1` = mean(`Axis 1`),
+            `Axis 2` = mean(`Axis 2`),
+            `Axis 3` = mean(`Axis 3`),
+            `Axis 4` = mean(`Axis 4`),
             `Random Lake Effect` = mean(`Random Lake Effect`),
             .groups = 'drop')
 
 #plot this
 #pivot longer
-VP.fish.zoop.long <- pivot_longer(VP.fish.zoop, cols = "Environmental Axis 1":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
+VP.fish.zoop.long <- pivot_longer(VP.fish.zoop, cols = "Axis 1":"Random Lake Effect", names_to = "Variance Component", values_to = "Proportion") %>% 
   #change variance component factor levels so I put them in the order I want
-  mutate(`Variance Component` = factor(`Variance Component`, levels = c("Random Lake Effect", "Residual Axis 3", "Residual Axis 2", "Residual Axis 1", "Environmental Axis 3", "Environmental Axis 2", "Environmental Axis 1")))
+  mutate(`Variance Component` = factor(`Variance Component`, levels = c("Random Lake Effect",
+                                                                        "Axis 4^2", "Axis 4",
+                                                                        "Axis 3^2", "Axis 3",
+                                                                        "Axis 2^2", "Axis 2",
+                                                                        "Axis 1^2", "Axis 1")))
 VP_fish_zoop <- ggplot(data = VP.fish.zoop.long, aes(x = group, y =Proportion, fill = `Variance Component`))+
   geom_col()+
   scale_fill_manual(values = vp_colors)+
@@ -333,14 +276,40 @@ VP_layout
 #ggsave("VP_layout.svg", plot = VP_layout, width = 6.5, height = 7.5, units = "in", dpi = 600)
 
 
-#calculate combined % of variance explained by LVs by taxon
-VP.df.LVcombo <- VP.df %>% 
-  mutate(LV.all = `Residual Axis 1` + `Residual Axis 2` + `Residual Axis 3`,
-         CLV.all = `Environmental Axis 1` + `Environmental Axis 2`)
+#calculate explained/unexplained by environment part of each CLV
 
-VP.df.LVcombo.cent <- VP.df.LVcombo %>% 
-  filter(abbrv_names == "LMB" | abbrv_names == "BLC" | abbrv_names == "PMK" | abbrv_names == "BLG" | abbrv_names == "RKB" | abbrv_names == "HSF" | abbrv_names == "SMB" | abbrv_names == "WAE")
+    #extract matrix of environmental covariates put into model (this is the standardized values of those predictors)
+    x_matrix <- model$lv.X %>% 
+      #have to turns yes/no into 1 and 0
+      mutate(wae.stock = ifelse(wae.stock == "yes", 1, 0),
+             zm = ifelse(zm == "yes", 1, 0))
+    
+    #extract coefficients of for each covariate on each CLV
+    x_coef <- model$params$LvXcoef
+    
+    #calculate predicted environmental scores for each CLV
+    env_scores <- as.matrix(x_matrix) %*% as.matrix(x_coef)
+    
+    #calculate variance of each score on each CLV
+    var_env <- apply(env_scores, 2, var)
+    
+    #extract residual standard deviation and square it to get residual variance
+    var_res <- (model$params$sigma.lv)^2 #VERIFY THAT THIS IS TRUE!!
+   
+    #get total variance by adding the residual and env. variation together
+    var_total <- var_env + var_res
+    
+    #calcualte the proportion environmental and proporion residual variance for each CLV
+    prop_env <- var_env / var_total
+    prop_res <- var_res / var_total
+    
+    #combine them into a nice table
+    VP_env_res <- rbind(prop_env, prop_res, var_env, var_res, var_total)
+    VP_env_res
 
+
+
+coefplot(model)
 
 #GOODNESS OF FIT------------------------------------------------------------
 #okay, but how much of the variation is actually explained by the model?
@@ -353,14 +322,13 @@ VP.df.LVcombo.cent <- VP.df.LVcombo %>%
 
 #BUT, WE CAN DO A GOODNESS OF FIT METRIC LIKE BELOW:
 #goodness of fit metrics
-goodnessOfFit(y = as.matrix(y.matrix), pred = as.matrix(predict(model, type = "response")))
+goodnessOfFit(model)
 
 #make these species-specific
-goodnessOfFit(y = as.matrix(y.matrix), pred = as.matrix(predict(model, type = "response")), species = TRUE)
-GOF.spp <- as.data.frame(goodnessOfFit(y = as.matrix(y.matrix), pred = as.matrix(predict(model, type = "response")), species = TRUE))
+GOF.spp <- as.data.frame(goodnessOfFit(model, species = TRUE))
 rownames(GOF.spp) <- new_names
 #save this
-#write.csv(GOF.spp, file = "Data/Output/gllvm_GOF_by_species.csv")
+#write.csv(GOF.spp, file = "Data/Output/gllvm_GOF_by_species_rev_for_pub.csv")
 
 #plot MARNE
 GOF.spp.plot <- GOF.spp %>% 
