@@ -347,26 +347,213 @@ MAE_plot
 
 
 
-
-
 #EXTRACT CLV AXIS LOADINGS-------------------------------------------------------
 # Extract the effects of predictors on the Latent Variables (RR axes)
 clv_load <- as.data.frame(model$params$LvXcoef) %>% 
   mutate(Param = rownames(model$params$LvXcoef)) %>% 
-  mutate(Param = ifelse(Param == "log.Area", "Lake Area",
-                         ifelse(Param == "GDD", "Degree Days",
-                                ifelse(Param == "Max_Depth", "Maximum Depth", 
-                                       ifelse(Param == "logit.Photic", "Littoral Zone",
-                                              ifelse(Param == "Precip", "Annual Precipitation",
-                                                     ifelse(Param == "SWFyes", "Spiny Water Flea Presence",
-                                                            ifelse(Param == "ZMyes", "Zebra Mussel Presence", Param))))))))
+  mutate(Param = ifelse(Param == "log.area", "Lake Area",
+                         ifelse(Param == "secchi.mean", "Mean Secchi",
+                                ifelse(Param == "secchi.dev", "Secchi Deviation", 
+                                       ifelse(Param == "gdd.mean", "Mean Degree Days",
+                                              ifelse(Param == "gdd.dev", "Degree Days Deviation",
+                                                     ifelse(Param == "precip.mean", "Mean Annual Precipitation",
+                                                            ifelse(Param == "precip.dev", "Annual Precipitation Deviation",
+                                                                   ifelse(Param == "cdom", "CDOM",
+                                                                          ifelse(Param == "depth.max", "Maximum Depth",
+                                                                                 ifelse(Param == "depth.mean", "Mean Depth",
+                                                                                        ifelse(Param == "wae.stockyes", "Walleye stocking",
+                                                                                               ifelse(Param == "zmyes", "Zebra Mussel Presence",Param)))))))))))))
 
 clv_load_long <- pivot_longer(clv_load, cols = CLV1:CLV4, names_to = "CLV", values_to = "Loading")
 
 
-#SPECIES OPTIMA-------------------
+#PREDICTOR EFFECTS ON CLVs-------------------------------------------------
+
+# #This "semi-partial R^2" "measures the importance of the predictors in explaining the latent variables, not the importance of the predictors in explaining the response data"
+# #"the correct interpretation of R2B is the (generalized) residual variation a particular predictor can account for, after accounting for all other predictors in the model"
+# #See (van der Veen et al. 2023) page 688
+# 
+# 
+# #got this function from (van der Veen et al. 2024):
+# partR2.gllvm <- function(object, digits = 3L, ...){
+#   if(object$num.lv.c==0&object$num.RR==0){
+#     stop("Cannot calculate partial R^2 for the latent variables if no predictor are included. \n")
+#   }
+#   if(is.null(object$sd)|all(unlist(object$sd)==FALSE)){
+#     cat("Standard errors not present in model, calculating...\n")
+#     object$Hess<-se.gllvm(object)$Hess 
+#   }
+#   covB <- object$Hess$cov.mat.mod
+#   colnames(covB) <- row.names(covB) <- names(object$TMBfn$par)[object$Hess$incl]
+#   covB <- covB[row.names(covB)=="b_lv",colnames(covB)=="b_lv"]
+#   K <- ncol(object$lv.X)
+#   N <- nrow(object$lv.X)
+#   d <- object$num.lv.c+object$num.RR
+#   df=d*K
+#   resid.df = dim(object$y)[1]*d-df
+#   num.df <- d
+#   partR2<-rep(0,ncol(object$lv.X))
+#   names(partR2)<-colnames(object$lv.X)
+#   
+#   for(i in 1:ncol(object$lv.X)){
+#     covBinv <- try(solve(covB[seq(i,K*d,by=K),seq(i,K*d,by=K)]),silent=T)
+#     if(inherits(covBinv,"try-error")){
+#       covBinv <- MASS::ginv(covB[seq(i,K*d,by=K),seq(i,K*d,by=K)],tol=0)
+#     }
+#     Ft <- object$params$LvXcoef[i,]%*%covBinv%*%object$params$LvXcoef[i,]/d
+#     partR2[i]<-(num.df*resid.df^-1*Ft)/(1+num.df*resid.df^-1*Ft)
+#   }
+#   
+#   covBinv <- try(solve(covB),silent=T)
+#   if(inherits(covBinv,"try-error")){
+#     covBinv <- MASS::ginv(covB)
+#   }
+#   
+#   Ftfull <- c(object$params$LvXcoef)%*%covBinv%*%c(object$params$LvXcoef)/(K*d)
+#   
+#   partR2f<-(df*resid.df^-1*Ftfull)/(1+df*resid.df^-1*Ftfull)
+#   
+#   cat("R^2 for latent variables:", zapsmall(partR2f,digits), "\n \n")
+#   cat("Partial R^2 for predictors and all LVs: \n")
+#   print(zapsmall(partR2,digits))
+#   
+#   invisible(list(partR2full=partR2f,partR2=partR2))
+# }
+# 
+# #try the function!
+# partR2.gllvm(model)
+#so this function does not work because I have random structure in my canonical coefficients (RandomB = LV)
+#but in the paper, Bert says:
+#"To assess importance of predictors when the canonical coefficients are treated as random-effects instead, the scale parameters for the canonical coefficients and for the LV-level error can  be used to construct a R2 similar to, for example Nakagawa and  Schielzeth (2013)."
+#so I need to try that...
+#also from lecture slides "we can use the variance of the random effects for proportion of explained variation" - same idea
+
+
+#calculate an proportion of LV variance explained per predictor per latent variable
+#extract predictor matrix, make categorical variables 1 and 0
+x_matrix <- model$lv.X %>% 
+  mutate(wae.stock = ifelse(wae.stock == "yes", 1, 0),
+         zm = ifelse(zm == "yes", 1, 0))
+#calculate variance of each predictor
+var_x <- apply(x_matrix, 2, var) #mostly comes out to 1 because they are standardized...
+#calculate total variance of predctors by summing those
+total_var_x <- sum(var_x)
+#save the number of variables and number of lvs
+K <- ncol(x_matrix) #number of variables = 12
+d <- model$num.lv.c #number of latent variables = 4
+#extract canonical coefficients (slopes) for each predictor on each LV
+B_hat <- model$params$LvXcoef
+#extract the shared variance of all predictors for each LV - I forced this with random structure
+var_LvXcoef <- model$params$sigmaLvXcoef^2
+#extract residual unexplained variance per lv
+var_lv_resid <- model$params$sigma.lv^2
+#calculate the marginal R2 for each axis
+var_pred_perLV <- total_var_x * var_LvXcoef #multiple total variance of predictors by the variance of the canonical coefficients
+total_var_perLV <- var_pred_perLV + var_lv_resid #calculate total variance on each axis by adding total predictor variance to residual variance
+r2_perLV <- var_pred_perLV/total_var_perLV
+#create a matrix for the R2 of each predictor for each LV
+r2_matrix <- matrix(0, nrow=K+1, ncol=d)
+rownames(r2_matrix) <- c(colnames(x_matrix), "Unexplained Residual")
+colnames(r2_matrix) <- names(r2_perLV)
+#fill the matrix
+for(q in 1:d){
+  #calculate the R2 of each predictor on each Lv by multiplying each canonical coefficient squared by it's variance in the predictor matrix
+  pred_var_q <- B_hat[, q]^2 * var_x
+  #extract the unexplained residual variance for desired LV
+  resid_var_q <- var_lv_resid[q]
+  #calculate total axis variance for desired LV
+  total_var_q <- sum(pred_var_q) + resid_var_q
+  #calculate proportion of total variance contributed by each predictor and the residual
+  r2_matrix[1:K, q] <- pred_var_q / total_var_q
+  r2_matrix[K+1, q] <- resid_var_q / total_var_q
+}
+r2_matrix <- as.data.frame(r2_matrix)
+colSums(r2_matrix)
+#great, it all adds up to 1
+
+#for each axis, I want to make a plot showing the proportion of variance explained by that LV attributable to each predictor and the unexplained portion too
+#format the canonical coefficent loadings into positive and negative to join to this
+clv_load_direction <- clv_load %>% 
+  mutate(CLV1_dir = ifelse(CLV1 > 0, "Positive", "Negative"),
+         CLV2_dir = ifelse(CLV2 > 0, "Positive", "Negative"),
+         CLV3_dir = ifelse(CLV3 > 0, "Positive", "Negative"),
+         CLV4_dir = ifelse(CLV4 > 0, "Positive", "Negative")) %>% 
+  add_row() %>% 
+  select(-CLV1, -CLV2, -CLV3, -CLV4, -Param)
+
+LV_vp_plotdata <- r2_matrix %>% 
+  mutate(Param = c(clv_load$Param, "Unexplained Residual")) %>% 
+  cbind(clv_load_direction) %>% 
+  mutate(CLV1_dir = factor(CLV1_dir, levels = c("Positive", "Negative")),
+         CLV2_dir = factor(CLV2_dir, levels = c("Positive", "Negative")),
+         CLV3_dir = factor(CLV3_dir, levels = c("Positive", "Negative")),
+         CLV4_dir = factor(CLV4_dir, levels = c("Positive", "Negative")))
+
+
+clv1_vp <- ggplot(data = LV_vp_plotdata, aes(x = reorder(Param, -CLV1), y = CLV1, fill = CLV1_dir))+
+  geom_col()+
+  labs(x = NULL, y = "Proportion of CLV1\nVariance Explained", fill = "Direction of Influence")+
+  scale_fill_manual(values = c("#5e3c99", "#E66101"))+
+  theme_classic(base_size = 11)+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  theme(
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.y = unit(0.1, "cm"),
+    legend.margin = margin(t = 2, r = 2, b = 2, l = 2))
+clv1_vp
+
+clv2_vp <- ggplot(data = LV_vp_plotdata, aes(x = reorder(Param, -CLV2), y = CLV2, fill = CLV2_dir))+
+  geom_col()+
+  labs(x = NULL, y = "Proportion of CLV2\nVariance Explained", fill = "Direction of Influence")+
+  scale_fill_manual(values = c("#5e3c99", "#E66101"))+
+  theme_classic(base_size = 11)+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  theme(
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.y = unit(0.1, "cm"),
+    legend.margin = margin(t = 2, r = 2, b = 2, l = 2))
+clv2_vp
+
+clv3_vp <- ggplot(data = LV_vp_plotdata, aes(x = reorder(Param, -CLV3), y = CLV3, fill = CLV3_dir))+
+  geom_col()+
+  labs(x = NULL, y = "Proportion of CLV3\nVariance Explained", fill = "Direction of Influence")+
+  scale_fill_manual(values = c("#5e3c99", "#E66101"))+
+  theme_classic(base_size = 11)+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  theme(
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.y = unit(0.1, "cm"),
+    legend.margin = margin(t = 2, r = 2, b = 2, l = 2))
+clv3_vp
+
+clv4_vp <- ggplot(data = LV_vp_plotdata, aes(x = reorder(Param, -CLV4), y = CLV4, fill = CLV4_dir))+
+  geom_col()+
+  labs(x = NULL, y = "Proportion of CLV4\nVariance Explained", fill = "Direction of Influence")+
+  scale_fill_manual(values = c("#5e3c99", "#E66101"))+
+  theme_classic(base_size = 11)+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))+
+  theme(
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.y = unit(0.1, "cm"),
+    legend.margin = margin(t = 2, r = 2, b = 2, l = 2))
+clv4_vp
+
+
+
+#SPECIES OPTIMA / lv.X#SPECIES OPTIMA / LINEAR COEF -------------------
 #BASED ON van der Veen et al. 2021, it is best to plot species optima directly with the quadratic effect rather than doing ordinations
 #can use ellipses to show species range tolerances (in an ordination if I did that, which I'm not)
+
+#this section also make layouts with the CLV-specific variance partitioning plots I made in previous section
+#No longer using the raw canonical coefficient plots because need to show portion of unexplained variance too
 
 #extract species coefficients
 spec_coef <- as.data.frame(model[["params"]][["theta"]])
@@ -468,29 +655,35 @@ CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_coef, y = 
   geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
   scale_shape_manual(values = c("no" = 1, "yes" = 16))+
-  guides(shape = "none")+
+  guides(shape = "none", color = guide_legend(byrow = TRUE, keyheight = unit(0.5, "cm")))+
   labs(x = "CLV1 Linear Coefficient", y = "Taxon", color = "")+
   #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)+
-  theme(legend.position = "right")
+  theme(legend.position = "right")+
+  theme(
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.y = unit(0.3, "cm"),
+    legend.margin = margin(t = 2, r = 2, b = 2, l = 2))
 CLV1_plot_forlayout
-clv1_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV1), y = CLV1))+
-  geom_col()+
-  labs(x = "Environmental Variable", y = "CLV1 Canonical Coefficient")+
-  theme_classic(base_size = 11)+
-  coord_flip()
-#scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
-clv1_loadings
+# clv1_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV1), y = CLV1))+
+#   geom_col()+
+#   labs(x = "Environmental Variable", y = "CLV1 Canonical Coefficient")+
+#   theme_classic(base_size = 11)+
+#   coord_flip()
+# #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+# clv1_loadings
 
-CLV1_layout <- clv1_loadings / plot_spacer() / CLV1_plot_forlayout +
+CLV1_layout <- clv1_vp / plot_spacer() / CLV1_plot_forlayout +
   plot_layout(height = c(1, 0.05, 3))+ 
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.33, 1))
+        plot.tag.position = c(0.1, 1))
 CLV1_layout
-#ggsave("clv1_layout.png", plot = CLV2_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-#ggsave("clv1_layout.svg", plot = CLV2_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+# ggsave("clv1_layout.png", plot = CLV1_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+# ggsave("clv1_layout.svg", plot = CLV1_layout, width = 6.5, height = 8, units = "in", dpi = 600)
 
 
 #CLV2
@@ -508,40 +701,90 @@ CLV2_plot_forlayout <- ggplot(data = opt_plot_data_CLV2, aes(x = CLV2_coef, y = 
   geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
   scale_shape_manual(values = c("no" = 1, "yes" = 16))+
-  guides(shape = "none")+
+  guides(shape = "none", color = guide_legend(byrow = TRUE, keyheight = unit(0.5, "cm")))+
   labs(x = "CLV2 Linear Coefficient", y = "Taxon", color = "")+
   #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)+
-  theme(legend.position = "right")
+  theme(legend.position = "right")+
+  theme(
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.y = unit(0.3, "cm"),
+    legend.margin = margin(t = 2, r = 2, b = 2, l = 2))
 CLV2_plot_forlayout
-clv2_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV2), y = CLV2))+
-  geom_col()+
-  labs(x = "Environmental Variable", y = "CLV2 Canonical Coefficient")+
-  theme_classic(base_size = 11)+
-  coord_flip()
-  #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
-clv2_loadings
+# clv2_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV2), y = CLV2))+
+#   geom_col()+
+#   labs(x = "Environmental Variable", y = "CLV2 Canonical Coefficient")+
+#   theme_classic(base_size = 11)+
+#   coord_flip()
+#   #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+# clv2_loadings
 
-CLV2_layout <- clv2_loadings / plot_spacer() / CLV2_plot_forlayout +
+CLV2_layout <- clv2_vp / plot_spacer() / CLV2_plot_forlayout +
   plot_layout(height = c(1, 0.05, 3))+ 
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.33, 1))
+        plot.tag.position = c(0.1, 1))
 CLV2_layout
-#ggsave("clv2_layout.png", plot = CLV2_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-#ggsave("clv2_layout.svg", plot = CLV2_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-
-#START HERE - MAKE THE PLOT FOR CLV4 AND THEN THE CLV3 quadratic version
+# ggsave("clv2_layout.png", plot = CLV2_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+# ggsave("clv2_layout.svg", plot = CLV2_layout, width = 6.5, height = 8, units = "in", dpi = 600)
 
 
-#Make similar layouts for CLV1 and 3 with their optima
-opt_plot_data_CLV1 <- opt_plot_data %>% 
-  mutate(lower = CLV1_opt-(1.96*CLV1_opt_se),
-         upper = CLV1_opt+(1.96*CLV1_opt_se),
-         #determine if greater than 10 or not - to interpret linearly
-         linear = ifelse(CLV1_opt < -10 | CLV1_opt > 10, "yes", "no"))
-CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = Species))+
+#CLV4
+opt_plot_data_CLV4 <- opt_plot_data %>% 
+  mutate(lower = CLV4_coef-(1.96*CLV4_coef_se),
+         upper = CLV4_coef+(1.96*CLV4_coef_se),
+         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
+CLV4_plot_forlayout <- ggplot(data = opt_plot_data_CLV4, aes(x = CLV4_coef, y = Species))+
+  scale_y_discrete(limits = rev)+
+  #vertical line at 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
+  #95% confidence intervals
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
+  #point estimate
+  geom_point(aes(color = group, shape = sig), size = 3, stroke = 0.75)+
+  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
+  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
+  guides(shape = "none", color = guide_legend(byrow = TRUE, keyheight = unit(0.5, "cm")))+
+  labs(x = "CLV4 Linear Coefficient", y = "Taxon", color = "")+
+  #scale_x_continuous(limits = c(-19, 22))+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "right")+
+  theme(
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.y = unit(0.3, "cm"),
+    legend.margin = margin(t = 2, r = 2, b = 2, l = 2))
+CLV4_plot_forlayout
+# clv4_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV4), y = CLV4))+
+#   geom_col()+
+#   labs(x = "Environmental Variable", y = "CLV4 Canonical Coefficient")+
+#   theme_classic(base_size = 11)+
+#   coord_flip()
+# #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+# clv4_loadings
+
+CLV4_layout <- clv4_vp / plot_spacer() / CLV4_plot_forlayout +
+  plot_layout(height = c(1, 0.05, 3))+ 
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
+        plot.tag = element_text(size = 12, face = "bold"),
+        plot.tag.position = c(0.1, 1))
+CLV4_layout
+# ggsave("clv4_layout.png", plot = CLV4_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+# ggsave("clv4_layout.svg", plot = CLV4_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+
+
+
+#Make similar layout for CLV3 with the optima
+opt_plot_data_CLV3 <- opt_plot_data %>%
+  mutate(lower = CLV3_opt-(1.96*CLV3_opt_se),
+         upper = CLV3_opt+(1.96*CLV3_opt_se),
+         linear = ifelse(CLV3_opt < -10 | CLV3_opt > 10, "yes", "no"))
+CLV3_plot_forlayout <- ggplot(data = opt_plot_data_CLV3, aes(x = CLV3_opt, y = Species))+
   scale_y_discrete(limits = rev)+
   #vertical line at 0
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
@@ -553,253 +796,37 @@ CLV1_plot_forlayout <- ggplot(data = opt_plot_data_CLV1, aes(x = CLV1_opt, y = S
   #point estimate
   geom_point(aes(color = group, shape = linear), size = 3)+
   scale_shape_manual(values = c("no" = 16, "yes" = 1))+
-  guides(shape = "none")+
-  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "CLV1 Optimum", y = "Taxon", color = "")+
-  #scale_x_continuous(limits = c(-19, 22))+
-  theme_classic(base_size = 11)+
-  theme(legend.position = "right")
-CLV1_plot_forlayout
-clv1_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV1), y = CLV1))+
-  geom_col()+
-  labs(x = "Environmental Variable", y = "CLV1 Canonical Coefficient")+
-  theme_classic(base_size = 11)+
-  coord_flip()
-  #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
-clv1_loadings
-
-CLV1_layout <- clv1_loadings / plot_spacer() / CLV1_plot_forlayout +
-  plot_layout(height = c(1, 0.05, 3))+ 
-  plot_annotation(tag_levels = 'A') &
-  theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
-        plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.33, 1)) 
-CLV1_layout
-#ggsave("clv1_layout.png", plot = CLV1_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-#ggsave("clv1_layout.svg", plot = CLV1_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-
-
-opt_plot_data_CLV3 <- opt_plot_data %>%
-  mutate(lower = CLV3_opt-(1.96*CLV3_opt_se),
-         upper = CLV3_opt+(1.96*CLV3_opt_se),
-         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-CLV3_plot_forlayout <- ggplot(data = opt_plot_data_CLV3, aes(x = CLV3_opt, y = Species))+
-  scale_y_discrete(limits = rev)+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.4, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(color = group), size = 3, shape = 16)+
+  guides(shape = "none", color = guide_legend(byrow = TRUE, keyheight = unit(0.5, "cm")))+
   scale_color_manual(values = c("#88CCEE", "#CC6677"))+
   labs(x = "CLV3 Optimum", y = "Taxon", color = "")+
-  #coord_cartesian(xlim = c(-19, 22))+
+  #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)+
-  theme(legend.position = "right")
+  theme(legend.position = "right")+
+  theme(
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.y = unit(0.3, "cm"),
+    legend.margin = margin(t = 2, r = 2, b = 2, l = 2))
 CLV3_plot_forlayout
-clv3_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV3), y = CLV3))+
-  geom_col()+
-  labs(x = "Environmental Variable", y = "CLV3 Canonical Coefficient")+
-  theme_classic(base_size = 11)+
-  coord_flip()
-  #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
-clv3_loadings
+# clv3_loadings <- ggplot(data = clv_load, aes(x = reorder(Param, CLV3), y = CLV3))+
+#   geom_col()+
+#   labs(x = "Environmental Variable", y = "CLV3 Canonical Coefficient")+
+#   theme_classic(base_size = 11)+
+#   coord_flip()
+#   #scale_y_continuous(limits = c(-0.8, 0.4), breaks = c(-0.8, -0.4, 0, 0.4))
+# clv3_loadings
 
-CLV3_layout <- clv3_loadings / plot_spacer() / CLV3_plot_forlayout +
+CLV3_layout <- clv3_vp / plot_spacer() / CLV3_plot_forlayout +
   plot_layout(height = c(1, 0.05, 3))+
   plot_annotation(tag_levels = 'A') &
   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
         plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.33, 1))
+        plot.tag.position = c(0.1, 1))
 CLV3_layout
-#ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-#ggsave("clv3_layout.svg", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
-# 
+# ggsave("clv3_layout.png", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
+# ggsave("clv3_layout.svg", plot = CLV3_layout, width = 6.5, height = 8, units = "in", dpi = 600)
 
-
-
-# #make caterpillar plots for the other two linear predictors too
-# CLV3_plot <- ggplot(data = opt_plot_data, aes(x = CLV3_coef, y = reorder(taxon, CLV3_coef)))+
-#   #vertical line at 0
-#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-#   #95% confidence intervals
-#   geom_errorbar(aes(xmin = CLV3_coef-(1.96*CLV3_coef_se), xmax = CLV3_coef+(1.96*CLV3_coef_se)), width = 0.2, linewidth = 0.2)+
-#   #point estimate
-#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
-#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-#   labs(x = "CLV3 Linear Coefficient", y = "Taxon", fill = "")+
-#   scale_x_continuous(limits = c(-20.1, 10.1))+
-#   theme_classic(base_size = 11)
-# CLV3_plot
-# #ggsave("clv3_coef_95CI.png", plot = CLV3_plot, width = 7, height = 7, units = "in", dpi = 600)
-# 
-# CLV1_plot <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, CLV1_coef)))+
-#   #vertical line at 0
-#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-#   #95% confidence intervals
-#   geom_errorbar(aes(xmin = CLV1_coef-(1.96*CLV1_coef_se), xmax = CLV1_coef+(1.96*CLV1_coef_se)), width = 0.2, linewidth = 0.2)+
-#   #point estimate
-#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 3)+
-#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-#   labs(x = "CLV1 Linear Coefficient", y = "Taxon", fill = "")+
-#   #scale_x_continuous(limits = c(-20.1, 10.1))+
-#   theme_classic(base_size = 11)
-# CLV1_plot
-# #ggsave("clv1_coef_95CI.png", plot = CLV1_plot, width = 7, height = 7, units = "in", dpi = 600)
-
-
-
-
-
-
-
-
-
-# #make a version with all three plots together
-# CLV1_combo <- ggplot(data = opt_plot_data, aes(x = CLV1_coef, y = reorder(taxon, CLV1_coef)))+
-#   #vertical line at 0
-#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-#   #95% confidence intervals
-#   geom_errorbar(aes(xmin = CLV1_coef-(1.96*CLV1_coef_se), xmax = CLV1_coef+(1.96*CLV1_coef_se)), width = 0.2, linewidth = 0.2)+
-#   #point estimate
-#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-#   labs(x = "CLV1 Linear Coefficient", y = NULL, fill = "")+
-#   #scale_x_continuous(limits = c(-20.1, 10.1))+
-#   theme_classic()+
-#   theme(legend.position = "none")+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-#   coord_flip()
-# CLV1_combo
-# 
-# CLV2_combo <- ggplot(data = opt_plot_data, aes(x = CLV2_coef, y = reorder(taxon, CLV2_coef)))+
-#   #vertical line at 0
-#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-#   #95% confidence intervals
-#   geom_errorbar(aes(xmin = CLV2_coef-(1.96*CLV2_coef_se), xmax = CLV2_coef+(1.96*CLV2_coef_se)), width = 0.2, linewidth = 0.2)+
-#   #point estimate
-#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-#   labs(x = "CLV2 Linear Coefficient", y = NULL, fill = "")+
-#   scale_x_continuous(limits = c(-19, 5))+
-#   theme_classic()+
-#   theme(legend.position = "none")+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-#   coord_flip()
-# CLV2_combo
-# 
-# CLV3_combo <- ggplot(data = opt_plot_data, aes(x = CLV3_coef, y = reorder(taxon, CLV3_coef)))+
-#   #vertical line at 0
-#   geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-#   #95% confidence intervals
-#   geom_errorbar(aes(xmin = CLV3_coef-(1.96*CLV3_coef_se), xmax = CLV3_coef+(1.96*CLV3_coef_se)), width = 0.2, linewidth = 0.2)+
-#   #point estimate
-#   geom_point(aes(fill = group), color = "transparent", shape = 21, size = 2)+
-#   scale_fill_manual(values = c("#88CCEE", "#CC6677"))+
-#   labs(x = "CLV3 Linear Coefficient", y = "Taxon", fill = "")+
-#   scale_x_continuous(limits = c(-20.1, 10.1))+
-#   theme_classic()+
-#   theme(legend.position = "bottom",
-#         legend.margin = margin(t = -10,0,0,0, unit = "pt"))+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-#   coord_flip()
-# CLV3_combo
-# 
-# all_CLV <- (CLV1_combo / CLV2_combo / CLV3_combo) +
-#   plot_annotation(tag_levels = 'A') &
-#   theme(plot.margin = margin(5,5,5,12), #gives extra space on the left for long Eurycercus label
-#         plot.tag = element_text(size = 12, face = "bold"),
-#         plot.tag.position = c(0.1, 0.99)) 
-# all_CLV
-# #ggsave("CLV_coef_panel.png", plot = all_CLV, width = 7, height = 10, units = "in", dpi = 600)
-
-
-
-#make a layout with plots for all the LV linear coefficients
-opt_plot_data_LV1 <- opt_plot_data %>% 
-  mutate(lower = LV1_opt-(1.96*LV1_opt_se),
-         upper = LV1_opt+(1.96*LV1_opt_se),
-         linear = ifelse(LV1_opt < -10 | LV1_opt > 10, "yes", "no"))
-LV1_combo <- ggplot(data = opt_plot_data_LV1, aes(x = LV1_opt, y = abbrv_names))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #vertical lines at -10 and 10
-  geom_vline(xintercept = 10, linetype = "dashed", color = "red", size = 0.2) +
-  geom_vline(xintercept = -10, linetype = "dashed", color = "red", size = 0.2) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(color = group, shape = linear), size = 2.5)+
-  scale_shape_manual(values = c("no" = 16, "yes" = 1))+
-  guides(shape = "none")+
-  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  labs(x = "LV1 Optimum", y = NULL, color = "")+
-  theme_classic(base_size = 11)+
-  theme(legend.position = "none")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip()
-LV1_combo
-
-opt_plot_data_LV2 <- opt_plot_data %>% 
-  mutate(lower = LV2_opt-(1.96*LV2_opt_se),
-         upper = LV2_opt+(1.96*LV2_opt_se),
-         linear = ifelse(LV2_opt < -10 | LV2_opt > 10, "yes", "no"))
-LV2_combo <- ggplot(data = opt_plot_data_LV2, aes(x = LV2_opt, y = abbrv_names))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #vertical lines at -10 and 10
-  geom_vline(xintercept = 10, linetype = "dashed", color = "red", size = 0.2) +
-  geom_vline(xintercept = -10, linetype = "dashed", color = "red", size = 0.2) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(color = group, shape = linear), size = 2.5, stroke = 0.75)+
-  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  scale_shape_manual(values = c("no" = 16, "yes" = 1))+
-  guides(shape = "none")+
-  labs(x = "LV2 Optimum", y = NULL, color = "")+
-  theme_classic(base_size = 11)+
-  theme(legend.position = "none")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "bottom",
-        legend.title = element_blank(),
-        legend.margin = margin(t = 0,0,0,0, unit = "pt"))+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip()
-LV2_combo
-
-opt_plot_data_LV3 <- opt_plot_data %>%
-  mutate(lower = LV3_coef-(1.96*LV3_coef_se),
-         upper = LV3_coef+(1.96*LV3_coef_se),
-         sig = ifelse(lower <= 0 & upper >= 0, "no", "yes"))
-LV3_combo <- ggplot(data = opt_plot_data_LV3, aes(x = LV3_coef, y = abbrv_names, LV3_coef))+
-  #vertical line at 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50", size = 0.5) +
-  #95% confidence intervals
-  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.6, linewidth = 0.2)+
-  #point estimate
-  geom_point(aes(color = group, shape = sig), size = 2.5, stroke = 0.75)+
-  scale_color_manual(values = c("#88CCEE", "#CC6677"))+
-  scale_shape_manual(values = c("no" = 1, "yes" = 16))+
-  guides(shape = "none")+
-  labs(x = "LV3 Linear Coefficient", y = "Taxon", color = "")+
-  theme_classic(base_size = 11)+
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        legend.margin = margin(t = 0,0,0,0, unit = "pt"))+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip()
-LV3_combo
-
-
-all_LV <- (LV1_combo / LV2_combo / LV3_combo) +
-  plot_annotation(tag_levels = 'A') &
-  theme(plot.margin = margin(10,5,5,5), #gives extra space on the left for long Eurycercus label
-        plot.tag = element_text(size = 12, face = "bold"),
-        plot.tag.position = c(0.09, 1)) 
-all_LV
-#ggsave("LV_coef_panel.png", plot = all_LV, width = 6.5, height = 7, units = "in", dpi = 600)
-#ggsave("LV_coef_panel.svg", plot = all_LV, width = 6.5, height = 7, units = "in", dpi = 600)
 
 
 
@@ -814,12 +841,12 @@ intercept_se <- intercept %>%
          beta0_se = model[["sd"]][["beta0"]]) %>% 
   left_join(master.names, by = "Species") %>% 
   mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
-                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass",
+                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass", "Silver Lamprey",
                                               "Muskellunge", "Bullhead", "Common Carp", "Pumpkinseed", "Largemouth Bass", "Hybrid Sunfish", "Bluegill",
                                               "Bowfin", "Chydorus sphaericus", "Bosmina longirostris", "Ceriodaphnia spp.", "Eubosmina coregoni",
                                               "Alona spp.", "Diaphanosoma birgei", "Holopedium gibberum", "Daphnia rare", "Daphnia longiremis",
                                               "Daphnia parvula", "Daphnia retrocurva", "Eurycercus lamellatus", "Sida crystallina",
-                                              "Daphnia galeata mendotae", "Daphnia pulicaria")))
+                                              "Daphnia galeata mendotae", "Daphnia pulicaria", "Bythotrephes spp.")))
 
 #plot
 intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = Species))+
@@ -835,9 +862,8 @@ intercept_plot <- ggplot(data = intercept_se, aes(x = beta0, y = Species))+
   #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)
 intercept_plot
-#ggsave("intercepts.png", plot = intercept_plot, width = 6.5, height = 7, units = "in", dpi = 600)
-#ggsave("intercepts.svg", plot = intercept_plot, width = 6.5, height = 7, units = "in", dpi = 600)
-
+# ggsave("intercepts.png", plot = intercept_plot, width = 6.5, height = 7, units = "in", dpi = 600)
+# ggsave("intercepts.svg", plot = intercept_plot, width = 6.5, height = 7, units = "in", dpi = 600)
 
 
 #PHI------------------------------
@@ -852,12 +878,12 @@ phi_se <- phi %>%
          phi_se = model[["sd"]][["phi"]]) %>% 
   left_join(master.names, by = "Species") %>% 
   mutate(Species = factor(Species, levels = c("Rainbow Smelt", "Cisco", "Lake Whitefish", "Burbot", "Yellow Perch", "Sauger", "Northern Pike",
-                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass",
+                                              "Golden Shiner", "Walleye", "Redhorse", "Black Crappie", "White Sucker", "Rock Bass", "Smallmouth Bass", "Silver Lamprey",
                                               "Muskellunge", "Bullhead", "Common Carp", "Pumpkinseed", "Largemouth Bass", "Hybrid Sunfish", "Bluegill",
                                               "Bowfin", "Chydorus sphaericus", "Bosmina longirostris", "Ceriodaphnia spp.", "Eubosmina coregoni",
                                               "Alona spp.", "Diaphanosoma birgei", "Holopedium gibberum", "Daphnia rare", "Daphnia longiremis",
                                               "Daphnia parvula", "Daphnia retrocurva", "Eurycercus lamellatus", "Sida crystallina",
-                                              "Daphnia galeata mendotae", "Daphnia pulicaria")))
+                                              "Daphnia galeata mendotae", "Daphnia pulicaria", "Bythotrephes spp.")))
 
 #plot
 phi_plot <- ggplot(data = phi_se, aes(x = phi, y = Species))+
@@ -873,8 +899,8 @@ phi_plot <- ggplot(data = phi_se, aes(x = phi, y = Species))+
   #scale_x_continuous(limits = c(-19, 22))+
   theme_classic(base_size = 11)
 phi_plot
-#ggsave("phi.png", plot = phi_plot, width = 6.5, height = 7, units = "in", dpi = 600)
-#ggsave("phi.svg", plot = phi_plot, width = 6.5, height = 7, units = "in", dpi = 600)
+# ggsave("phi.png", plot = phi_plot, width = 6.5, height = 7, units = "in", dpi = 600)
+# ggsave("phi.svg", plot = phi_plot, width = 6.5, height = 7, units = "in", dpi = 600)
 
 
 
@@ -885,7 +911,7 @@ phi_plot
 #create vector with species abbreviation in order I want
 
 cor.order <- c("RBS", "TLC", "LKW", "BUB", "YEP", "SAR", "NOP",
-               "GOS", "WAE", "RHS", "BLC", "WTS", "RKB", "SMB", "SIL", 
+               "GOS", "WAE", "RHS", "BLC", "WTS", "RKB", "SMB", "SIL",
                "MUE", "BLH", "CAP", "PMK", "LMB", "HSF", "BLG",
                "BOF", "Chyd. spha.", "Bosm. long.", "Ceri. spp.", "Eubo. core.",
                "Alona spp.", "Diap. birg.", "Holo. gibb.", "Daph. rare", "Daph. long.",
@@ -930,121 +956,6 @@ corrplot(Theta[cor.order, cor.order],
 
 
 
-# #panel plot with both together
-# #png("cor_both_panel.png", width = 7, height = 10, units = "in", res = 600)
-# #set up the two panels
-# par(mfrow = c(2,1))
-# #shrink plot margins to make them print closer together
-# par(mar = c(0,0,0,0))
-# #make env. plot
-# corrplot(Env[order.single(Env), order.single(Env)],
-#          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-#          type = "lower", #lower half of diagonal
-#          method = "square",
-#          tl.cex = 0.65, #label size
-#          tl.srt = 45, #rotate top labels
-#          tl.col = "black", #label color
-#          col = COL2('PuOr')) #purple-orange colors for color-blind friendly
-# #add annotation
-# mtext("A", 
-#       side = 3, #3 for the top margin
-#       line = -3, #bigger number here moves it further up in plot space
-#       adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.5, #text size
-#       font = 2) #2 = bold
-# #make residual plot
-# corrplot(Theta[order.single(Theta), order.single(Theta)],
-#          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-#          type = "lower", #lower half of diagonal
-#          method = "square",
-#          tl.cex = 0.65, #label size
-#          tl.srt = 45, #rotate top labels
-#          tl.col = "black", #label color
-#          col = COL2('PuOr')) #purple-orange colors for color-blind friendly
-# #add annotation
-# mtext("B", 
-#       side = 3, #3 for the top margin
-#       line = -3, #bigger number here moves it further up in plot space
-#       adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.5, #text size
-#       font = 2) #2 = bold
-# #reset par
-# par(mfrow = c(1,1))
-# #reset margins
-# par(mar = c(5.1, 4.1, 4.1, 2.1))
-# #dev.off()
-
-
-#save these as .svg files
-#svg("cor_all_env.svg", width = 6.5, height = 6.5)
-corrplot(Env[cor.order, cor.order],
-         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-         type = "lower", #lower half of diagonal
-         method = "square",
-         tl.cex = 0.7, #label size
-         tl.srt = 45, #rotate top labels
-         tl.col = "black", #label color
-         col = COL2('PuOr'), #purple-orange colors for color-blind friendly
-         mar = c(0, 0, 0, 0)) #get rid of white space around edges
-#dev.off()
-
-#svg("cor_all_res.svg", width = 6.5, height = 6.5)
-corrplot(Theta[cor.order, cor.order],
-         diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-         type = "lower", #lower half of diagonal
-         method = "square",
-         tl.cex = 0.7, #label size
-         tl.srt = 45, #rotate top labels
-         tl.col = "black", #label color
-         col = COL2('PuOr'), #purple-orange colors for color-blind friendly
-         mar = c(0, 0, 0, 0)) #get rid of white space around edges
-#dev.off()
-
-
-# #svg("cor_both_panel.svg", width = 7, height = 10)
-# #set up the two panels
-# par(mfrow = c(2,1))
-# #shrink plot margins to make them print closer together
-# par(mar = c(0,0,0,0))
-# #make env. plot
-# corrplot(Env[order.single(Env), order.single(Env)],
-#          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-#          type = "lower", #lower half of diagonal
-#          method = "square",
-#          tl.cex = 0.65, #label size
-#          tl.srt = 45, #rotate top labels
-#          tl.col = "black", #label color
-#          col = COL2('PuOr')) #purple-orange colors for color-blind friendly
-# #add annotation
-# mtext("A", 
-#       side = 3, #3 for the top margin
-#       line = -3, #bigger number here moves it further up in plot space
-#       adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.5, #text size
-#       font = 2) #2 = bold
-# #make residual plot
-# corrplot(Theta[order.single(Theta), order.single(Theta)],
-#          diag = FALSE, #do not include the exact diagonal where speices overlap with themselves
-#          type = "lower", #lower half of diagonal
-#          method = "square",
-#          tl.cex = 0.65, #label size
-#          tl.srt = 45, #rotate top labels
-#          tl.col = "black", #label color
-#          col = COL2('PuOr')) #purple-orange colors for color-blind friendly
-# #add annotation
-# mtext("B", 
-#       side = 3, #3 for the top margin
-#       line = -3, #bigger number here moves it further up in plot space
-#       adj = 0.25, #this is horizontal (0 = left aligned, 1 = right aligned)
-#       cex = 1.5, #text size
-#       font = 2) #2 = bold
-# #reset par
-# par(mfrow = c(1,1))
-# #reset margins
-# par(mar = c(5.1, 4.1, 4.1, 2.1))
-# #dev.off()
-
-
 #what proportions of correlations are positive vs. negative?
 env_corr_prop <- as.data.frame(Env) %>% 
   rbind(group) %>% 
@@ -1053,7 +964,7 @@ env_corr_prop <- as.data.frame(Env) %>%
 
 fish_fish <- env_corr_prop %>% 
   filter(group == "Fish" | is.na(group)) %>% 
-  select(which(env_corr_prop["38",] == "Fish" & !is.na(env_corr_prop["38",]))) %>% 
+  select(which(env_corr_prop["40",] == "Fish" & !is.na(env_corr_prop["40",]))) %>% 
   filter(BLC != "Fish")%>% 
   mutate(across(everything(), as.numeric))
 fish_fish <- as.matrix(fish_fish)
@@ -1064,7 +975,7 @@ fish_fish_env_prop_pos
 
 zoop_zoop <- env_corr_prop %>% 
   filter(group == "Zooplankton" | is.na(group)) %>% 
-  select(which(env_corr_prop["38",] == "Zooplankton" & !is.na(env_corr_prop["38",]))) %>% 
+  select(which(env_corr_prop["40",] == "Zooplankton" & !is.na(env_corr_prop["40",]))) %>% 
   filter(`Alona spp.` != "Zooplankton")%>% 
   mutate(across(everything(), as.numeric))
 zoop_zoop <- as.matrix(zoop_zoop)
@@ -1075,7 +986,7 @@ zoop_zoop_env_prop_pos
 
 fish_zoop <- env_corr_prop %>% 
   filter(group == "Fish" | is.na(group)) %>% 
-  select(which(env_corr_prop["38",] == "Zooplankton" & !is.na(env_corr_prop["38",]))) %>% 
+  select(which(env_corr_prop["40",] == "Zooplankton" & !is.na(env_corr_prop["40",]))) %>% 
   filter(`Alona spp.` != "Zooplankton")%>% 
   mutate(across(everything(), as.numeric))
 fish_zoop <- as.matrix(fish_zoop) #you do want the diagonal on this one because nothing is compared to itself
@@ -1091,7 +1002,7 @@ res_corr_prop <- as.data.frame(Theta) %>%
 
 fish_fish <- res_corr_prop %>% 
   filter(group == "Fish" | is.na(group)) %>% 
-  select(which(res_corr_prop["38",] == "Fish" & !is.na(res_corr_prop["38",]))) %>% 
+  select(which(res_corr_prop["40",] == "Fish" & !is.na(res_corr_prop["40",]))) %>% 
   filter(`Black Crappie` != "Fish") %>% 
   mutate(across(everything(), as.numeric))
 fish_fish <- as.matrix(fish_fish)
@@ -1102,7 +1013,7 @@ fish_fish_res_prop_pos
 
 zoop_zoop <- res_corr_prop %>% 
   filter(group == "Zooplankton" | is.na(group)) %>% 
-  select(which(res_corr_prop["38",] == "Zooplankton" & !is.na(res_corr_prop["38",]))) %>% 
+  select(which(res_corr_prop["40",] == "Zooplankton" & !is.na(res_corr_prop["40",]))) %>% 
   filter(`Alona spp.` != "Zooplankton")%>% 
   mutate(across(everything(), as.numeric))
 zoop_zoop <- as.matrix(zoop_zoop)
@@ -1113,7 +1024,7 @@ zoop_zoop_res_prop_pos
 
 fish_zoop <- res_corr_prop %>% 
   filter(group == "Fish" | is.na(group)) %>% 
-  select(which(res_corr_prop["38",] == "Zooplankton" & !is.na(res_corr_prop["38",]))) %>% 
+  select(which(res_corr_prop["40",] == "Zooplankton" & !is.na(res_corr_prop["40",]))) %>% 
   filter(`Alona spp.` != "Zooplankton")%>% 
   mutate(across(everything(), as.numeric))
 fish_zoop <- as.matrix(fish_zoop) #you do want the diagonal on this one because nothing is compared to itself
@@ -1146,59 +1057,6 @@ WAE.corr.grp <- WAE.corr %>%
   mutate(group2 = ifelse(WAE.corr$Species == "LMB" | WAE.corr$Species == "BLC" | WAE.corr$Species == "PMK" | WAE.corr$Species == "BLG" | 
                             WAE.corr$Species == "RKB" | WAE.corr$Species == "HSF" | WAE.corr$Species == "SMB", "Centrarchid",  "Other"))
 
-#NOT DOING SIGNIFICANCE - BUT INCOMPLETE CODE FROM TRYING IT HERE:
-              # #I can't easily get significance here
-              # #what I can do is see if they have a non-overlapping confidence interval on at least one CLV/LV
-              # CI.df <- opt_plot_data %>% 
-              #   mutate(CLV1low = CLV1_opt-(1.96*CLV1_opt_se),
-              #          CLV1up = CLV1_opt+(1.96*CLV1_opt_se),
-              #          CLV2low = CLV2_coef-(1.96*CLV2_coef_se),
-              #          CLV2up = CLV2_coef+(1.96*CLV2_coef_se),
-              #          CLV3low = CLV3_opt-(1.96*CLV3_opt_se),
-              #          CLV3up = CLV3_opt+(1.96*CLV3_opt_se),
-              #          LV1low = LV1_opt-(1.96*LV1_opt_se),
-              #          LV1up = LV1_opt+(1.96*LV1_opt_se),
-              #          LV2low = LV2_coef-(1.96*LV2_coef_se),
-              #          LV2up = LV2_coef+(1.96*LV2_coef_se),
-              #          LV3low = LV3_coef-(1.96*LV3_coef_se),
-              #          LV3up = LV3_coef+(1.96*LV3_coef_se)
-              #          ) %>% 
-              #   select(Species, abbrv_names, ends_with("low"), ends_with("up"))
-              # rownames(CI.df) <- CI.df$Species
-              # 
-              # #isolate and save the walleye limits as it's own dataframe
-              # WAE.CI <- CI.df %>% 
-              #   filter(Species == "Walleye")
-              # 
-              # #if there are any LINEAR CLV or LV axes where both species have CIs that don't cross 0 (ie, both had a significant response to the linear axis)
-              # #For quadratic axes, I am looking for CIs that don't overlap walleye at all (neg corr) OR that overlap walleye a lot (positive corr)
-              # Sig.df <- CI.df %>% 
-              #   mutate(env_sig_linear = (CLV2up < 0 | CLV2low > 0) & (WAE.CI$CLV2up < 0 | WAE.CI$CLV2low > 0),
-              #          res_sig_linear =  ((LV2up < 0 | LV2low > 0) & (WAE.CI$LV2up < 0 | WAE.CI$LV2low > 0)) | 
-              #            ((LV3up < 0 | LV3low > 0) & (WAE.CI$LV3up < 0 | WAE.CI$LV3low > 0)),
-              #          env_sig_quad = ((CLV1up < WAE.CI$CLV1low | CLV1low > WAE.CI$CLV1up) | ()) |
-              #            CLV3,
-              #          res_sig_quad = LV1
-              #       #THIS IS TOO COMPLICATED AND STATISTICALLY WEIRD - NOT GOING TO TRY TO DETERMINE OR SHOW SIGNIFICANCE    
-              # 
-              #          sig = ifelse((env_sig_liner == TRUE | env_sig_quad == TRUE) & (res_sig_linear == FALSE & res_sig_quad == FALSE), "Environment Significant",
-              #                       ifelse((env_sig_linear == FALSE & env_sig_quad == FALSE) & (res_sig_linear == TRUE | res_sig_quad == TRUE), "Residual Significant",
-              #                              ifelse((env_sig_liner == TRUE | env_sig_quad == TRUE) & (res_sig_linear == TRUE | res_sig_quad == TRUE), "Both Significant", "Not Significant")))
-              #   )
-              # 
-              # (CLV1up < WAE.CI$CLV1low | CLV1low > WAE.CI$CLV1up) |
-              # (CLV3up < WAE.CI$CLV3low | CLV3low > WAE.CI$CLV3up),
-              # (LV1up < WAE.CI$LV1low | LV1low > WAE.CI$LV1up)
-              # 
-              # #isolate just the columns to join
-              # Sig.join <- Sig.df %>% 
-              #   select(abbrv_names, sig) %>% 
-              #   rename(Species = abbrv_names) %>% 
-              #   mutate(sig = factor(sig, levels = c("Both Significant", "Environment Significant", "Residual Significant", "Not Significant")))
-              # #join
-              # WAE.plot.data <- left_join(WAE.corr, Sig.join, by = "Species")
-
-
 WAE.biplot <- ggplot(data = WAE.corr.grp, aes(x = env, y = res))+
   geom_hline(yintercept = 0, color = "gray70")+
   geom_vline(xintercept = 0, color = "gray70")+
@@ -1223,8 +1081,8 @@ WAE.biplot <- ggplot(data = WAE.corr.grp, aes(x = env, y = res))+
         strip.background = element_rect(linewidth = 0.5, color = "black"))
 WAE.biplot
 
-#ggsave(filename = "Walleye_env_res_biplot.png", plot = WAE.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
-#ggsave(filename = "Walleye_env_res_biplot.svg", plot = WAE.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+# ggsave(filename = "Walleye_env_res_biplot.png", plot = WAE.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+# ggsave(filename = "Walleye_env_res_biplot.svg", plot = WAE.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
 
 
 #make one for LMB
@@ -1242,23 +1100,72 @@ LMB.corr <- cbind(LMB.env, LMB.res) %>%
          env = ifelse(Species == "LMB", NA, env))
 
 # 
-# LMB.biplot <- ggplot(data = LMB.corr, aes(x = env, y = res))+
-#   geom_hline(yintercept = 0, color = "gray70")+
-#   geom_vline(xintercept = 0, color = "gray70")+
-#   annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
-#   annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
-#   annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
-#   annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
-#   geom_point(size = 3)+
-#   geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.2) +
-#   labs(x = "Environmental Correlation", y = "Residual Correlation")+
-#   scale_y_continuous(limits = c(-1,1))+
-#   scale_x_continuous(limits = c(-1,1))+
-#   theme_classic(base_size = 11)
-# LMB.biplot
+LMB.biplot <- ggplot(data = LMB.corr, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  geom_point(size = 3)+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.2) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation")+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)
+LMB.biplot
 # 
 # #ggsave(filename = "LMB_env_res_biplot.png", plot = LMB.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
 # #ggsave(filename = "LMB_env_res_biplot.svg", plot = LMB.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
+#try a yellow perch version
+#make a dataframe of the walleye correlations to all other species 
+YEP.env <- as.data.frame(Env) %>% 
+  select(YEP) %>% 
+  rename(env = YEP)
+YEP.res <- as.data.frame(Theta) %>% 
+  select(YEP)%>% 
+  rename(res = YEP)
+YEP.corr <- cbind(YEP.env, YEP.res) %>% 
+  mutate(Species = rownames(YEP.env),
+         highlight.spp = "Yellow Perch",
+         res = ifelse(Species == "YEP", NA, res),
+         env = ifelse(Species == "YEP", NA, env))
+
+#make a centrchid color key
+YEP.corr.grp <- YEP.corr %>% 
+  mutate(group2 = ifelse(YEP.corr$Species == "LMB" | YEP.corr$Species == "BLC" | YEP.corr$Species == "PMK" | YEP.corr$Species == "BLG" | 
+                           YEP.corr$Species == "RKB" | YEP.corr$Species == "HSF" | YEP.corr$Species == "SMB", "Centrarchid",  "Other"))
+
+YEP.biplot <- ggplot(data = YEP.corr.grp, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  # annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold")+
+  geom_point(size = 3, aes(color = group2))+
+  scale_color_manual(values = c("#882255", "gray80"))+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.3, min.segment.length = 0, segment.size = 0.25) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation", color = NULL)+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "bottom")+
+  facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
+  theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
+        strip.background = element_rect(linewidth = 0.5, color = "black"))
+YEP.biplot
+
+#ggsave(filename = "YEP_env_res_biplot.png", plot = YEP.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+#ggsave(filename = "YEP_env_res_biplot.svg", plot = YEP.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
+
+
 
 #make one with both combined
 WAE.LMB.corr <- rbind(WAE.corr, LMB.corr)
@@ -1310,8 +1217,8 @@ WAE.LMB.biplot.zoop <- ggplot(data = WAE.LMB.corr.zoop, aes(x = env, y = res))+
         strip.background = element_rect(linewidth = 0.5, color = "black"))
 WAE.LMB.biplot.zoop
 
-#ggsave(filename = "WAE_LMB_env_res_biplot_zoop.png", plot = WAE.LMB.biplot.zoop, width = 5, height = 8, units = "in", dpi = 600)
-#ggsave(filename = "WAE_LMB_env_res_biplot_zoop.svg", plot = WAE.LMB.biplot.zoop, width = 5, height = 8, units = "in", dpi = 600)
+# ggsave(filename = "WAE_LMB_env_res_biplot_zoop.png", plot = WAE.LMB.biplot.zoop, width = 5, height = 8, units = "in", dpi = 600)
+# ggsave(filename = "WAE_LMB_env_res_biplot_zoop.svg", plot = WAE.LMB.biplot.zoop, width = 5, height = 8, units = "in", dpi = 600)
 
 
 
@@ -1365,8 +1272,8 @@ rand_lake_map <- ggplot()+
         legend.text = element_text(size = 12),
         legend.margin = margin(t = 10, r = 15, b = -100, l = -100, unit = "pt"),)
 rand_lake_map
-#ggsave(filename = "random_effect_map.png", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 600)
-#ggsave(filename = "random_effect_map.svg", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(filename = "random_effect_map.png", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(filename = "random_effect_map.svg", plot = rand_lake_map, width = 7, height = 7, units = "in", dpi = 600)
 
 
 # #a version with lake names labeled- not updated with the final formatting and colors
@@ -1420,8 +1327,8 @@ both_maps <- ggdraw()+
   draw_plot(mn_in_us, x = 0.65, y = 0.18, width = 0.30, height = 0.30)
 both_maps
 #export map
-#ggsave(filename = "map.png", plot = both_maps, width = 7, height = 7, units = "in", dpi = 600)
-#ggsave(filename = "map.svg", plot = both_maps, width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(filename = "map.png", plot = both_maps, width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(filename = "map.svg", plot = both_maps, width = 7, height = 7, units = "in", dpi = 600)
 
 #again but label the lakes
 sites_in_mn_lab <- ggplot()+
@@ -1439,8 +1346,8 @@ both_maps_lab <- ggdraw()+
   draw_plot(mn_in_us, x = 0.65, y = 0.18, width = 0.30, height = 0.30)
 both_maps_lab
 #export map
-#ggsave(filename = "map_labeled.png", plot = both_maps_lab, width = 7, height = 7, units = "in", dpi = 600)
-#ggsave(filename = "map_labeled.svg", plot = both_maps_lab, width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(filename = "map_labeled.png", plot = both_maps_lab, width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(filename = "map_labeled.svg", plot = both_maps_lab, width = 7, height = 7, units = "in", dpi = 600)
 
 
 
@@ -1448,21 +1355,21 @@ both_maps_lab
 #Map the other covariates - raw values #GET THIS UNSTANDARDIZED
 #take average across years for lakes with multiple years of data, max for SWF and ZM to so if ever invaded they come out as yes
 #extract covariate data from model
-x <- read.csv("Data/Input/gllvm_x_matrix_raw.csv")
+x <- read.csv("Data/Input/gllvm_x_matrix_raw_Pub_Rev.csv")
 #average repeated measures on each lake
 x_lake_avg <- x %>% 
   group_by(lake_name) %>% 
-  summarize(CDOM = mean(CDOM),
-            `Lake Area` = log(mean(Area)),
-            `Maximum Depth` = mean(Max_Depth),
-            Secchi = mean(Secchi),
-            `Degree Days` = mean(GDD),
-            `Photic Proportion` = plogis(mean(Photic)),
-            `Annual Precipitation` = mean(Precip),
-            `Spiny Water Flea Presence` = max(SWF),
-            `Zebra Mussel Presence` = max(ZM),
+  summarize(CDOM = mean(cdom),
+            `Lake Area` = log(mean(area)),
+            `Maximum Depth` = mean(depth.max),
+            Secchi = mean(secchi.mean),
+            `Degree Days` = mean(gdd.mean),
+            `Mean Depth` = (mean(depth.mean)),
+            `Annual Precipitation` = mean(precip.mean),
+            `Walleye Stocking` = max(wae.stock),
+            `Zebra Mussel Presence` = max(zm),
             .groups = 'drop') %>% 
-  mutate(`Spiny Water Flea Presence` = ifelse(`Spiny Water Flea Presence` == 1, "yes", "no"),
+  mutate(`Walleye Stocking` = ifelse(`Walleye Stocking` == 1, "yes", "no"),
          `Zebra Mussel Presence` = ifelse(`Zebra Mussel Presence` == 1, "yes", "no"))
 #join to spatial point data
 study_lakes_sf_x <- left_join(study_lakes_sf_rand_lake, x_lake_avg, by = "lake_name")
@@ -1514,14 +1421,14 @@ dd_map <- ggplot()+
   theme_void()
 dd_map
 
-photic_map <- ggplot()+
+mean_depth_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
-  geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Photic Proportion`), size = 2)+
+  geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Mean Depth`), size = 2)+
   scale_fill_viridis_c(option = "inferno", direction = 1)+
-  labs(fill = "Littoral\nZone\n(logit(prop))")+
+  labs(fill = "Mean\nDepth)")+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
-photic_map
+mean_depth_map
 
 precip_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
@@ -1532,15 +1439,15 @@ precip_map <- ggplot()+
   theme_void()
 precip_map
 
-swf_map <- ggplot()+
+wae_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
-  geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Spiny Water Flea Presence`), size = 2)+
+  geom_sf(data = study_lakes_sf_x, shape = 21, alpha = 0.9, color = "black", aes(fill = `Walleye Stocking`), size = 2)+
   scale_fill_manual(values = c("yes" = "#FCA50A", "no" = "#000004"))+
-  labs(fill = "Spiny\nWater\nFlea\nPresence")+
+  labs(fill = "Walleye\nStocking")+
   guides(fill = guide_legend(reverse = TRUE))+
   coord_sf(crs = 26915)+ #this projection is NAD83 / UTM zone 15N for Minnesota
   theme_void()
-swf_map
+wae_map
 
 zm_map <- ggplot()+
   geom_sf(data = minnesota, fill = "white")+
@@ -1553,7 +1460,7 @@ zm_map <- ggplot()+
 zm_map
 
 #combine maps in 3x3 grid
-cov_maps <- wrap_plots(precip_map, CDOM_map, dd_map, area_map, photic_map, depth_map, secchi_map, swf_map, zm_map, ncol = 3, nrow = 3)
+cov_maps <- wrap_plots(precip_map, CDOM_map, dd_map, area_map, depth_map, mean_depth_map, secchi_map, wae_map, zm_map, ncol = 3, nrow = 3)
 #add letter labels
 cov_maps_labels <- cov_maps +
   plot_annotation(tag_levels = 'A')
@@ -1570,8 +1477,8 @@ cov_maps_legends <- cov_maps_labels &
     plot.tag.position = c(0.12, 0.83)
   )
 cov_maps_legends
-#ggsave(filename = "covariate_maps.png", plot = cov_maps_legends, width = 7, height = 7, units = "in", dpi = 600)
-#ggsave(filename = "covariate_maps.svg", plot = cov_maps_legends, width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(filename = "covariate_maps.png", plot = cov_maps_legends, width = 7, height = 7, units = "in", dpi = 600)
+# ggsave(filename = "covariate_maps.svg", plot = cov_maps_legends, width = 7, height = 7, units = "in", dpi = 600)
 
 
 
@@ -1579,7 +1486,7 @@ cov_maps_legends
 #LAKE-YEAR COVERAGE--------------------------
 #read in the covariate data
 #I already did this above but have the code again here in case I'm just running this plot
-x <- read.csv("Data/Input/gllvm_x_matrix_raw.csv")
+x <- read.csv("Data/Input/gllvm_x_matrix_raw_Pub_Rev.csv")
 
 lakeyear_plot <- ggplot(data = x, aes(x = year, y = lake_name))+
   geom_vline(xintercept = (1999:2024)-0.5, color = "gray95", linewidth = 0.5)+
@@ -1590,8 +1497,8 @@ lakeyear_plot <- ggplot(data = x, aes(x = year, y = lake_name))+
   labs(x = "Year", y = "Lake")+
   theme_classic(base_size = 11)
 lakeyear_plot
-#ggsave(filename = "lakeyears.png", plot = lakeyear_plot, width = 7, height = 5, units = "in", dpi = 600)
-#ggsave(filename = "lakeyears.svg", plot = lakeyear_plot, width = 7, height = 5, units = "in", dpi = 600)
+# ggsave(filename = "lakeyears.png", plot = lakeyear_plot, width = 7, height = 5, units = "in", dpi = 600)
+# ggsave(filename = "lakeyears.svg", plot = lakeyear_plot, width = 7, height = 5, units = "in", dpi = 600)
 
 
 
@@ -1720,8 +1627,7 @@ wae.lmb.allMN.log <- ggplot(data = MN.plot.data, aes(x = WAE.CPUE, y = LMB.CPUE,
         legend.background = element_rect(fill = "white", color = "black"))
 fish.context.plot <- ggMarginal(wae.lmb.allMN.log, type = "density", groupColor = TRUE, groupFill = TRUE)
 fish.context.plot
-#ggsave(filename = "fish_context.png", plot = fish.context.plot, width = 7, height = 5, units = "in", dpi = 600)
-#ggsave(filename = "fish_context.svg", plot = fish.context.plot, width = 7, height = 5, units = "in", dpi = 600)
+# ggsave(filename = "fish_context.png", plot = fish.context.plot, width = 7, height = 5, units = "in", dpi = 600)
 
 
 
@@ -1850,10 +1756,13 @@ mn_temp_secchi_filter <- mn_temp_secchi %>%
          lake = parentdow)
 
 #raw covariate data that went into model (in a standardized form)
-x <- read.csv("Data/Input/gllvm_x_matrix_raw.csv")
+x <- read.csv("Data/Input/gllvm_x_matrix_raw_Pub_Rev.csv")
 #format data from model to match
 model_temp_secchi <- x %>% 
-  select(lake_name, year, Secchi, GDD) %>% 
+  select(lake_name, year, secchi.mean, secchi.dev, gdd.mean, gdd.dev) %>% 
+  mutate(Secchi = secchi.mean + secchi.dev,
+         GDD = gdd.mean + gdd.dev) %>% 
+  select(-secchi.mean, -secchi.dev, -gdd.mean, -gdd.dev) %>% 
   rename(lake = lake_name) %>% 
   mutate(type = "model")
 #I have lakes referred to with parentdows for all MN and names for the model but that's fine for this purpose
@@ -1871,13 +1780,11 @@ wq.allMN <- ggplot(data = MN_WQ_plot_data, aes(x = GDD, y = Secchi, color = type
         legend.background = element_rect(fill = "white", color = "black"))
 wq.context.plot <- ggMarginal(wq.allMN, type = "density", groupColor = TRUE, groupFill = TRUE)
 wq.context.plot
-#ggsave(filename = "wq_context.png", plot = wq.context.plot, width = 7, height = 5, units = "in", dpi = 600)
-#ggsave(filename = "wq_context.svg", plot = wq.context.plot, width = 7, height = 5, units = "in", dpi = 600)
-  
+# ggsave(filename = "wq_context.png", plot = wq.context.plot, width = 7, height = 5, units = "in", dpi = 600)
 
 
 #LAKE TABLE INFO ------------------------------------------
-lakeyears <- read.csv("Data/Input/GLLVM_Complete_Dataset.csv")
+lakeyears <- read.csv("Data/Input/GLLVM_Complete_Dataset_Pub_Rev.csv")
 
 #get a mean secchi and lake-year count for each one
 lakes <- lakeyears %>% 
@@ -1889,6 +1796,7 @@ lakes <- lakeyears %>%
 
 
 #VARIABLE TABLE INFO------------------------------------
+#NOT UPDATED WITH NEW MODEL
 
 #only making a table with variables I actually used
 #isolate the columns - categorical and quantitative separately
@@ -1938,6 +1846,7 @@ ggpairs(env.var.quant)
 
 
 #SPECIES TABLE---------------------------------
+#NOT UPDATED WITH NEW MODEL
 
 #filter out just species data and remove species that are all zeroes in this dataset
 spp <- lakeyears %>% 
@@ -1975,6 +1884,8 @@ spp.stat <- full_join(spp.stat, spp.lake.count, by = "species")
 
 
 #stocking in lake-years / study lakes - all taxa and wae?----------------------------
+#NOT UPDATED WITH NEW MODEL
+
 #Read in stocking data
 stock <- read.csv("Data/Input/Result_28.csv")
 #read in model data
@@ -2039,6 +1950,7 @@ unique(stock.lakeyear.wae.fry$parentdow.year)
 
 #zoop length vs. predictors-------------------------------
 #Just because Heidi asked about this in revisions
+#NOT UPDATED WITH NEW MODEL
 
 #read in model data
 lakeyears <- read.csv("Data/Input/GLLVM_Complete_Dataset.csv")
