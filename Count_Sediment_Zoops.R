@@ -12,24 +12,35 @@ library(vegan)
 library(tidyr)
 library(stringr)
 
+#set seed to keep random results consistent
+set.seed(1234567)
 
+#Data-------------------------------
 #read in data and make N/A, NA, or an empty cell all read in as NA
 #update file with new data as needed
-Sed_Data <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_Zoop_ID_20261026.csv", na.strings = c("N/A", "NA", ""))
+Sed_Data_GLH <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_Zoop_ID_20261109.csv", na.strings = c("N/A", "NA", ""))
+#read in Erin's surface sediment data too
+Sed_Data_EMM <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_SurfZoop_ID_EMM_20261109.csv", na.strings = c("N/A", "NA", ""))
+#reformat Erin's data to match mine
+Sed_Data_EMM_format <- Sed_Data_EMM %>% 
+  select(-Transect, -X)
+#rowbind to make one dataset
+Sed_Data <- rbind(Sed_Data_GLH, Sed_Data_EMM_format)
 
+#Fix names----------------------------------
 #Fix spelling errors and rename columns
 Sed_Data <- Sed_Data %>% 
   rename(Carapace.Length.µm = Carapace.Length..µm.) %>% 
   rename(Mucro.Length.µm = Mucro.linear.Length..µm.) %>% 
   rename(Mucro.Segments = Mucro.Sutures) %>% 
   rename(Antennule.Length.µm = Attenule.Length..µm.) %>% 
-  rename(Photo.File.Name = Photo.file.name.s.) %>% 
-  select(-Unidentifiable.remain.coordinates) #removes an unused column
+  rename(Photo.File.Name = Photo.file.name.s.)
 
 Sed_Data$Remain.Condition <- ifelse(Sed_Data$Remain.Condition == "Identifieable and measureable", "Identifiable and measureable", Sed_Data$Remain.Condition)
 
 #Clean up taxa names to get rid of notes used in ID process
 #FOR NOW = assuming mucro on carapace means B. longirostris and no mucro means E. coregoni
+  #Keeping this assumption after Adele's UROP results
 Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus unsure)", "Bosminid", 
                         ifelse(Sed_Data$Taxa == "Chydorus brevilabris (previously C. sphaericus)", "Chydorus brevilabris",
                                ifelse(Sed_Data$Taxa == "Bosminid carapace without mucro", "Eubosmina coregoni",
@@ -42,7 +53,7 @@ Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus u
                                                                                 ifelse(Sed_Data$Taxa == "Camptocercus sp. (use for carapace)", "Camptocercus sp.",
                                                                                        ifelse(Sed_Data$Taxa == "Alona sp. (use for carapace)", "Alona sp.",
                                                                                               ifelse((Sed_Data$Taxa == "Alona quadrangularis (use for anything except carapace)"|Sed_Data$Taxa == "Alona quadrangularis (use for anythine except carapace))"), "Alona quadrangularis",
-                                                                                                     ifelse((Sed_Data$Taxa == "Alona circumfimbriata, guttata, or setulosa  (use for anything exept carapace)"|Sed_Data$Taxa == "Alona circumfimbriata, guttata, or setulosa (headshield)"), "Alona circumfimbriata, guttata, or setulosa",
+                                                                                                     ifelse((Sed_Data$Taxa == "Alona circumfimbriata, guttata, or setulosa  (use for anything exept carapace)" | Sed_Data$Taxa == "Alona circumfimbriata, guttata, or setulosa (headshield)" | Sed_Data$Taxa == "guttata"), "Alona circumfimbriata, guttata, or setulosa",
                                                                                                             ifelse(Sed_Data$Taxa == "Camptocercus or Acroperus (use for headshield)", "Camptocercus sp. or Acroperus sp.",
                                                                                                                    ifelse(Sed_Data$Taxa == "Aloninae (sp. unsure)", "Aloninae",
                                                                                                                           ifelse(Sed_Data$Taxa == "Holopedium sp. or Sida crystallina americana (postabdomen)", "Holopedium sp. or Sida crystallina americana",
@@ -54,15 +65,16 @@ Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus u
                                                                                                                                                                         ifelse(Sed_Data$Taxa == "Alona intermedia (use for anything exept carapace)", "Alona intermedia",
                                                                                                                                                                                ifelse((Sed_Data$Taxa == "Alona costata (use for anything exept carapace)"|Sed_Data$Taxa == "Alona costata (headshield)"), "Alona costata", Sed_Data$Taxa)))))))))))))))))))))))
 
-
-#Now remove remains that are not useful for counting: Unidentifiable, not zoops, yet to be checked for ID, or NA values, also remove NA values for LakeName or Remain.Type
+#QAQC-------------------------------------
+#Now remove remains that are not useful for counting: Unidentifiable, not zoops, yet to be checked for ID, or NA values, also remove NA values for LakeName
 Sed_Data_Clean_Uncorrected_for_pairs <- Sed_Data %>% 
-  filter(Taxa != "Unidentifiable" & Taxa != "Not a zoop (after check)" & Taxa != "Mystery Spike (probably plant)" & Taxa != "Unsure: CHECK" & !is.na(Taxa))
+  filter(Taxa != "Unidentifiable" & Taxa != "Not a zoop (after check)" & Taxa != "Mystery Spike (probably plant)" & Taxa != "Unsure: CHECK" & !is.na(Taxa) & !is.na(LakeName))
 
 #remove spaces before and after lake names to make for loops work properly
 Sed_Data_Clean_Uncorrected_for_pairs$LakeName <- str_trim(Sed_Data_Clean_Uncorrected_for_pairs $LakeName, side = "both")
 
 #Count number of slides counted for each sample
+#Note that partway through we stopped counting slides in their entirety and started stopping when we got to 100 individuals
 Slide_Count <- Sed_Data_Clean_Uncorrected_for_pairs  %>% 
   group_by(LakeName) %>% 
   summarise(Slide.Count = n_distinct(Slide.Number))
@@ -74,18 +86,22 @@ ID_Valid_Check <- Sed_Data_Clean_Uncorrected_for_pairs %>%
 count(ID_Valid_Check, Taxa)
 #it's ok if larger taxonomic groups are here - it just means we couldn't get all the way to species with the structure
     #If you find a concern here, ask the person who did the ID
+#11/9/26 decided these are okay, it just means we went back through ID later and did not change the condition column
 
 
 #QAQC CHECK: this code pulls out rows that are impossible: eg. you can't ID this precisely with this structure. Check that there is nothing here.
 #Will also pull out rows with problematic NA values - spot check these and correct as needed
 ID_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
   filter(
-    ((Remain.Type != "Headshield" & Remain.Type != "Carapace") & (Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris")) |
+    ((Remain.Type != "Headshield" & Remain.Type != "Carapace" & Remain.Type != "Ephippium") & (Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris")) |
     ((Remain.Type != "Postabdominal Claw" & Remain.Type != "Ephippium") & (Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex")) |
     (Remain.Type == "Headshield" & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")) |
     (Remain.Type == "Postabdomen (no claw)" & (Taxa == "Sida crystallina americana" | Taxa == "Holopedium sp.")) |
     (Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) |
-     is.na(LakeName) | is.na(Remain.Type)
+     is.na(LakeName) | is.na(Remain.Type) |
+    (Remain.Type == "Antennal Segment" & Taxa != "Eubosmina coregoni" & Taxa != "Bosmina longirostris" & Taxa != "Bosminid") |
+      (Remain.Type == "Postabdominal Claw" & Taxa != "Chydorus brevilabris" & Taxa != "Ceriodaphnia sp." & Taxa != "Bosminid" & Taxa != "Daphnia pulex complex" & Taxa != "Daphnia longispina complex" & Taxa != "Sida crystallina americana" & Taxa != "Daphnia sp." & Taxa != "Eurycercus sp." & Taxa != "Camptocercus sp." & Taxa != "Holopedium sp." & Taxa != "Diaphanosoma sp." & Taxa != "Latona setifera" & Remain.Number != "Cass_1_169")  #cass_1_169 is a true claw based on notes, the others I can't prove
+      
   )
 
 #To fix these ID problems identified above, run this code:
@@ -94,14 +110,26 @@ Sed_Data_Clean_Uncorrected_for_pairs_QAQC <- Sed_Data_Clean_Uncorrected_for_pair
                  ifelse(((Remain.Type != "Postabdominal Claw" & Remain.Type != "Ephippium") & (Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex")), "Daphnia sp.",
                         ifelse((Remain.Type == "Headshield" & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")), "Camptocercus sp. or Acroperus sp.",
                                ifelse((Remain.Type == "Postabdomen (no claw)" & (Taxa == "Sida crystallina americana" | Taxa == "Holopedium sp.")), "Holopedium sp. or Sida crystallina americana",
-                                     ifelse((Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")), "Alona sp.", Taxa 
-                  )))))
-          )
+                                     ifelse((Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")), "Alona sp.", 
+                                            ifelse((Remain.Type == "Antennal Segment" & Taxa != "Eubosmina coregoni" & Taxa != "Bosmina longirostris" & Taxa != "Bosminid"), "unknown", Taxa
+                                             ))))))
+          ) %>% 
+  mutate(Remain.Type = ifelse((Remain.Type == "Postabdominal Claw" & Taxa != "Chydorus brevilabris" & Taxa != "Ceriodaphnia sp." & Taxa != "Bosminid" & Taxa != "Daphnia pulex complex" & Taxa != "Daphnia longispina complex" & Taxa != "Sida crystallina americana" & Taxa != "Daphnia sp." & Taxa != "Eurycercus sp." & Taxa != "Camptocercus sp." & Taxa != "Holopedium sp." & Taxa != "Diaphanosoma sp." & Taxa != "Latona setifera" & Remain.Number != "Cass_1_169"), "Postabdomen (no claw)", Remain.Type)) %>% 
+  filter(Taxa != "unknown") %>% 
+  #do some manual fixes that I found by looking at the photo of the remain
+  mutate(Remain.Type = case_when(
+    Remain.Number == "Belle_1_15" ~ "Headshield",
+    Remain.Number == "Belle_1_77" ~ "Headshield",
+    Remain.Number == "Belle_1_219" ~ "Postabdomen (no claw)",
+    TRUE ~ Remain.Type)) %>% 
+  mutate(Carapace.Length.µm = case_when(
+    Remain.Number == "Belle_1_15" ~ NA,
+    Remain.Number == "Belle_1_77" ~ NA,
+    TRUE ~ Carapace.Length.µm))
                  
 #Add code here to fix specific problematic NA values if needed
 Sed_Data_Clean_Uncorrected_for_pairs_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
   filter(!is.na(LakeName))
-
 
 #Check that it fixed the issue appropriately
 ID_QAQC2 <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
@@ -111,21 +139,361 @@ ID_QAQC2 <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
       (Remain.Type == "Headshield" & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")) |
       (Remain.Type == "Postabdomen (no claw)" & (Taxa == "Sida crystallina americana" | Taxa == "Holopedium sp.")) |
       (Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) |
-      is.na(LakeName) | is.na(Remain.Type)
+      is.na(LakeName) | is.na(Remain.Type) |
+      (Remain.Type == "Antennal Segment" & Taxa != "Eubosmina coregoni" & Taxa != "Bosmina longirostris" & Taxa != "Bosminid") |
+      (Remain.Type == "Postabdominal Claw" & Taxa != "Chydorus brevilabris" & Taxa != "Ceriodaphnia sp." & Taxa != "Bosminid" & Taxa != "Daphnia pulex complex" & Taxa != "Daphnia longispina complex" & Taxa != "Sida crystallina americana" & Taxa != "Daphnia sp." & Taxa != "Eurycercus sp." & Taxa != "Camptocercus sp." & Taxa != "Holopedium sp." & Taxa != "Diaphanosoma sp." & Taxa != "Latona setifera" & Remain.Number != "Cass_1_169")
   )
 
 
 
-
-#DEAL WITH PAIRED STRUCTURES: postabdominal claws and carapaces
+#Paired-----------------------------
+#DEAL WITH PAIRED STRUCTURES: postabdominal claws and carapaces, and the number of antennules section
 #IF a structure is paired, duplicate that row in the data, so when it gets divided by two later, the individual count is still accurate
 #IF a structure is listed as not paired, leave the row alone - represents half of an individual when it gets divided by two later
 #IF a structure has NA for paired, it was identified before we started keeping track of this:
-      #FOR NOW: 
-            #postabdominal claws: A + E say that bosminid and daphnid claws are almost always paired. Assume this and multiply them by 2. Assume all other postabdominal claws are unpaired (single claws) to avoid overcounting
-            #carapaces: A + E say that about half are paired. Assume all are unpaired to undercount for sample size requirement and will fix this later with post-hoc estimation
-      #WHEN WE FINISH ID:
-            #Find proportion of carapaces and claws that are paired for each taxa and use that to post-hoc estimate number of individuals for the slides where we did not keep track
+
+      #NOW THAT WE FINISHED SURRFACE SED ID:
+            #Find proportion of carapaces, claws, and antennules that are paired for each taxa and use that to post-hoc estimate number of individuals for the slides or individuals where we did not keep track
+                  #isolate paired structures and structures where number of antennules is relevant
+                  paired <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+                    filter(Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace" | ((Remain.Type == "Antennal Segment" | Remain.Type == "Headshield") & (Taxa == "Bosminid" | Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris"))) %>% 
+                    #there are a few NAs for number of antennules where the paired column is filled out instead - fix that here
+                    mutate(Number.of.Antennules = ifelse(((Remain.Type == "Antennal Segment" | Remain.Type == "Headshield") & is.na(Number.of.Antennules) & !is.na(Paired.)), 
+                                                         ifelse(Paired. == "No - only 1 side", 1, 
+                                                                ifelse(Paired. == "Yes - both present", 2, NA)), Number.of.Antennules)) %>% 
+                     # make the paired vs unpaired descriptions shorter
+                    mutate(Paired. = case_when(
+                      Paired. == "Yes - both present" ~ "paired",
+                      Paired. == "No - only 1 side" ~ "unpaired",
+                      Remain.Type == "Antennal Segment" | Remain.Type == "Headshield" ~ NA,
+                      TRUE ~ "unknown"))
+                  #look through the notes and photos and see if there is anything in there we can use to assign
+                  paired_notes <- paired %>% 
+                    filter((!is.na(Notes) | !is.na(Photo.File.Name)) & ((Paired. == "unknown" & (Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"))| (is.na(Number.of.Antennules) & (Remain.Type == "Antennal Segment" | Remain.Type == "Headshield")))) %>% 
+                    select(Remain.Number, Remain.Type, Remain.Condition, Taxa, Photo.File.Name, Notes)
+                  #assign by hand based on what I found here
+                  paired.manual <- paired %>% 
+                    mutate(Paired. = case_when(
+                      Remain.Number == "Belle_1_10" ~ "paired",
+                      Remain.Number == "Belle_1_101" ~ "paired",
+                      Remain.Number == "Belle_1_237" ~ "unpaired",
+                      Remain.Number == "Belle_1_246" ~ "paired",
+                      Remain.Number == "Belle_1_26" ~ "unpaired",
+                      Remain.Number == "Belle_1_370" ~ "unpaired",
+                      Remain.Number == "Belle_1_40" ~ "paired",
+                      Remain.Number == "Belle_1_408" ~ "unpaired",
+                      Remain.Number == "Belle_1_411" ~ "paired",
+                      Remain.Number == "Belle_1_43" ~ "paired",
+                      Remain.Number == "Belle_1_434" ~ "unpaired",
+                      Remain.Number == "Belle_1_500" ~ "paired",
+                      Remain.Number == "Belle_1_160" ~ "paired",
+                      Remain.Number == "Belle_1_199" ~ "paired",
+                      Remain.Number == "Carlos_1_178" ~ "paired",
+                      Remain.Number == "Carlos_1_224" ~ "paired",
+                      Remain.Number == "Carlos_1_294" ~ "paired",
+                      Remain.Number == "Cedar_1_196" ~ "unpaired",
+                      Remain.Number == "Cedar_1_38" ~ "paired",
+                      Remain.Number == "Green_1_110" ~ "unpaired",
+                      Remain.Number == "Green_1_175" ~ "unpaired",
+                      Remain.Number == "Lotus_1_087" ~ "unpaired",
+                      Remain.Number == "Josephine_1_145" ~ "paired",
+                      Remain.Number == "Josephine_1_175" ~ "paired",
+                      Remain.Number == "Josephine_1_207" ~ "paired",
+                      Remain.Number == "Josephine_1_223" ~ "paired",
+                      Remain.Number == "Josephine_1_238" ~ "paired",
+                      Remain.Number == "Josephine_1_25" ~ "unpaired",
+                      Remain.Number == "Medicine_1_60" ~ "unpaired",
+                      Remain.Number == "Owasso_1_103" ~ "unpaired",
+                      Remain.Number == "Owasso_1_157" ~ "paired",
+                      Remain.Number == "Owasso_1_160" ~ "paired",
+                      Remain.Number == "Owasso_1_180" ~ "paired",
+                      Remain.Number == "Owasso_1_197" ~ "paired",
+                      Remain.Number == "Owasso_1_83" ~ "paired",
+                      Remain.Number == "Owasso_1_95" ~ "paired",
+                      Remain.Number == "Owasso_1_96" ~ "paired",
+                      Remain.Number == "Belle_1_45" ~ "unpaired",
+                      Remain.Number == "Belle_1_79" ~ "paired",
+                      Remain.Number == "Cedar_1_261" ~ "unpaired",
+                      Remain.Number == "Cedar_1_237" ~ "unpaired",
+                      Remain.Number == "Cedar_1_152" ~ "unpaired",
+                      Remain.Number == "Cedar_1_109" ~ "paired",
+                      Remain.Number == "Belle_1_45" ~ "unpaired",
+                      Remain.Number == "BdeMakaSka_1_22" ~ "unpaired",
+                      Remain.Number == "BdeMakaSka_1_134" ~ "unpaired",
+                      Remain.Number == "BdeMakaSka_1_114" ~ "paired",
+                      TRUE ~ Paired.)) %>% 
+                    mutate(Number.of.Antennules = case_when(
+                      Remain.Number == "BdeMakaSka_2_57" ~ 2,
+                      Remain.Number == "Belle_1_161" ~ 2,
+                      Remain.Number == "Cass_1_64" ~ 2,
+                      Remain.Number == "Josephine_1_109" ~ 2,
+                      Remain.Number == "Leech_1_86" ~ 2,
+                      Remain.Number == "Belle_1_2" ~ 1,
+                      Remain.Number == "Belle_1_12" ~ 1,
+                      Remain.Number == "Cedar_1_7" ~ 2,
+                      Remain.Number == "Cedar_1_37" ~ 0,
+                      Remain.Number == "Green_1_617" ~ 2,
+                      Remain.Number == "Silver_1_304" ~ 0,
+                      Remain.Number == "Silver_1_224" ~ 2,
+                      Remain.Number == "Sallie_1_97" ~ 0,
+                      Remain.Number == "Sallie_1_48" ~ 0,
+                      Remain.Number == "Sallie_1_220" ~ 0,
+                      Remain.Number == "Sallie_1_114" ~ 0,
+                      Remain.Number == "Medicine_1_62" ~ 0,
+                      Remain.Number == "Medicine_1_52" ~ 2,
+                      Remain.Number == "Medicine_1_41" ~ 0,
+                      Remain.Number == "Medicine_1_284" ~ 2,
+                      Remain.Number == "Medicine_1_281" ~ 0,
+                      Remain.Number == "Green_1_602" ~ 0,
+                      Remain.Number == "Cedar_1_7" ~ 2,
+                      Remain.Number == "Cedar_1_292" ~ 2,
+                      Remain.Number == "Cedar_1_285" ~ 0,
+                      Remain.Number == "Cedar_1_251" ~ 0,
+                      Remain.Number == "Belle_1_367" ~ 1,
+                      Remain.Number == "BdeMakaSka_2_45" ~ 2,
+                      Remain.Number == "BdeMakaSka_1_72" ~ 0,
+                      Remain.Number == "BdeMakaSka_1_3" ~ 0,
+                      TRUE ~ Number.of.Antennules))
+                  
+                  #for carapaces and postab claws:
+                  carap.postab.pair <- paired.manual %>% 
+                    filter(Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace")
+                  
+                  #calculate how many of each for each structure type and calculate proportions
+                  carap.postab.pair.count <- as.data.frame(table(carap.postab.pair$Remain.Type, carap.postab.pair$Paired.)) %>% 
+                    pivot_wider(names_from = Var2, values_from = Freq) %>% 
+                    rename(Remain.Type = Var1) %>% 
+                    mutate(paired.prop = paired / (paired + unpaired),
+                           unpaired.prop = unpaired / (paired + unpaired))
+                  carap.postab.pair.count
+                 
+                   #Does this vary by lake? - yes but can't correct for this with unknown lakes
+                  carap.postab.pair.count.lake <- carap.postab.pair %>% 
+                    group_by(LakeName, Remain.Type) %>% 
+                    summarize(paired = sum(Paired. == "paired"),
+                              unpaired = sum(Paired. == "unpaired"),
+                              unknown = sum(Paired. == "unknown"),
+                              .groups = 'drop') %>% 
+                    mutate(paired.prop = paired / (paired + unpaired),
+                           unpaired.prop = unpaired / (paired + unpaired),
+                           n.recorded = paired + unpaired)
+                  
+                  carap.postab.plots.by.lake <- list()
+                  
+                  for (i in unique(carap.postab.pair.count.lake$Remain.Type)){
+                    plot.data <-carap.postab.pair.count.lake %>% 
+                      filter(Remain.Type == i)
+                    carap.postab.plots.by.lake[[i]] <- ggplot(data = plot.data, aes(x = LakeName, y = paired.prop))+
+                      geom_col()+
+                      geom_text(aes(label = n.recorded), hjust = -0.5, size = 3.5)+
+                      scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+                      labs(title = i)+
+                      theme_classic()+
+                      coord_flip()
+                  }
+                  
+                  #Does this vary by taxa? - yes, and this we can adjust for
+                  carap.postab.pair.count.taxa <- carap.postab.pair %>% 
+                    group_by(Taxa, Remain.Type) %>% 
+                    summarize(paired = sum(Paired. == "paired"),
+                              unpaired = sum(Paired. == "unpaired"),
+                              unknown = sum(Paired. == "unknown"),
+                              .groups = 'drop') %>% 
+                    mutate(paired.prop = paired / (paired + unpaired),
+                           unpaired.prop = unpaired / (paired + unpaired),
+                           n.recorded = paired + unpaired)
+                  
+                  carap.postab.plots.by.taxa <- list()
+                  
+                  for (i in unique(carap.postab.pair.count.taxa$Remain.Type)){
+                    plot.data <- carap.postab.pair.count.taxa %>% 
+                      filter(Remain.Type == i)
+                    carap.postab.plots.by.taxa[[i]] <- ggplot(data = plot.data, aes(x = Taxa, y = paired.prop))+
+                      geom_col()+
+                      geom_text(aes(label = n.recorded), hjust = -0.5, size = 3.5)+
+                      scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+                      labs(title = i)+
+                      theme_classic()+
+                      coord_flip()
+                  }
+                  
+                  #for taxa+structure combos where we never recorded any pairing, assume they are unpaired so we don't overcount - this is rare anyways
+                  carap.postab.pair.count.taxa$paired.prop <- ifelse(carap.postab.pair.count.taxa$n.recorded == 0, 0, carap.postab.pair.count.taxa$paired.prop)
+                  carap.postab.pair.count.taxa$unpaired.prop <- ifelse(carap.postab.pair.count.taxa$n.recorded == 0, 1, carap.postab.pair.count.taxa$unpaired.prop)
+                  
+                  
+                  #for antennules
+                  ant.pair <- paired.manual %>% 
+                    filter(Remain.Type == "Antennal Segment" | Remain.Type == "Headshield")
+                  
+                  #calculate how many of each for each structure type and calculate proportions
+                  ant.pair.count <- as.data.frame(table(ant.pair$Remain.Type, ant.pair$Number.of.Antennules)) %>% 
+                    pivot_wider(names_from = Var2, values_from = Freq) %>% 
+                    #let's not keep numbers as column  names...
+                    rename(Remain.Type = Var1,
+                           zero = `0`,
+                           one = `1`,
+                           two = `2`) %>% 
+                    mutate(zero.prop = zero / (zero + one + two),
+                           one.prop = one / (zero + one + two),
+                           two.prop = two / (zero + one + two))
+                  ant.pair.count
+                  
+                  #Does this vary by lake? - yes but can't correct for this with unknown lakes
+                  ant.pair.count.lake <- ant.pair %>% 
+                    group_by(LakeName, Remain.Type) %>% 
+                    summarize(zero = sum(Number.of.Antennules == 0, na.rm = TRUE),
+                              one = sum(Number.of.Antennules == 1,na.rm = TRUE),
+                              two = sum(Number.of.Antennules == 2, na.rm = TRUE),
+                              unknown = sum(is.na(Number.of.Antennules)),
+                              .groups = 'drop') %>% 
+                    mutate(zero.prop = zero / (zero + one + two),
+                           one.prop = one / (zero + one + two),
+                           two.prop = two / (zero + one + two),
+                           n.recorded = zero + one + two)
+                  
+                  ant.plots.by.lake <- list()
+                  
+                  #the number labels on the plots are messy but it's fine I can read them
+                  for (i in unique(ant.pair.count.lake$Remain.Type)){
+                    plot.data <-ant.pair.count.lake %>% 
+                      filter(Remain.Type == i) %>% 
+                      select(-zero, -one, -two, -unknown) %>% 
+                      pivot_longer(cols = c(zero.prop, one.prop, two.prop), names_to = "Num.of.Ant", values_to = "proportion")
+                    ant.plots.by.lake[[i]] <- ggplot(data = plot.data, aes(x = LakeName, y = proportion, fill = Num.of.Ant))+
+                      geom_col()+
+                      geom_text(aes(label = n.recorded), hjust = -0.5, size = 3.5)+
+                      scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+                      labs(title = i)+
+                      theme_classic()+
+                      coord_flip()
+                  }
+                  
+                  #Does this vary by taxa? - actually only slightly, interesting that they are more likely to have zero than one
+                  ant.pair.count.taxa <- ant.pair %>% 
+                    group_by(Taxa, Remain.Type) %>% 
+                    summarize(zero = sum(Number.of.Antennules == 0, na.rm = TRUE),
+                              one = sum(Number.of.Antennules == 1,na.rm = TRUE),
+                              two = sum(Number.of.Antennules == 2, na.rm = TRUE),
+                              unknown = sum(is.na(Number.of.Antennules)),
+                              .groups = 'drop') %>% 
+                    mutate(zero.prop = zero / (zero + one + two),
+                           one.prop = one / (zero + one + two),
+                           two.prop = two / (zero + one + two),
+                           n.recorded = zero + one + two)
+                  
+                  ant.plots.by.taxa <- list()
+                  
+                  #the number labels on the plots are messy but it's fine I can read them
+                  for (i in unique(ant.pair.count.taxa$Remain.Type)){
+                    plot.data <-ant.pair.count.taxa %>% 
+                      filter(Remain.Type == i) %>% 
+                      select(-zero, -one, -two, -unknown) %>% 
+                      pivot_longer(cols = c(zero.prop, one.prop, two.prop), names_to = "Num.of.Ant", values_to = "proportion")
+                    ant.plots.by.taxa[[i]] <- ggplot(data = plot.data, aes(x = Taxa, y = proportion, fill = Num.of.Ant))+
+                      geom_col()+
+                      geom_text(aes(label = n.recorded), hjust = -0.5, size = 3.5)+
+                      scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+                      labs(title = i)+
+                      theme_classic()+
+                      coord_flip()
+                  }
+                  
+
+#apply these taxa-structure specific proportions to the data
+#first remove all structures where pairing is relevant from the original data - so take out everything that is in the "paired" dataframe and add the summarized "Pair" column but make it NA for all rows remaining
+Sed_Data_no_paired_structures <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  filter(!Remain.Number %in% paired$Remain.Number) %>% 
+  #some data cleanup for values that should not be present
+  mutate(Paired. = NA,
+         Number.of.Antennules = NA)
+
+#isolate the knowns from the paired dataframe - these are fine and can be added back to the original data as-is
+paired_known <- paired %>% 
+  filter(((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace") & (Paired. == "paired" | Paired. == "unpaired")) | ((Remain.Type == "Antennal Segment" | Remain.Type == "Headshield") & (Number.of.Antennules == 0 | Number.of.Antennules == 1 | Number.of.Antennules == 2))) %>% 
+  #some data cleanup for values that should not be present
+  mutate(Paired. = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), Paired., NA),
+         Number.of.Antennules = ifelse((Remain.Type == "Antennal Segment" | Remain.Type == "Headshield"), Number.of.Antennules, NA))
+
+
+#isolate the unknowns from the paired dataframe - these are the ones that will be assigned based on proportions
+carap_postab_paired_unknown <- paired %>% 
+  filter((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace") & Paired. == "unknown") %>% 
+  mutate(Number.of.Antennules = NA) #just data cleanup for values that should not be present
+
+ant_paired_unknown <- paired %>% 
+  filter((Remain.Type == "Antennal Segment" | Remain.Type == "Headshield") & is.na(Number.of.Antennules)) %>% 
+  mutate(Paired. = NA) #just data cleanup for values that should not be present
+
+
+
+#isolate columns from the proportion tables to use as probabilities
+c_p_paired_prob <- carap.postab.pair.count.taxa %>% 
+  select(Taxa, Remain.Type, paired.prop)
+#join these in so there is a column with the specific probability of being paired for each individual structure (row)
+c_p_paired_unknown_prob <- left_join(carap_postab_paired_unknown, c_p_paired_prob, by = c("Taxa", "Remain.Type"))
+#now use these probabilities to assign which are paired vs. unpaired
+c_p_paired_unknown_assigned <- c_p_paired_unknown_prob %>% 
+  #use a binomial distribution to generate an outcome of 1 (paired) or 0 (unpaired) based on each row's probability
+  mutate(Pair_num = rbinom(n = n(), 1, prob = paired.prop)) %>% 
+  mutate(Paired. = ifelse(Pair_num == 1, "paired", "unpaired")) %>% 
+  #clean up columns (I checked that it worked before I did this)
+  select(-Pair_num, -paired.prop)
+
+
+#separate headshields from antennule segments
+head_unknown <- ant_paired_unknown %>% 
+  filter(Remain.Type == "Headshield")
+seg_unknown <- ant_paired_unknown %>% 
+  filter(Remain.Type == "Antennal Segment")
+
+#start with antennule segments (yes I know I need to fix the typo...) because there is only one "taxa"
+      #isolate the probabilties for the antennule segments
+      seg_probs <- ant.pair.count.taxa %>% 
+        filter(Remain.Type == "Antennal Segment") %>% 
+        select(Taxa, Remain.Type, zero.prop, one.prop, two.prop)
+      #save those probabilities as a vector
+      seg_prob_vec <- c(seg_probs$zero.prop, seg_probs$one.prop, seg_probs$two.prop)
+      #do the reassignment based on the probabilities
+      seg_unknown$Number.of.Antennules <- sample(
+        x = c(0,1,2),
+        size = nrow(seg_unknown),
+        replace = TRUE,
+        prob = seg_prob_vec
+      )
+
+#now the headshields, have to do this in a loop for each taxon
+      for (j in unique(head_unknown$Taxa)){
+        
+        current_taxon <- head_unknown %>% 
+          filter(Taxa == j)
+        
+        reassign <- head_unknown$Taxa == j
+        
+        head_probs <- ant.pair.count.taxa %>% 
+          filter(Remain.Type == "Headshield" & Taxa == j) %>% 
+          select(Taxa, Remain.Type, zero.prop, one.prop, two.prop)
+        head_prob_vec <- c(head_probs$zero.prop, head_probs$one.prop, head_probs$two.prop)
+        
+        head_unknown$Number.of.Antennules[reassign] <- sample(
+          x = c(0,1,2),
+          size = nrow(current_taxon),
+          replace = TRUE,
+          prob = head_prob_vec
+        )
+      }
+  
+#okay rowbind all this back together
+Sed_Data_Pairs_assigned <- rbind(Sed_Data_no_paired_structures, paired_known, c_p_paired_unknown_assigned, head_unknown, seg_unknown)
+      
+#a little check that everyone got assigned properly
+table(Sed_Data_Pairs_assigned$Taxa, Sed_Data_Pairs_assigned$Paired., useNA = "ifany")
+table(Sed_Data_Pairs_assigned$Taxa, Sed_Data_Pairs_assigned$Number.of.Antennules, useNA = "ifany")
+#the few that are weird are the wrong structures and it's fine - will not even get looked at later
+
+#START AGAIN HERE---------------------
+
+
 
                         #make a dataframe of the rows you want to duplicate
                         rows_to_duplicate <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
@@ -1262,8 +1630,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
         
         #first make a new data frame to start reassigning things
             Sed_Data_Reassigned <- Sed_Data_Clean
-        #set seed to keep random results consistent
-            set.seed(1234567)
+        
 
                                         
         #Bosminid headshields that can't be IDed due to unclear/obscured headpores
