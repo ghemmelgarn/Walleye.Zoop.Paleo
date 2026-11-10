@@ -2296,59 +2296,88 @@ write.csv(Sample_summary, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PR
     #Do this based on true specimen ID, do not use inferred ID based on proportions
     #UNPAIRED BUT MATCHING REMAINS COULD BE DOUBLE COUNTED/MEASURED - but there is no way to know for sure so that's just going to be a source of error... 
             #I think counting these up uncorrected for pairing will give us the most accurate data
-          
+
+#make all the data numeric to force out the bits of text that got written in there
+Sed_Data_Clean_Uncorrected_for_pairs_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  mutate(Carapace.Length.µm = as.numeric(Carapace.Length.µm),
+         Mucro.Length.µm = as.numeric(Mucro.Length.µm),
+         Mucro.Segments = as.numeric(Mucro.Segments),
+         Antennule.Length.µm = as.numeric(Antennule.Length.µm),
+         Antennule.Segments = as.numeric(Antennule.Segments),
+         Postabdominal.Claw.Length = as.numeric(Postabdominal.Claw.Length))
           
 measured.carapace <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
-  filter(!is.na(Carapace.Length.µm))
-          
+  filter(!is.na(Carapace.Length.µm)) %>% 
+  filter(Remain.Number != "Owasso_1_95") #we couldn't tell if this was Bosmina or Eubosmina so just not counting it
 measured.carapace.lake.summary <- measured.carapace %>% 
   group_by(LakeName, Taxa) %>% 
-  summarise(Carapace.Count = n())
+  summarise(Carapace.Count = n(),
+            .groups = 'drop')
             
           
           
 measured.mucro.length <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
-  filter(!is.na(Mucro.Length.µm))
-
+  filter(!is.na(Mucro.Length.µm)) %>% 
+  filter(Remain.Number != "Owasso_1_95") #we couldn't tell if this was Bosmina or Eubosmina so just not counting it
 measured.mucro.length.lake.summary <- measured.mucro.length %>% 
   group_by(LakeName, Taxa) %>% 
-  summarise(Mucro.Length.Count = n())
+  summarise(Mucro.Length.Count = n(),
+            .groups = 'drop')
 
 
   
 measured.mucro.segments <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
-  filter(!is.na(Mucro.Segments))
-
+  filter(!is.na(Mucro.Segments)) %>% 
+  filter(Remain.Number != "Owasso_1_95") #we couldn't tell if this was Bosmina or Eubosmina so just not counting it
 measured.mucro.segments.lake.summary <- measured.mucro.segments %>% 
   group_by(LakeName, Taxa) %>% 
-  summarise(Mucro.Segments.Count = n())
+  summarise(Mucro.Segments.Count = n(),
+            .groups = 'drop')
 
 
+
+measured.carap.and.mucro.length <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
+  filter(!is.na(Mucro.Length.µm) & !is.na(Carapace.Length.µm))%>% 
+  filter(Remain.Number != "Owasso_1_95") #we couldn't tell if this was Bosmina or Eubosmina so just not counting it
+measured.carap.and.mucro.length.summary <- measured.carap.and.mucro.length %>% 
+  group_by(LakeName, Taxa) %>% 
+  summarise(Carap.and.Mucro.Length.Count = n(),
+            .groups = 'drop')
   
   
 measured.antennule.length <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
   filter(!is.na(Antennule.Length.µm))
-
 measured.antennule.length.lake.summary <- measured.antennule.length %>% 
   group_by(LakeName, Taxa) %>% 
-  summarise(Antennule.Length.Count = n())
+  summarise(Antennule.Length.Count = n(),
+            .groups = 'drop')
 
 
   
 measured.antennule.segments <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
   filter(!is.na(Antennule.Segments))
-
 measured.antennule.segments.lake.summary <- measured.antennule.segments %>% 
   group_by(LakeName, Taxa) %>% 
-  summarise(Antennule.Segments.Count = n())
+  summarise(Antennule.Segments.Count = n(),
+            .groups = 'drop')
+
+
+measured.daph.claws <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  filter(!is.na(Postabdominal.Claw.Length))
+measured.daph.claws.lake.summary <- measured.daph.claws %>% 
+  group_by(LakeName, Taxa) %>% 
+  summarise(Daph.Claw.Length.Count = n(),
+            .groups = 'drop')
 
 #join them all togther
 
 df.to.join <- (list(measured.carapace.lake.summary, 
                     measured.mucro.length.lake.summary,
+                    measured.carap.and.mucro.length.summary,
                     measured.mucro.segments.lake.summary,
                     measured.antennule.length.lake.summary,
-                    measured.antennule.segments.lake.summary
+                    measured.antennule.segments.lake.summary,
+                    measured.daph.claws.lake.summary
                     ))
 
 measured.remain.count <- reduce(df.to.join, full_join, by = c("LakeName", "Taxa"))
@@ -2358,3 +2387,10 @@ measured.remain.count[is.na(measured.remain.count)] <- 0
 
 #save as a csv file
 write.csv(measured.remain.count, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/Sediment_Zoop_Measured_Remain_Count_", Sys.Date(), ".csv"))
+
+#create and save a csv file of just measured remains for processing later
+#there are two rows where antennule length was clearly switched with antennule segments during data entry - will fix this later when I look at histograms
+measured.remains <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
+  filter(!is.na(Carapace.Length.µm) | !is.na(Mucro.Length.µm) | !is.na(Mucro.Segments) | !is.na(Antennule.Length.µm) | !is.na(Antennule.Segments) | !is.na(Postabdominal.Claw.Length)) %>% 
+  filter(Remain.Number != "Owasso_1_95") #we couldn't tell if this was Bosmina or Eubosmina so just not using it
+write.csv(measured.remains, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/All_Measured_Remains", Sys.Date(), ".csv"))
