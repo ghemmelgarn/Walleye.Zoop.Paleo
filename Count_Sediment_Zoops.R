@@ -491,32 +491,26 @@ table(Sed_Data_Pairs_assigned$Taxa, Sed_Data_Pairs_assigned$Paired., useNA = "if
 table(Sed_Data_Pairs_assigned$Taxa, Sed_Data_Pairs_assigned$Number.of.Antennules, useNA = "ifany")
 #the few that are weird are the wrong structures and it's fine - will not even get looked at later
 
-#START AGAIN HERE---------------------
+
+#now actually deal with the pairing: make two rows for each paired structure, leave only one row for unpaired. This will allow me to count correctly later
 
 
-
-                        #make a dataframe of the rows you want to duplicate
-                        rows_to_duplicate <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
+                        #make a dataframe of the rows you want to duplicate - postabdominal claws and carapaces only
+                        rows_to_duplicate <- Sed_Data_Pairs_assigned %>%
                           filter(
                             #if a postabdominal claw or carapace is labeled as paired
-                            ((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace") & Paired. == "Yes - both present") |
-                            #if bosminid and daphnid postab claws are labeled NA for paired (not kept track of) - assuming all paired for now, but assuming unpaired for other spp.
-                            (is.na(Paired.) & Remain.Type == "Postabdominal Claw" & 
-                               (Taxa == "Bosminid" | Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris" | 
-                                  Taxa == "Daphnia sp." | Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex" | 
-                                  Taxa == "Ceriodaphnia sp.")
-                             )
-                            #if a carapace is labeled NA for paired, leave it alone for now (assuming unpaired)
+                            ((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace") & Paired. == "paired")
                           )
                           
                         #now bind these duplicated rows onto original data and sort by remain number
-                        Sed_Data_Clean <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
+                        Sed_Data_Clean <- Sed_Data_Pairs_assigned %>%
                           bind_rows(rows_to_duplicate) %>% 
                           arrange(Remain.Number)
 
 
-
-                        #We have to deal with things that are IDed to different levels by different structures
+#ID proportions---------------------------------------------------------
+                        
+#We have to deal with things that are IDed to different levels by different structures
     #when we can identify to more detail with one structure than another, we will take the proportion of species from the detailed structure and apply that proportion to the more ambiguous structure
           #If we have multiple structures we can ID to same detailed taxonomic resolution and one that is more ambiguous: use most frequent remain types to get an individual count out of these detailed structures and use that for proportion
     #when we can't fully ID something due to to poor preservation or gunk on the slide - use proportion derived from OTHER SPECIMENS OF THAT SAME STRUCTURE that you can ID all the way
@@ -526,7 +520,7 @@ table(Sed_Data_Pairs_assigned$Taxa, Sed_Data_Pairs_assigned$Number.of.Antennules
 lakes <- unique(Sed_Data_Clean$LakeName)
   
   #conflicts to deal with: 
-      #Bosminids 
+      ##Bosminids---- 
         #Headshields: can ID subgenus but sometimes headpore obscured or not easily visible: use proportion of headshields with headpores you can ID
         #Antennule segments and claws: cannot determine subgenus: use proportion of headshields with headpores you can ID
           #determine proportions of headshields with headpores you can ID for each lake
@@ -574,7 +568,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                 temp_data <- Sed_Data_Clean %>% 
                   filter(LakeName == i & Remain.Type == "Carapace" & (Taxa == "Bosmina longirostris" | Taxa == "Eubosmina coregoni")) %>% 
                   count(Taxa) %>% 
-                  mutate(n = ceiling(n/2)) %>%  #divide carapace count by 2 and then round up (accounts for the fact that there are 2 carapace sides on each zoop)
+                  mutate(n = ceiling(n/2)) %>%  #divide carapace count by 2 and then round up (accounts for the fact that there are 2 carapace sides on each zoop, and paired structures have duplicated rows)
                   mutate(prop = n / sum(n))
                 #save the values from this calculation in the matrix
                 #save lakename
@@ -598,7 +592,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               #make this matrix a data frame
               bosminid_carap_prop <- as.data.frame(bosminid_carap_prop)
           
-      #Daphnia postabdominal claws
+      ##Daphnia postabdominal claws----
         #can tell complex with most claws, but sometimes obscured or broken and can't tell
         #can also tell with ephippia but we haven't been finding many (or any at all)
           #determine proportions of species complexes with claws you can ID for each lake
@@ -635,7 +629,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               #make this matrix a data frame
               daphnia_prop <- as.data.frame(daphnia_prop)
               
-      #Camptocercus and Acroperus headshields
+      ##Camptocercus and Acroperus headshields----
         #can tell them apart with carapaces and postabdominal claws but not with headshields
           #determine proportions of species with carapaces and postabdomens that you can ID for each lake
           #THIS ONE IS DIFFERENT - we have multiple reliable ID structures so we have to count the most frequent remain type inside this proportion calculation to get a good individual count
@@ -707,7 +701,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               
                           
               
-      #Holopedium and Sida crystallina
+      ##Holopedium and Sida crystallina----
         #Can tell them apart with postabdominal claws but not with postabdomens. Exopodite segments of sida are preserved but not of holodpedium.
         #Will need to do individual counts of claws vs. exopodie segments with sida - will this overcount sida becuase more parts can be preserved? Probably... but not much I can do about it.
               #make empty matrix to store results
@@ -777,7 +771,8 @@ lakes <- unique(Sed_Data_Clean$LakeName)
               holo_sida_prop <- as.data.frame(holo_sida_prop)
               
                 
-      #Aloninae - THIS ONE IS LAYERED
+      ##Aloninae----
+        #THIS ONE IS LAYERED
           #1) We have no way to tell apart circumfimbriata vs. setulosa - they will always stay grouped
           #2) We can distinguish guttata from circumfimbriara/setulosa with postabdomens but not headshields
                   #BUT these postabdomens are so uncommon that we don't have enough data (or any in some lakes) to infer this - so keep these three as a group always
@@ -920,7 +915,9 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         
               #4: ratio of all aloninae species to infer when we can only get to "Aloninae" due to remain preservation 
                        
-                  #CARAPACES: Includes all aloninae carapaces that are similar (VERY distinct or unpreserved carapaces are not included = Leydigia leydigi and Graptoleberis testudinaria)      
+                  #TO APPLY TO CARAPACES: Includes all aloninae carapaces that are similar (VERY distinct or unpreserved carapaces are not included = Leydigia leydigi and Graptoleberis testudinaria)      
+                        #based on postabdominal claws and headsheilds
+                        
                         
                          #make empty matrix to store results
                         aloninae_carap_prop <- matrix(NA, nrow = length(lakes), ncol = 21, dimnames = list(NULL, c("LakeName", "a.affinis.n", "a.affinis.prop", "a.quad.n", "a.quad.prop", "a.inter.n", "a.inter.prop", "a.barb.n", "a.barb.prop", "a.cost.n", "a.cost.prop", "a.rust.n", "a.rust.prop", "a.circ.gutt.setu.n", "a.circ.gutt.setu.prop", "a.harp.n", "a.harp.prop", "campto.n", "campto.prop", "a.amer.n", "a.amer.prop")))
@@ -1095,11 +1092,11 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         aloninae_carap_prop <- as.data.frame(aloninae_carap_prop)
                         
                         
-              #POSTABDOMENS: Includes all aloninae postabdomens that are similar (VERY distinct postabdomens are not included = Alonopsis americana, Camptocercus sp., Acroperus harpae, Leydigia leydigi and Graptoleberis testudinaria)      
+              #FOR POSTABDOMENS: Includes all aloninae postabdomens that are similar (VERY distinct postabdomens are not included = Alonopsis americana, Camptocercus sp., Acroperus harpae, Leydigia leydigi and Graptoleberis testudinaria)      
                         
                         #This actually just leaves you with the exact same proportions as the Alona sp. proportions we already calculated for carapaces, so use that
                         
-              #HEADSHIELDS: Includes all aloninae headshields that are similar (VERY distinct headshields are not included = Acroperus harpae, Camptocercuss sp., and Graptoleberis testudinaria)      
+              #FOR HEADSHIELDS: Includes all aloninae headshields that are similar (VERY distinct headshields are not included = Acroperus harpae, Camptocercuss sp., and Graptoleberis testudinaria)      
                         
                         #make empty matrix to store results
                         aloninae_head_prop <- matrix(NA, nrow = length(lakes), ncol = 19, dimnames = list(NULL, c("LakeName", "a.affinis.n", "a.affinis.prop", "a.quad.n", "a.quad.prop", "a.inter.n", "a.inter.prop", "a.barb.n", "a.barb.prop", "a.cost.n", "a.cost.prop", "a.rust.n", "a.rust.prop", "a.circ.gutt.setu.n", "a.circ.gutt.setu.prop", "a.amer.n", "a.amer.prop", "l.leyd.n", "l.leyd.prop")))
@@ -1258,10 +1255,11 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         #make this matrix a data frame
                         aloninae_head_prop <- as.data.frame(aloninae_head_prop)
                         
-                        
+                 
+        ##Chydorinae-----                       
            #CHYDORINAE: ratio of all chydorinae species to infer when we can only get to "chydorinae" due to remain preservation
                         
-                #POSTABDOMENS: includes all chydorinae because all quite similar
+                #FOR POSTABDOMENS: includes all chydorinae because all quite similar
                         
                         #make empty matrix to store results
                         chydorinae_prop <- matrix(NA, nrow = length(lakes), ncol = 17, dimnames = list(NULL, c("LakeName", "a.excisa.n", "a.excisa.prop", "a.nana.n", "a.nana.prop", "a.pulch.n", "a.pulch.prop", "c.brevil.n", "c.brevil.prop", "c.biov.n", "c.biov.prop", "p.proc.n", "p.proc.prop", "p.stram.n", "p.stram.prop", "p.trig.n", "p.trig.prop")))
@@ -1408,7 +1406,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         chydorinae_prop <- as.data.frame(chydorinae_prop)
                         
                         
-              #HEADSHIELDS: excludes Alonella nana and Pleuroxus trigonellus because those two are very different (left the other Pleuroxus species because their posterior headshield regions are not distinct)
+              #For HEADSHIELDS: excludes Alonella nana and Pleuroxus trigonellus because those two are very different (left the other Pleuroxus species because their posterior headshield regions are not distinct)
                         
                         #make empty matrix to store results
                         chydorinae_head_prop <- matrix(NA, nrow = length(lakes), ncol = 13, dimnames = list(NULL, c("LakeName", "a.excisa.n", "a.excisa.prop", "a.pulch.n", "a.pulch.prop", "c.brevil.n", "c.brevil.prop", "c.biov.n", "c.biov.prop", "p.proc.n", "p.proc.prop", "p.stram.n", "p.stram.prop")))
@@ -1529,7 +1527,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         chydorinae_head_prop <- as.data.frame(chydorinae_head_prop)
                         
                         
-                  #CARAPACES: excludes Alonella nana and all Plueroxus spp. because they are quite distinct
+                  #For CARAPACES: excludes Alonella nana and all Plueroxus spp. because they are quite distinct
                         
                         #make empty matrix to store results
                         chydorinae_carap_prop <- matrix(NA, nrow = length(lakes), ncol = 9, dimnames = list(NULL, c("LakeName", "a.excisa.n", "a.excisa.prop", "a.pulch.n", "a.pulch.prop", "c.brevil.n", "c.brevil.prop", "c.biov.n", "c.biov.prop")))
@@ -1624,7 +1622,8 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                         chydorinae_carap_prop <- as.data.frame(chydorinae_carap_prop)
                         
 
-
+#Assign ID----------------------------
+                        
 #DEAL WITH SPECIMENS THAT NEED TO BE ASSGINED AN ID BASED ON PROPORTIONS OF OTHER BETTER IDed STRUCTURES IN THAT SAMPLE/LAKE
   #I will do this by taking random samples from a distribution with probabilities assigned by those calculated above
         
