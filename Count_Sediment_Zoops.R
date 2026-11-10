@@ -2287,8 +2287,8 @@ Sample_summary <- Slide_Count %>%
           #turn NA values into 0
           Individual_Count_by_Taxa_Wide[is.na(Individual_Count_by_Taxa_Wide)] <- 0 
 
-write.csv(Individual_Count_by_Taxa_Wide, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/Individual_Count_by_Taxa_", Sys.Date(), ".csv"), row.names = FALSE)
-write.csv(Sample_summary, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/Individual_Count_", Sys.Date(), ".csv"), row.names = FALSE)
+write.csv(Individual_Count_by_Taxa_Wide, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Processed Data/Sediment Zoop Processed Data/Individual_Count_by_Taxa_", Sys.Date(), ".csv"), row.names = FALSE)
+write.csv(Sample_summary, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Processed Data/Sediment Zoop Processed Data/Individual_Count_", Sys.Date(), ".csv"), row.names = FALSE)
 
           
 #-------------------------------------------------------------------------------------------------------------
@@ -2386,11 +2386,11 @@ measured.remain.count <- reduce(df.to.join, full_join, by = c("LakeName", "Taxa"
 measured.remain.count[is.na(measured.remain.count)] <- 0
 
 #save as a csv file
-write.csv(measured.remain.count, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/Sediment_Zoop_Measured_Remain_Count_", Sys.Date(), ".csv"))
+write.csv(measured.remain.count, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Processed Data/Sediment Zoop Processed Data/Sediment_Zoop_Measured_Remain_Count_", Sys.Date(), ".csv"))
 
 #create and save a csv file of just measured remains for processing later
 #there are two rows where antennule length was clearly switched with antennule segments during data entry - will fix this later when I look at histograms
 measured.remains <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
   filter(!is.na(Carapace.Length.µm) | !is.na(Mucro.Length.µm) | !is.na(Mucro.Segments) | !is.na(Antennule.Length.µm) | !is.na(Antennule.Segments) | !is.na(Postabdominal.Claw.Length)) %>% 
   filter(Remain.Number != "Owasso_1_95") #we couldn't tell if this was Bosmina or Eubosmina so just not using it
-write.csv(measured.remains, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Raw Data/Sediment Zoop Data/Individual Counts/All_Measured_Remains", Sys.Date(), ".csv"))
+write.csv(measured.remains, file = paste0("Q:/Shared drives/Hansen Lab/RESEARCH PROJECTS/Walleye paleolimnology and zooplankton/Data/Processed Data/Sediment Zoop Processed Data/All_Measured_Remains", Sys.Date(), ".csv"))
