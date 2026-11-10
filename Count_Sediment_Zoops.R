@@ -259,6 +259,7 @@ ID_QAQC2 <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
                       (Remain.Type == "Antennal Segment" & Number.of.Antennules == 0) ~ 2, #based on communication with Erin, 0 should not be an option for antennule segment, but this is when she sees partial antennules attached to a small piece of headshield but they are not complete to measure.  We clarified how to count based on teeth and decided to change these to 2's to represent both present, assuming they still have teeth but aren't fully measurable
                       TRUE ~ Number.of.Antennules))
                   
+                  
                   #for carapaces and postab claws:
                   carap.postab.pair <- paired.manual %>% 
                     filter(Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace")
@@ -407,25 +408,24 @@ ID_QAQC2 <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
 #apply these taxa-structure specific proportions to the data
 #first remove all structures where pairing is relevant from the original data - so take out everything that is in the "paired" dataframe and add the summarized "Pair" column but make it NA for all rows remaining
 Sed_Data_no_paired_structures <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>% 
-  filter(!Remain.Number %in% paired$Remain.Number) %>% 
+  filter(!Remain.Number %in% paired.manual$Remain.Number) %>% 
   #some data cleanup for values that should not be present
   mutate(Paired. = NA,
          Number.of.Antennules = NA)
 
 #isolate the knowns from the paired dataframe - these are fine and can be added back to the original data as-is
-paired_known <- paired %>% 
+paired_known <- paired.manual %>% 
   filter(((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace") & (Paired. == "paired" | Paired. == "unpaired")) | ((Remain.Type == "Antennal Segment" | Remain.Type == "Headshield") & (Number.of.Antennules == 0 | Number.of.Antennules == 1 | Number.of.Antennules == 2))) %>% 
   #some data cleanup for values that should not be present
   mutate(Paired. = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), Paired., NA),
          Number.of.Antennules = ifelse((Remain.Type == "Antennal Segment" | Remain.Type == "Headshield"), Number.of.Antennules, NA))
 
-
 #isolate the unknowns from the paired dataframe - these are the ones that will be assigned based on proportions
-carap_postab_paired_unknown <- paired %>% 
+carap_postab_paired_unknown <- paired.manual %>% 
   filter((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace") & Paired. == "unknown") %>% 
   mutate(Number.of.Antennules = NA) #just data cleanup for values that should not be present
 
-ant_paired_unknown <- paired %>% 
+ant_paired_unknown <- paired.manual %>% 
   filter((Remain.Type == "Antennal Segment" | Remain.Type == "Headshield") & is.na(Number.of.Antennules)) %>% 
   mutate(Paired. = NA) #just data cleanup for values that should not be present
 
@@ -517,7 +517,7 @@ rm(ant_paired_unknown, ant.pair, ant.pair.count, ant.pair.count.lake, ant.pair.c
    c_p_paired_prob, c_p_paired_unknown_assigned, c_p_paired_unknown_prob, carap.postab.pair, carap.postab.pair.count, carap.postab.pair.count.lake, 
    carap.postab.pair.count.taxa, carap_postab_paired_unknown, carap.postab.plots.by.lake, carap.postab.plots.by.taxa, current_taxon, head_probs,
    head_unknown, ID_QAQC, ID_QAQC2, ID_Valid_Check, paired, paired.manual, paired_known, paired_notes, plot.data, rows_to_duplicate, 
-   Sed_Data_Clean_Uncorrected_for_pairs, Sed_Data_Clean_Uncorrected_for_pairs_QAQC, Sed_Data_EMM, Sed_Data_EMM_format, Sed_Data_GLH,
+   Sed_Data_Clean_Uncorrected_for_pairs, Sed_Data_EMM, Sed_Data_EMM_format, Sed_Data_GLH,
    Sed_Data_no_paired_structures, Sed_Data_Pairs_assigned, seg_probs, seg_unknown, head_prob_vec, i, j, reassign, seg_prob_vec)
 
                         
@@ -2234,7 +2234,6 @@ rm(alona_spp_prop, aloninae_carap_prop, aloninae_head_prop, bosminid_carap_prop,
    reassign, row_idx)
 
 
-
 #Count individuals----------
                         
 #ONE CLADOCERA = 1 Headshield + 2 Shell Valves ( = 1 Carapace) + 1 Postabdomen + 2 Postabdominal claws + 2 antennules(bosminid only)
@@ -2250,18 +2249,33 @@ Specimen_Count <- Specimen_Count %>%
   rename(Remain.Type = Var3) %>% 
   mutate(Freq = ifelse((Remain.Type == "Postabdominal Claw" | Remain.Type == "Carapace"), ceiling(Freq/2), Freq)) %>%  #divide postabdominal claw and carapace counts by 2 and then round up (accounts for the fact that there are 2 claws and 2 carapace sides on each zoop)
   filter(Freq != 0) #remove counts of zero
-  
+
+#separately calculate the number of bosmina and eubosmina antennules (both attached and unattached to headshields) for each lake
+ant_count <- Sed_Data_Reassigned %>% 
+  filter((Remain.Type == "Headshield" | Remain.Type == "Antennal Segment") & (Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris")) %>% 
+  group_by(LakeName, Taxa) %>% 
+  summarize(Ant.count = sum(Number.of.Antennules), #sum up the total number of antennules per lake per taxa
+            .groups = 'drop') %>% 
+  #prep this data to join with the Speciment_Count
+  mutate(Remain.Type = "Antennule Pair") %>% 
+  mutate(Freq = ceiling(Ant.count/2)) %>% #divide by 2 because 2 antennules per bosminid (rounds up)
+  select(-Ant.count)
+
+#rowbind this to the Specimen_Count and remove the original "antennal segments" (yes I know it's spelled wrong) from specimen count - we want to use the data on how many total antennules were present instead
+Specimen_Count_Ant <- rbind(Specimen_Count, ant_count) %>% 
+  filter(Remain.Type != "Antennal Segment")
 
 #Now take the most frequent remain type for each taxa and use it as the individual count
-Individual_Count_by_Taxa <- Specimen_Count %>% 
-  filter(Remain.Type != "Antennal Segment") %>% #I added this line without trying to run the code so if you have problems, troubleshoot here
+Individual_Count_by_Taxa <- Specimen_Count_Ant %>% 
   group_by(LakeName, Taxa) %>% 
-  summarise(Count = max(Freq))
+  summarise(Count = max(Freq),
+            .groups = 'drop')
 
 #And count the total number of individuals counted on each slide, add to data frame that has number of slides counted
 Individual_Count_Total <- Individual_Count_by_Taxa %>% 
   group_by(LakeName) %>% 
-  summarise(Individual.Count = sum(Count))
+  summarise(Individual.Count = sum(Count),
+            .groups = 'drop')
 
 Sample_summary <- Slide_Count %>% 
   right_join(Individual_Count_Total, by = "LakeName")
