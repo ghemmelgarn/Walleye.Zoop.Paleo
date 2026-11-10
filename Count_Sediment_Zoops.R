@@ -100,6 +100,7 @@ ID_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs %>%
     (Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) |
      is.na(LakeName) | is.na(Remain.Type) |
     (Remain.Type == "Antennal Segment" & Taxa != "Eubosmina coregoni" & Taxa != "Bosmina longirostris" & Taxa != "Bosminid") |
+      (Taxa == "Alona circumfimbriata" | Taxa == "Alona guttata" | Taxa == "Alona setulosa") | #can't reliably tell these three apart
       (Remain.Type == "Postabdominal Claw" & Taxa != "Chydorus brevilabris" & Taxa != "Ceriodaphnia sp." & Taxa != "Bosminid" & Taxa != "Daphnia pulex complex" & Taxa != "Daphnia longispina complex" & Taxa != "Sida crystallina americana" & Taxa != "Daphnia sp." & Taxa != "Eurycercus sp." & Taxa != "Camptocercus sp." & Taxa != "Holopedium sp." & Taxa != "Diaphanosoma sp." & Taxa != "Latona setifera" & Remain.Number != "Cass_1_169")  #cass_1_169 is a true claw based on notes, the others I can't prove
       
   )
@@ -111,8 +112,9 @@ Sed_Data_Clean_Uncorrected_for_pairs_QAQC <- Sed_Data_Clean_Uncorrected_for_pair
                         ifelse((Remain.Type == "Headshield" & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")), "Camptocercus sp. or Acroperus sp.",
                                ifelse((Remain.Type == "Postabdomen (no claw)" & (Taxa == "Sida crystallina americana" | Taxa == "Holopedium sp.")), "Holopedium sp. or Sida crystallina americana",
                                      ifelse((Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")), "Alona sp.", 
-                                            ifelse((Remain.Type == "Antennal Segment" & Taxa != "Eubosmina coregoni" & Taxa != "Bosmina longirostris" & Taxa != "Bosminid"), "unknown", Taxa
-                                             ))))))
+                                            ifelse((Remain.Type == "Antennal Segment" & Taxa != "Eubosmina coregoni" & Taxa != "Bosmina longirostris" & Taxa != "Bosminid"), "unknown", 
+                                                   ifelse((Taxa == "Alona circumfimbriata" | Taxa == "Alona guttata" | Taxa == "Alona setulosa"), "Alona circumfimbriata, guttata, or setulosa", Taxa
+                                             )))))))
           ) %>% 
   mutate(Remain.Type = ifelse((Remain.Type == "Postabdominal Claw" & Taxa != "Chydorus brevilabris" & Taxa != "Ceriodaphnia sp." & Taxa != "Bosminid" & Taxa != "Daphnia pulex complex" & Taxa != "Daphnia longispina complex" & Taxa != "Sida crystallina americana" & Taxa != "Daphnia sp." & Taxa != "Eurycercus sp." & Taxa != "Camptocercus sp." & Taxa != "Holopedium sp." & Taxa != "Diaphanosoma sp." & Taxa != "Latona setifera" & Remain.Number != "Cass_1_169"), "Postabdomen (no claw)", Remain.Type)) %>% 
   filter(Taxa != "unknown") %>% 
@@ -141,6 +143,7 @@ ID_QAQC2 <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
       (Remain.Type == "Carapace" & (Taxa == "Alona affinis" | Taxa == "Alona quadrangularis" | Taxa == "Alona intermedia" | Taxa == "Alona barbulata" | Taxa == "Alona costata" | Taxa == "Alona rustica" | Taxa == "Alona circumfimbriata, guttata, or setulosa")) |
       is.na(LakeName) | is.na(Remain.Type) |
       (Remain.Type == "Antennal Segment" & Taxa != "Eubosmina coregoni" & Taxa != "Bosmina longirostris" & Taxa != "Bosminid") |
+      (Taxa == "Alona circumfimbriata" | Taxa == "Alona guttata" | Taxa == "Alona setulosa") |
       (Remain.Type == "Postabdominal Claw" & Taxa != "Chydorus brevilabris" & Taxa != "Ceriodaphnia sp." & Taxa != "Bosminid" & Taxa != "Daphnia pulex complex" & Taxa != "Daphnia longispina complex" & Taxa != "Sida crystallina americana" & Taxa != "Daphnia sp." & Taxa != "Eurycercus sp." & Taxa != "Camptocercus sp." & Taxa != "Holopedium sp." & Taxa != "Diaphanosoma sp." & Taxa != "Latona setifera" & Remain.Number != "Cass_1_169")
   )
 
@@ -253,6 +256,7 @@ ID_QAQC2 <- Sed_Data_Clean_Uncorrected_for_pairs_QAQC %>%
                       Remain.Number == "BdeMakaSka_2_45" ~ 2,
                       Remain.Number == "BdeMakaSka_1_72" ~ 0,
                       Remain.Number == "BdeMakaSka_1_3" ~ 0,
+                      (Remain.Type == "Antennal Segment" & Number.of.Antennules == 0) ~ 2, #based on communication with Erin, 0 should not be an option for antennule segment, but this is when she sees partial antennules attached to a small piece of headshield but they are not complete to measure.  We clarified how to count based on teeth and decided to change these to 2's to represent both present, assuming they still have teeth but aren't fully measurable
                       TRUE ~ Number.of.Antennules))
                   
                   #for carapaces and postab claws:
@@ -508,6 +512,15 @@ table(Sed_Data_Pairs_assigned$Taxa, Sed_Data_Pairs_assigned$Number.of.Antennules
                           arrange(Remain.Number)
 
 
+#keep environment clean
+rm(ant_paired_unknown, ant.pair, ant.pair.count, ant.pair.count.lake, ant.pair.count.taxa, ant.plots.by.lake, ant.plots.by.taxa,
+   c_p_paired_prob, c_p_paired_unknown_assigned, c_p_paired_unknown_prob, carap.postab.pair, carap.postab.pair.count, carap.postab.pair.count.lake, 
+   carap.postab.pair.count.taxa, carap_postab_paired_unknown, carap.postab.plots.by.lake, carap.postab.plots.by.taxa, current_taxon, head_probs,
+   head_unknown, ID_QAQC, ID_QAQC2, ID_Valid_Check, paired, paired.manual, paired_known, paired_notes, plot.data, rows_to_duplicate, 
+   Sed_Data_Clean_Uncorrected_for_pairs, Sed_Data_Clean_Uncorrected_for_pairs_QAQC, Sed_Data_EMM, Sed_Data_EMM_format, Sed_Data_GLH,
+   Sed_Data_no_paired_structures, Sed_Data_Pairs_assigned, seg_probs, seg_unknown, head_prob_vec, i, j, reassign, seg_prob_vec)
+
+                        
 #ID proportions---------------------------------------------------------
                         
 #We have to deal with things that are IDed to different levels by different structures
@@ -1631,7 +1644,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
             Sed_Data_Reassigned <- Sed_Data_Clean
         
 
-                                        
+         ##Bosminids-----                               
         #Bosminid headshields that can't be IDed due to unclear/obscured headpores
 
               #reassign based on proportions in each lake            
@@ -1660,7 +1673,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                     names(Proportions), #you are drawing the species names associated with the Proportions vector
                     size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                     replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                    prob = Proportions #the probabilities are the values specified in the Proportions vector
+                    prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                   )
                 }
               }
@@ -1694,7 +1707,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
@@ -1728,7 +1741,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
@@ -1762,7 +1775,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
@@ -1795,13 +1808,13 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
         
         
-        
+        ##Daphnia----
         #Daphnia postab claws that can't be IDed because they are broken or obscured - assign based on identifiable claw proportions
         
             #reassign based on proportions in each lake            
@@ -1830,11 +1843,12 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                   )
               }
             }
-        
+       
+     ## Campto Acro----
         #Camptocercus / Acroperus headshields that need to be assigned based on carapaces and postab claws
             
             #reassign based on proportions in each lake            
@@ -1863,12 +1877,13 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
         
-        
+     
+    ##Holo Sida-------------------                       
         #Holopedium / Sida postabdomens that need to be assigned based on claws
             
             #reassign based on proportions in each lake            
@@ -1897,14 +1912,16 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
                     #HERE WE HAVE A CASE WHERE THERE IS NO INFO IN THE CARLOS SAMPLE TO INFER WHAT THE POSTABDOMEN MIGHT BE
                     #IT STAYS UNASSIGNED, AND I WILL JUST HAVE TO DEAL WITH THAT LATER
         
-        #Alona sp. carapaces (and any other structure that coulsn't be assinged for some reason) that need to be assigned based on other structures
+                        
+      ##Alona sp.------------                  
+        #Alona sp. carapaces (and any other structure that couldn't be assigned for some reason) that need to be assigned based on other structures
             
             #reassign based on proportions in each lake
             for(i in unique(Sed_Data_Reassigned$LakeName)){
@@ -1938,12 +1955,12 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
         
-        
+      ##Aloninae-----  
         #"Aloninae" CARAPACES that can't be IDed further and need to be assigned by proportion of species
         
             #reassign based on proportions in each lake
@@ -1980,7 +1997,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
@@ -2021,7 +2038,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
@@ -2063,11 +2080,12 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
-            
+      
+    ##Chydorinae----                          
       #"Chydorinae" CARAPACES that can't be IDed further and need to be assigned by proportion of species: excludes Alonella nana and all Plueroxus spp. because they are quite distinct
             
             
@@ -2100,7 +2118,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }     
@@ -2143,7 +2161,7 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }
@@ -2185,17 +2203,42 @@ lakes <- unique(Sed_Data_Clean$LakeName)
                   names(Proportions), #you are drawing the species names associated with the Proportions vector
                   size = sum(reassign, na.rm = TRUE), #the number of samples to draw is the number of times the reassign logical vector = TRUE, ignoring NA values
                   replace = TRUE, #sample with replacement so the same species can be drawn multiple times
-                  prob = Proportions #the probabilities are the values specified in the Proportions vector
+                  prob = Proportions.num #the probabilities are the values specified in the Proportions vector
                 )
               }
             }     
                         
                  
 #Check that everything is reassigned and no ambiguous remains left (except those without data to inform a reassignment)
-unique(Sed_Data_Reassigned$Taxa)
+sort(unique(Sed_Data_Reassigned$Taxa))
+
+
+#what we still have:
+    #Alona sp.
+        #Detroit, LOW BT4, and Winni have nothing IDed beoyond Alona sp. so that's just how it is
+    #Holopedium or Sida
+        #Carlos, Kabe, and Rainy only have one Holo/Sida postab so nothing to ID it further
+    #Plueroxus sp.
+        #There is a carapace for Melissa that is "Pleuroxus sp.", which we usually don't categorize because the two Pleuroxus carapaces are quite different
+        #BUT - Melissa has a Pleuroxus straminius headshield so I am going to hand-assign the carapace to that
+        #Then BigCarn (which I think is supposed to be Big Corm) doesn't have anything more specific than Pleuroxus sp. to assign to so it will have to stay that way
+
+Sed_Data_Reassigned <- Sed_Data_Reassigned %>%          
+  mutate(Taxa = case_when(
+    Remain.Number == "Melissa_1_143" ~ "Pleuroxus straminius",
+    TRUE ~ Taxa))
+
+#keep environment clean
+rm(alona_spp_prop, aloninae_carap_prop, aloninae_head_prop, bosminid_carap_prop, bosminid_head_prop, campto_acro_prop, chydorinae_carap_prop,
+   chydorinae_head_prop, chydorinae_prop, daphnia_prop, holo_sida_prop, temp_data, temp_data1, temp_data2, i, lakes, Proportions.num, Proportions,
+   reassign, row_idx)
+
+
+
+#Count individuals----------
                         
-#ONE CLADOCERA = 1 Headshield + 2 Shell Valves ( = 1 Carapace) + 1 Postabdomen + 2 Postabdominal claws
-#NOT USING ANTENNULES TO COUNT BOSMINIDS - too variable and did not keep track                        
+#ONE CLADOCERA = 1 Headshield + 2 Shell Valves ( = 1 Carapace) + 1 Postabdomen + 2 Postabdominal claws + 2 antennules(bosminid only)
+                      
                         
 #Get counts by taxa AND remain type for each sample
 #make a frequency table that gets saved as a data frame
