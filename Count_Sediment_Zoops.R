@@ -41,6 +41,7 @@ Sed_Data$Remain.Condition <- ifelse(Sed_Data$Remain.Condition == "Identifieable 
 #Clean up taxa names to get rid of notes used in ID process
 #FOR NOW = assuming mucro on carapace means B. longirostris and no mucro means E. coregoni
   #Keeping this assumption after Adele's UROP results
+#Change Chydorus biovatus to Chydorus brevilabris because we cannot realiably differentiate
 Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus unsure)", "Bosminid", 
                         ifelse(Sed_Data$Taxa == "Chydorus brevilabris (previously C. sphaericus)", "Chydorus brevilabris",
                                ifelse(Sed_Data$Taxa == "Bosminid carapace without mucro", "Eubosmina coregoni",
@@ -63,7 +64,8 @@ Sed_Data$Taxa <- ifelse(Sed_Data$Taxa == "Bosminid (headshield or claw - genus u
                                                                                                                                                           ifelse(Sed_Data$Taxa == "Holopedium sp. (use for postabdominal CLAW)", "Holopedium sp.",
                                                                                                                                                                  ifelse(Sed_Data$Taxa == "Alona rustica (use for anything exept carapace)", "Alona rustica",
                                                                                                                                                                         ifelse(Sed_Data$Taxa == "Alona intermedia (use for anything exept carapace)", "Alona intermedia",
-                                                                                                                                                                               ifelse((Sed_Data$Taxa == "Alona costata (use for anything exept carapace)"|Sed_Data$Taxa == "Alona costata (headshield)"), "Alona costata", Sed_Data$Taxa)))))))))))))))))))))))
+                                                                                                                                                                               ifelse((Sed_Data$Taxa == "Alona costata (use for anything exept carapace)"|Sed_Data$Taxa == "Alona costata (headshield)"), "Alona costata", 
+                                                                                                                                                                                      ifelse(Sed_Data$Taxa == "Chydorus biovatus", "Chydorus brevilabris", Sed_Data$Taxa))))))))))))))))))))))))
 
 #QAQC-------------------------------------
 #Now remove remains that are not useful for counting: Unidentifiable, not zoops, yet to be checked for ID, or NA values, also remove NA values for LakeName
