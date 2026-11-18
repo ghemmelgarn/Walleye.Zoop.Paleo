@@ -75,15 +75,45 @@ Sed_Data_Clean_Uncorrected_for_pairs <- Sed_Data %>%
 #remove spaces before and after lake names to make for loops work properly
 Sed_Data_Clean_Uncorrected_for_pairs$LakeName <- str_trim(Sed_Data_Clean_Uncorrected_for_pairs $LakeName, side = "both")
 
+#check for any duplicate remain numbers and correct if needed - these are mistakes in data entry, just add letters at the end to not change any other numbering
+dup_check <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
+  dplyr::summarise(n = dplyr::n(), .by = Remain.Number) |>
+  dplyr::filter(n > 1L)
+
+Sed_Data_Clean_Uncorrected_for_pairs_nodup <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
+  mutate(Remain.Number = case_when(
+    Remain.Number == "LowBT3_1_40" & Carapace.Length.µm == 223 ~ "LowBT3_1_40a",
+    Remain.Number == "LowBT3_1_40" & Carapace.Length.µm == 197 ~ "LowBT3_1_40b",
+    Remain.Number == "SandPoint_Redigest2A_020" & Antennule.Length.µm == 160 ~ "SandPoint_Redigest2A_020a",
+    Remain.Number == "SandPoint_Redigest2A_020" & is.na(Antennule.Length.µm) & Remain.Type == "Headshield" ~ "SandPoint_Redigest2A_020b",
+    Remain.Number == "SandPoint_Redigest2A_020" & Antennule.Length.µm == 95 ~ "SandPoint_Redigest2A_020c",
+    Remain.Number == "SandPoint_Redigest2A_020" & Antennule.Length.µm == 75 ~ "SandPoint_Redigest2A_020d",
+    Remain.Number == "SandPoint_Redigest2A_020" & Antennule.Length.µm == 93 ~ "SandPoint_Redigest2A_020e",
+    Remain.Number == "SandPoint_Redigest2A_020" & Remain.Type == "Dapnnia (complex unsure)" ~ "SandPoint_Redigest2A_020f",
+    Remain.Number == "SandPoint_Redigest2A_020" & Antennule.Length.µm == 68 ~ "SandPoint_Redigest2A_020g",
+    Remain.Number == "Green_1_140" & Remain.Type == "Carapace" ~ "Green_1_140a",
+    Remain.Number == "Green_1_140" & Remain.Type == "Headshield" ~ "Green_1_140b",
+    TRUE ~ Remain.Number)
+  )
+
+
+#check that it worked
+dup_check2 <- Sed_Data_Clean_Uncorrected_for_pairs_nodup %>% 
+  dplyr::summarise(n = dplyr::n(), .by = Remain.Number) |>
+  dplyr::filter(n > 1L)
+
+#remove duplicate checks 
+rm(dup_check, dup_check2)
+
 #Count number of slides counted for each sample
 #Note that partway through we stopped counting slides in their entirety and started stopping when we got to 100 individuals
-Slide_Count <- Sed_Data_Clean_Uncorrected_for_pairs  %>% 
+Slide_Count <- Sed_Data_Clean_Uncorrected_for_pairs_nodup  %>% 
   group_by(LakeName) %>% 
   summarise(Slide.Count = n_distinct(Slide.Number))
 Slide_Count
 
 #check that nothing is marked as Not Indentifiable and then given a taxa name
-ID_Valid_Check <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
+ID_Valid_Check <- Sed_Data_Clean_Uncorrected_for_pairs_nodup %>% 
   filter(Remain.Condition == "Not identifiable")
 count(ID_Valid_Check, Taxa)
 #it's ok if larger taxonomic groups are here - it just means we couldn't get all the way to species with the structure
@@ -93,7 +123,7 @@ count(ID_Valid_Check, Taxa)
 
 #QAQC CHECK: this code pulls out rows that are impossible: eg. you can't ID this precisely with this structure. Check that there is nothing here.
 #Will also pull out rows with problematic NA values - spot check these and correct as needed
-ID_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
+ID_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs_nodup %>% 
   filter(
     ((Remain.Type != "Headshield" & Remain.Type != "Carapace" & Remain.Type != "Ephippium") & (Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris")) |
     ((Remain.Type != "Postabdominal Claw" & Remain.Type != "Ephippium") & (Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex")) |
@@ -108,7 +138,7 @@ ID_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs %>%
   )
 
 #To fix these ID problems identified above, run this code:
-Sed_Data_Clean_Uncorrected_for_pairs_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs %>% 
+Sed_Data_Clean_Uncorrected_for_pairs_QAQC <- Sed_Data_Clean_Uncorrected_for_pairs_nodup %>% 
   mutate(Taxa = ifelse(((Remain.Type != "Headshield" & Remain.Type != "Carapace") & (Taxa == "Eubosmina coregoni" | Taxa == "Bosmina longirostris")), "Bosminid", 
                  ifelse(((Remain.Type != "Postabdominal Claw" & Remain.Type != "Ephippium") & (Taxa == "Daphnia pulex complex" | Taxa == "Daphnia longispina complex")), "Daphnia sp.",
                         ifelse((Remain.Type == "Headshield" & (Taxa == "Acroperus harpae" | Taxa == "Camptocercus sp.")), "Camptocercus sp. or Acroperus sp.",
@@ -519,7 +549,7 @@ rm(ant_paired_unknown, ant.pair, ant.pair.count, ant.pair.count.lake, ant.pair.c
    c_p_paired_prob, c_p_paired_unknown_assigned, c_p_paired_unknown_prob, carap.postab.pair, carap.postab.pair.count, carap.postab.pair.count.lake, 
    carap.postab.pair.count.taxa, carap_postab_paired_unknown, carap.postab.plots.by.lake, carap.postab.plots.by.taxa, current_taxon, head_probs,
    head_unknown, ID_QAQC, ID_QAQC2, ID_Valid_Check, paired, paired.manual, paired_known, paired_notes, plot.data, rows_to_duplicate, 
-   Sed_Data_Clean_Uncorrected_for_pairs, Sed_Data_EMM, Sed_Data_EMM_format, Sed_Data_GLH,
+   Sed_Data_Clean_Uncorrected_for_pairs, Sed_Data_Clean_Uncorrected_for_pairs_nodup, Sed_Data_EMM, Sed_Data_EMM_format, Sed_Data_GLH,
    Sed_Data_no_paired_structures, Sed_Data_Pairs_assigned, seg_probs, seg_unknown, head_prob_vec, i, j, reassign, seg_prob_vec)
 
                         
