@@ -23,7 +23,12 @@ mes_data_rename <- mes_data %>%
          claw_len_um = Postabdominal.Claw.Length) %>% 
   select(LakeName, IDed.by, Remain.Number, Remain.Type, Taxa, car_len_um, muc_len_um, muc_seg, ant_len_um, ant_seg, claw_len_um, Notes) %>% 
   #calculate the carapace divided by the mucro - useful to filter out mucros that are longer than carapace which is impossible
-  mutate(carap.div.mucro = car_len_um / muc_len_um)
+  mutate(carap.div.mucro = car_len_um / muc_len_um) %>% 
+  #make the lake name the same for all 3 lake of the woods sites
+  mutate(LakeName = case_when(
+    LakeName == "Low BT3" | LakeName == "LOW BT4" | LakeName == "LOW Muskey" ~ "Lake of the Woods",
+    TRUE ~ LakeName
+  ))
 
 
 
