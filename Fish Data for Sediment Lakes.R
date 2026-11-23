@@ -6,6 +6,7 @@ library(arrow)
 library(data.table)
 library(tidyverse)
 library(here)
+library(ggplot2)
 
 #Get fish from database--------------------------------------------------------------------------------
 
@@ -181,9 +182,32 @@ fish_dnr_gillnet_effort_corrected <- fish_dnr_gillnet %>%
   mutate(total_effort_1 = ifelse(lake_name == "Bde Maka Ska" & year == 1972, 8, total_effort_1))
 
 
+#combine a few species like I did for my thesis where sometimes they are IDed to species but not always
+#what issues do we have?
+sort(unique(fish_dnr_gillnet_effort_corrected$species_1))
+#what's up with the "crappie"?
+crappie <- fish_dnr_gillnet_effort_corrected %>% 
+  filter(species_1 == "crappie") #this is one fish from Big Cormorant in 1981, all the other crappie in Big Corm are black crappie so renaming to that
+#what's up with the "sunfish"?
+sunfish <- fish_dnr_gillnet_effort_corrected %>% 
+  filter(species_1 == "sunfish") #this is one fish from Bear Head in 1984, all other sunfishes in this sample are pumpkinseed so calling it that
+#fix the issues
+fish_dnr_clean <- fish_dnr_gillnet_effort_corrected %>% 
+  mutate(species_1 = case_when(
+    species_1 == "shorthead_redhorse" | species_1 == "greater_redhorse" | species_1 == "silver_redhorse" | species_1 == "golden_redhorse" ~ "redhorse", 
+    species_1 == "black_bullhead" | species_1 == "brown_bullhead" | species_1 == "brown_bullhead" | species_1 == "bullheads" ~ "bullhead", 
+    species_1 == "bowfin_dogfish" ~ "bowfin",
+    species_1 == "crappie" ~ "black_crappie",
+    species_1 == "sunfish" ~ "pumpkinseed",
+    TRUE ~ species_1))
+
+#check that I got everything
+sort(unique(fish_dnr_clean$species_1))
+#looks good
+     
 #calculate counts of each species and total effort for each lake in each year
 #this deals with Bde Maka Ska in 1972 which had two different total effort idents
-dnr_cpue <- fish_dnr_gillnet_effort_corrected %>% 
+dnr_cpue <- fish_dnr_clean %>% 
   group_by(lake_name,  year, species_1,  total_effort_1) %>% 
   summarize(count = n(),
             .groups = 'drop') %>%
@@ -208,8 +232,14 @@ red_report_cpues <- read.csv("Data/Input/Red_Lake_CPUE_from_2024_report.csv")
 #isolate red lake gillnet data from DNR dataset
 fish_dnr_gillnet_red <- fish_dnr %>% 
   filter(sampling_method == "gill_net_standard") %>% 
-  filter(lake_name == "Red (Upper Red)")
-
+  filter(lake_name == "Red (Upper Red)") %>% 
+  #apply the relevant species corrections
+  mutate(species_1 = case_when(
+    species_1 == "shorthead_redhorse" | species_1 == "greater_redhorse" | species_1 == "silver_redhorse" | species_1 == "golden_redhorse" ~ "redhorse", 
+    species_1 == "black_bullhead" | species_1 == "brown_bullhead" | species_1 == "brown_bullhead" | species_1 == "bullheads" ~ "bullhead", 
+    TRUE ~ species_1))
+#check species
+sort(unique(fish_dnr_gillnet_red$species_1))
 
 
 
