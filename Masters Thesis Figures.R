@@ -1747,6 +1747,181 @@ WAE.LMB.biplot.zoop
 
 
 
+#Do this for zoops that are well-preserved in sediments to inform transfer function
+
+#Bosmina longirostris
+B.env <- as.data.frame(Env) %>% 
+  select('Bosm. long.') %>% 
+  rename(env = 'Bosm. long.')
+B.res <- as.data.frame(Theta) %>% 
+  select('Bosm. long.')%>% 
+  rename(res = 'Bosm. long.')
+B.corr <- cbind(B.env, B.res) %>% 
+  mutate(Species = rownames(B.env),
+         highlight.spp = "Bosmina longirostris",
+         res = ifelse(Species == "Bosm. long.", NA, res),
+         env = ifelse(Species == "Bosm. long.", NA, env),
+         group = group)
+
+B.biplot <- ggplot(data = B.corr, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  # annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold")+
+  geom_point(size = 3, aes(color = group))+
+  scale_color_manual(values = c("#882255", "gray80"))+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.3, min.segment.length = 0, segment.size = 0.25) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation", color = NULL)+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "bottom")+
+  facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
+  theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
+        strip.background = element_rect(linewidth = 0.5, color = "black"))
+B.biplot
+
+#ggsave(filename = "Blong_env_res_biplot.png", plot = B.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
+
+#Chydorus sphaericus
+C.env <- as.data.frame(Env) %>% 
+  select('Chyd. spha.') %>% 
+  rename(env = 'Chyd. spha.')
+C.res <- as.data.frame(Theta) %>% 
+  select('Chyd. spha.')%>% 
+  rename(res = 'Chyd. spha.')
+C.corr <- cbind(C.env, C.res) %>% 
+  mutate(Species = rownames(C.env),
+         highlight.spp = "Chydorus sphaericus",
+         res = ifelse(Species == "Chyd. spha.", NA, res),
+         env = ifelse(Species == "Chyd. spha.", NA, env),
+         group = group)
+
+C.biplot <- ggplot(data = C.corr, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  # annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold")+
+  geom_point(size = 3, aes(color = group))+
+  scale_color_manual(values = c("#882255", "gray80"))+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.3, min.segment.length = 0, segment.size = 0.25) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation", color = NULL)+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "bottom")+
+  facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
+  theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
+        strip.background = element_rect(linewidth = 0.5, color = "black"))
+C.biplot
+
+#ggsave(filename = "Chydspha_env_res_biplot.png", plot = C.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
+
+#Eubosmina coregoni
+E.env <- as.data.frame(Env) %>% 
+  select('Eubo. core.') %>% 
+  rename(env = 'Eubo. core.')
+E.res <- as.data.frame(Theta) %>% 
+  select('Eubo. core.')%>% 
+  rename(res = 'Eubo. core.')
+E.corr <- cbind(E.env, E.res) %>% 
+  mutate(Species = rownames(E.env),
+         highlight.spp = "Eubosmina coregoni",
+         res = ifelse(Species == "Eubo. core.", NA, res),
+         env = ifelse(Species == "Eubo. core.", NA, env),
+         group = group)
+
+E.biplot <- ggplot(data = E.corr, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  # annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold")+
+  geom_point(size = 3, aes(color = group))+
+  scale_color_manual(values = c("#882255", "gray80"))+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.3, min.segment.length = 0, segment.size = 0.25) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation", color = NULL)+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "bottom")+
+  facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
+  theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
+        strip.background = element_rect(linewidth = 0.5, color = "black"))
+E.biplot
+
+#ggsave(filename = "Ecore_env_res_biplot.png", plot = E.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
+
+
+
+#Eubosmina coregoni
+D.env <- as.data.frame(Env) %>% 
+  select('Daph. long.') %>% 
+  rename(env = 'Daph. long.')
+D.res <- as.data.frame(Theta) %>% 
+  select('Daph. long.')%>% 
+  rename(res = 'Daph. long.')
+D.corr <- cbind(D.env, D.res) %>% 
+  mutate(Species = rownames(D.env),
+         highlight.spp = "Daphnia longiremis",
+         res = ifelse(Species == "Daph. long.", NA, res),
+         env = ifelse(Species == "Daph. long.", NA, env),
+         group = group)
+
+D.biplot <- ggplot(data = D.corr, aes(x = env, y = res))+
+  geom_hline(yintercept = 0, color = "gray70")+
+  geom_vline(xintercept = 0, color = "gray70")+
+  # annotate(geom = "text", x = -0.88, y = 1, label = "Environment (-)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = -0.88, y = -0.97, label = "Environment (-)\nResidual (-)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = 1, label = "Environment (+)\nResidual (+)", fontface = "bold")+
+  # annotate(geom = "text", x = 0.88, y = -0.97, label = "Environment (+)\nResidual (-)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = 0.99, label = "Env (-)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = -0.95, y = -0.97, label = "Env (-)\nRes (-)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = 0.99, label = "Env (+)\nRes (+)", fontface = "bold")+
+  annotate(geom = "text", x = 0.95, y = -0.97, label = "Env (+)\nRes (-)", fontface = "bold")+
+  geom_point(size = 3, aes(color = group))+
+  scale_color_manual(values = c("#882255", "gray80"))+
+  geom_text_repel(aes(label = Species), size = 3.5, force = 0.2, box.padding = 0.3, min.segment.length = 0, segment.size = 0.25) +
+  labs(x = "Environmental Correlation", y = "Residual Correlation", color = NULL)+
+  scale_y_continuous(limits = c(-1,1))+
+  scale_x_continuous(limits = c(-1,1))+
+  theme_classic(base_size = 11)+
+  theme(legend.position = "bottom")+
+  facet_wrap(~fct_rev(highlight.spp), nrow = 2)+
+  theme(strip.text = element_text(face = "bold", size = 11, color = "black"),
+        strip.background = element_rect(linewidth = 0.5, color = "black"))
+D.biplot
+
+#ggsave(filename = "Dlong_env_res_biplot.png", plot = D.biplot, width = 6.5, height = 6.5, units = "in", dpi = 600)
+
+
+
+
+
+
+
+
+
 #SITE MAPS---------------------------------------------------------
 
 
