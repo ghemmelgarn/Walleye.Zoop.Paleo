@@ -52,12 +52,11 @@ fish.recent <- fish %>%
   slice_max(order_by = year, n = 1) %>% 
   ungroup()
 
-#START AGAIN HERE - WHY IS JOSEPHINE FISH DATA SO OLD AND LOTUS IS SLIGHTLY OLD TOO
 
 #join the fish data to the sed data
-sed.fish <- left_join(sed.rename, cpue.wide.recent, by = "lake_name") %>% 
-  rename(fish.year = year)
-
+sed.fish <- left_join(sed.clean, fish.recent, by = "lake_name") %>% 
+  rename(fish.year = year) %>% 
+  relocate(fish.year, .after = lake_name)
 
 
 
