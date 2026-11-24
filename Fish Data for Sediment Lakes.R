@@ -32,7 +32,7 @@ library(ggplot2)
 #   #Lake of the Woods 39000200 - most recent standard survey is 2004, Lakefinder says it should have annual surveys from 1996 to 2024 - need to investigate what is happening here
 # 
 # LOW.test <- mn_data %>%
-#   filter(sampling_method == "gill_net_standard" & lake_id == "39000200") %>% 
+#   filter(sampling_method == "gill_net_standard" & lake_id == "39000200") %>%
 #   distinct(lake_id,
 #            lake_name,
 #            year,
@@ -58,7 +58,7 @@ library(ggplot2)
 #               survey_type == "Re-Survey"|
 #               survey_type == "Large Lake Survey"|
 #               survey_type == "Initial Survey" |
-#               survey_type == "HISTORICAL"  | 
+#               survey_type == "HISTORICAL"  |
 #               ((lake_id == "62005700" | lake_id == "47004901") & survey_type == "Targeted Survey" & year == 2024)| #Josephine and Belle
 #               (lake_id == "82016700" & survey_type == "Targeted Survey" & (year == 2024 | year == 2022 | year == 2020)) | #White Bear
 #               (lake_id == "18030800" & survey_type == "Targeted Survey" & (year == 2024 | year == 2022)) | #Pelican
@@ -95,7 +95,8 @@ library(ggplot2)
 #               lake_id == "69069300" |
 #               lake_id == "69069400" |
 #               lake_id == "69084500" |
-#               lake_id == "4003501")) %>%
+#               lake_id == "4003501" | 
+#               lake_id == "21005700")) %>%
 #   distinct(lake_id,
 #            lake_name,
 #            year,
