@@ -3,6 +3,7 @@
 
 #IMPORTANT
 #6/12/2026 I added a column called "Number of Antennules" to the datasheet- when it's time to count make sure this doesn't mess up this script
+#11/9/26 checked this and it's fine, incorporated number of ants appropriately
 
 #packages
 library(tidyverse)
@@ -18,9 +19,9 @@ set.seed(1234567)
 #Data-------------------------------
 #read in data and make N/A, NA, or an empty cell all read in as NA
 #update file with new data as needed
-Sed_Data_GLH <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_Zoop_ID_20261109.csv", na.strings = c("N/A", "NA", ""))
+Sed_Data_GLH <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_Zoop_ID_20261124.csv", na.strings = c("N/A", "NA", ""))
 #read in Erin's surface sediment data too
-Sed_Data_EMM <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_SurfZoop_ID_EMM_20261109.csv", na.strings = c("N/A", "NA", ""))
+Sed_Data_EMM <- read.csv("C:/Users/hemme129/Documents/Sediment ID Backups/Sediment_SurfZoop_ID_EMM_20261124.csv", na.strings = c("N/A", "NA", ""))
 #reformat Erin's data to match mine
 Sed_Data_EMM_format <- Sed_Data_EMM %>% 
   select(-Transect, -X)
