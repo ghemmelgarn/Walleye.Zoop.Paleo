@@ -18,9 +18,36 @@ library(ggplot2)
 # #the elf returns with info on the data similar to a str function
 # glimpse(mn_data)
 # 
+# 
 # #get just the good survey types with gill nets only, including historical surveys but no special or targeted
 # #pulled trapnets too - need to look more closely into what type of trapnet it is if I actually use that data
 # #only getting surveys for our long core and surface sed lakes (including upper Red Lake here - I have separate data for lower Red)
+# #lakes where the regular search got me a most recent fish survey older than 2023 - so I search for specific surveys here:
+#   #Josephine 62005700 - most recent standard survey was 2012 but there's a 2024 survey listed as targeted because standard gillnet only (no trapnet) but that's fine for this purpose
+#   #Belle 47004901 - has a 2022 standard survey but a 2024 standard gillnet only survey that is even more recent
+#   #White Bear 82016700 - most recent standard survey is 2018, has standard gillnet-only targeted surveys in 2020, 2022, and 2024
+#   #Pelican 18030800 - most recent standard survey is 2020, has standard gillnet-only targeted surveys in 2022 and 2024
+#   #Lotus 10000600 - most recent standard survey is 2021, it had another standard survey in 2025 (ok because we took the core in 2025) but that data isn't in Midfish because too recent
+#   #Owasso 62005600 - most recent standard survey is 2021, has standard gillnet-only targeted survey in 2024
+#   #Lake of the Woods 39000200 - most recent standard survey is 2004, Lakefinder says it should have annual surveys from 1996 to 2024 - need to investigate what is happening here
+# 
+# LOW.test <- mn_data %>%
+#   filter(sampling_method == "gill_net_standard" & lake_id == "39000200") %>% 
+#   distinct(lake_id,
+#            lake_name,
+#            year,
+#            month, #this is generated from "date_total_effort_ident" so it gives me the correct month that the fishing actually started with my specified gear
+#            total_effort_ident,
+#            total_effort_1,
+#            sampling_method_simple,
+#            sampling_method,
+#            sampling_method_2,
+#            survey_type,
+#            nhdhr_id,
+#            flag) %>%
+#   collect()
+# #Recent Lake of the Woods surveys were getting filtered out because they are flagged as "high effort" - adjusted flag filtering below to exempt LOW from this, they really do just sample a lot
+# 
 # sed.fish.surveys <- mn_data %>%
 #   filter((sampling_method == "gill_net_standard" |
 #             sampling_method == "gill_net_stratified_deep" |
@@ -31,20 +58,23 @@ library(ggplot2)
 #               survey_type == "Re-Survey"|
 #               survey_type == "Large Lake Survey"|
 #               survey_type == "Initial Survey" |
-#               survey_type == "HISTORICAL") &
-#            (lake_id == "21005700" | 
-#               lake_id == "10000600" | 
-#               lake_id == "11041300" | 
-#               lake_id == "82016700" | 
-#               lake_id == "34007900" | 
-#               lake_id == "11020300" | 
-#               lake_id == "4003000" | 
-#               lake_id == "69081000" | 
-#               lake_id == "48000200" | 
-#               lake_id == "11014700" | 
-#               lake_id == "18030800" | 
-#               lake_id == "69025400" | 
-#               lake_id == "62005700" | 
+#               survey_type == "HISTORICAL"  | 
+#               ((lake_id == "62005700" | lake_id == "47004901") & survey_type == "Targeted Survey" & year == 2024)| #Josephine and Belle
+#               (lake_id == "82016700" & survey_type == "Targeted Survey" & (year == 2024 | year == 2022 | year == 2020)) | #White Bear
+#               (lake_id == "18030800" & survey_type == "Targeted Survey" & (year == 2024 | year == 2022)) | #Pelican
+#               (lake_id == "62005600" & survey_type == "Targeted Survey" & year == 2024)) & #Owasso
+#               (lake_id == "10000600" |
+#               lake_id == "11041300" |
+#               lake_id == "82016700" |
+#               lake_id == "34007900" |
+#               lake_id == "11020300" |
+#               lake_id == "4003000" |
+#               lake_id == "69081000" |
+#               lake_id == "48000200" |
+#               lake_id == "11014700" |
+#               lake_id == "18030800" |
+#               lake_id == "69025400" |
+#               lake_id == "62005700" |
 #               lake_id == "69037800" |
 #               lake_id == "1009300" |
 #               lake_id == "3035900" |
@@ -65,11 +95,11 @@ library(ggplot2)
 #               lake_id == "69069300" |
 #               lake_id == "69069400" |
 #               lake_id == "69084500" |
-#               lake_id == "4003501")) %>% 
+#               lake_id == "4003501")) %>%
 #   distinct(lake_id,
 #            lake_name,
 #            year,
-#            month, #this is generated from "date_total_effort_ident" so it gives me the correct month that the fishing actually started with my specified gear 
+#            month, #this is generated from "date_total_effort_ident" so it gives me the correct month that the fishing actually started with my specified gear
 #            total_effort_ident,
 #            total_effort_1,
 #            sampling_method_simple,
@@ -88,7 +118,7 @@ library(ggplot2)
 # #Check for flags
 # table(sed.fish.surveys$flag)
 # 
-#   
+# 
 # #mark rows/surveys that have survey-level problems (flags) that mean I can't use any of the data (got this code from Denver)
 # fish.surveys.marked <- sed.fish.surveys %>%
 #   mutate(cpue_invalid = case_when(str_detect(flag, "Do not use in CPUE") |
@@ -97,12 +127,12 @@ library(ggplot2)
 #                                     str_detect(flag, "database issue") |
 #                                     str_detect(flag, "effort value error") |
 #                                     str_detect(flag, "gear issue") |
-#                                     str_detect(flag, "high effort") |
+#                                     (str_detect(flag, "high effort") & lake_id != "39000200") | #exempts lake of the woods because all the recent surveys say "high effort" - they really do sample a lot
 #                                     str_detect(flag, "likely") |
 #                                     str_detect(flag, "very high catch") ~ "y",
 #                                   TRUE ~ "n"))
 # #filter out these bad surveys
-# fish.surveys.clean <- fish.surveys.marked %>% 
+# fish.surveys.clean <- fish.surveys.marked %>%
 #   filter(cpue_invalid == "n")
 # 
 # #Check for flags again
@@ -110,37 +140,37 @@ library(ggplot2)
 # #only length issues remaining, so filtering worked
 # 
 # #select just the effort ident for the join
-# fish.surveys.join <- fish.surveys.clean %>% 
+# fish.surveys.join <- fish.surveys.clean %>%
 #   select(total_effort_ident)
 # 
 # #go back for the fish
-# fish <- mn_data %>% 
-#   right_join(fish.surveys.join, by = c("total_effort_ident")) %>% 
+# fish <- mn_data %>%
+#   right_join(fish.surveys.join, by = c("total_effort_ident")) %>%
 #   collect()
 # 
 # #separate east and west vermilion
 # #"Gillnets 1-12 are in East Vermilion (see attached map) and 13-20 are in West Vermilion. The same gill net numbers are used every year."
-# Verm <- fish %>% 
+# Verm <- fish %>%
 #   filter(lake_name == "Vermilion")
 # table(Verm$site_id, Verm$survey_type, useNA = "ifany")
 # table(Verm$site_id, Verm$year, useNA = "ifany")
 # #Looks like in the historical surveys you can't split east/west
 # 
 # #Identifies the nets I can split up and also adjusts the total effort
-# fish.split.verm <- fish %>% 
+# fish.split.verm <- fish %>%
 #   mutate(lake_name = ifelse(lake_name == "Vermilion" & is.na(site_id), "Vermilion",
-#                             ifelse(lake_name == "Vermilion" & (site_id == "GN1" | site_id == "GN2" | site_id == "GN3" | site_id == "GN4" | 
-#                                                           site_id == "GN5" | site_id == "GN6" | site_id == "GN7" | site_id == "GN8" | 
+#                             ifelse(lake_name == "Vermilion" & (site_id == "GN1" | site_id == "GN2" | site_id == "GN3" | site_id == "GN4" |
+#                                                           site_id == "GN5" | site_id == "GN6" | site_id == "GN7" | site_id == "GN8" |
 #                                                           site_id == "GN9" | site_id == "GN10" | site_id == "GN11" | site_id == "GN12"),
 #                                     "East Vermilion",
-#                                           ifelse(lake_name == "Vermilion" & (site_id == "GN13" | site_id == "GN14" | site_id == "GN15" | site_id == "GN16" | 
+#                                           ifelse(lake_name == "Vermilion" & (site_id == "GN13" | site_id == "GN14" | site_id == "GN15" | site_id == "GN16" |
 #                                                                  site_id == "GN17" | site_id == "GN18" | site_id == "GN19" | site_id == "GN20"),
-#                                            "West Vermilion", 
-#                                             fish$lake_name)))) %>% 
+#                                            "West Vermilion",
+#                                             fish$lake_name)))) %>%
 #   mutate(total_effort_1 = ifelse(lake_name == "Vermilion" & is.na(site_id), fish$total_effort_1,
 #                             ifelse(lake_name == "East Vermilion", 12,
 #                                    ifelse(lake_name == "West Vermilion", 8, fish$total_effort_1))))
-#   
+# 
 # # #test if it worked
 # table(fish.split.verm$lake_name)
 # 
@@ -191,11 +221,14 @@ crappie <- fish_dnr_gillnet_effort_corrected %>%
 #what's up with the "sunfish"?
 sunfish <- fish_dnr_gillnet_effort_corrected %>% 
   filter(species_1 == "sunfish") #this is one fish from Bear Head in 1984, all other sunfishes in this sample are pumpkinseed so calling it that
+#what's up with the walleye x sauger?
+wxs <- fish_dnr_gillnet_effort_corrected %>% 
+  filter(species_1 == "walleye_x_sauger") #this is 3 fish in lake of the woods - just leaving them, this hybrid species will get dropped with other rare species
 #fix the issues
 fish_dnr_clean <- fish_dnr_gillnet_effort_corrected %>% 
   mutate(species_1 = case_when(
     species_1 == "shorthead_redhorse" | species_1 == "greater_redhorse" | species_1 == "silver_redhorse" | species_1 == "golden_redhorse" ~ "redhorse", 
-    species_1 == "black_bullhead" | species_1 == "brown_bullhead" | species_1 == "brown_bullhead" | species_1 == "bullheads" ~ "bullhead", 
+    species_1 == "black_bullhead" | species_1 == "brown_bullhead" | species_1 == "brown_bullhead" | species_1 == "yellow_bullhead" | species_1 == "bullheads" ~ "bullhead", 
     species_1 == "bowfin_dogfish" ~ "bowfin",
     species_1 == "crappie" ~ "black_crappie",
     species_1 == "sunfish" ~ "pumpkinseed",
@@ -213,9 +246,12 @@ dnr_cpue <- fish_dnr_clean %>%
             .groups = 'drop') %>%
   mutate(cpue = count/total_effort_1)
 
+#read in the 2025 Lotus standard survey gillnet data I got and formatted from LakeFinder because Midfish only goes to 2024
+#There is also trapnet data in lakefinder but I only took the gillnet data
+lotus2025 <- read.csv("Data/Input/Lotus_2025_Fish_Standard_Survey_from_LakeFinder.csv")
 
-
-
+#add the lotus data to the rest of the dnr data
+dnr_cpue_complete <- rbind(dnr_cpue, lotus2025)
 
 
 #Red lake CPUE calcs---------------
@@ -394,7 +430,7 @@ red_cpue_check <- left_join(red_all_cpue, red_report_cpues, by = c("lake_name", 
 #Combine, format, save data--------------
 
 #rowbind the red lake and all other lake data
-all_cpue_long <- rbind(dnr_cpue, red_all_cpue)
+all_cpue_long <- rbind(dnr_cpue_complete, red_all_cpue)
 
 
 #pivot wider, make NA = 0 to represent none of that species for a given lake-year if not present in data
@@ -416,12 +452,12 @@ LOW_fish <- fish_dnr %>%
   filter(lake_name == "Lake of the Woods")
 
 sort(unique(LOW_fish$site_id))
-#these are all trapnets.... are there gillnet site ids?
 
+#look at just gillnets
 LOW_gillnet <- LOW_fish %>% 
   filter(sampling_method == "gill_net_standard")
 sort(unique(LOW_gillnet$site_id))
-#all NA - so won't be able to separate fish data by sites within LOW
+#There are site IDs for recent surveys if I were to want them
 
 
 
